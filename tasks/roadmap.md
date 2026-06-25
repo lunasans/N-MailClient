@@ -68,6 +68,7 @@ Version 0.1.1 (nur Fixes)
 Version 0.2.0 
 
 - [x] #5 Löschfunktion im Anhangsarchiv (Dateien lokal/WebDAV löschen; Löschen-Button pro Datei mit Bestätigung, leere Absender-Ordner werden lokal aufgeräumt)
+- [x] „Über"-Ansicht in den Einstellungen (App-Version + Änderungsverlauf/Changelog, zur Build-Zeit injiziert)
 - [] In-App-Update-UI (Banner „Update verfügbar", Download-Fortschritt, „Jetzt neu starten & installieren", „Nach Updates suchen" in den Einstellungen) — baut auf der bestehenden electron-updater-Hintergrundprüfung auf
 - [] PGP verschlüsselung
 - [] Sendeverfolgung 

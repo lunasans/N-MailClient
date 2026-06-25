@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Bell, Calendar, Check, FileCode, Plus, Tag, Trash2, User, X } from 'lucide-react'
+import { Bell, Calendar, Check, FileCode, Info, Plus, Tag, Trash2, User, X } from 'lucide-react'
 import type { Account, CalendarConfig, SieveScript } from '@shared/index'
 import { useMailStore } from '../store/useMailStore'
 import { ACCOUNT_PALETTE, colorForAccount } from '../lib/accountColor'
@@ -7,7 +7,7 @@ import AccountSettings from './AccountSettings'
 import AccountSetup from './AccountSetup'
 import CalDavSetup from './CalDavSetup'
 
-type Section = 'general' | 'accounts' | 'labels' | 'calendar' | 'filters'
+type Section = 'general' | 'accounts' | 'labels' | 'calendar' | 'filters' | 'about'
 
 interface Props {
   onClose: () => void
@@ -24,7 +24,8 @@ export default function Settings({ onClose }: Props): JSX.Element {
     { id: 'accounts', label: 'Konten', icon: <User className="h-4 w-4" /> },
     { id: 'labels', label: 'Etiketten', icon: <Tag className="h-4 w-4" /> },
     { id: 'calendar', label: 'Kalender & Kontakte', icon: <Calendar className="h-4 w-4" /> },
-    { id: 'filters', label: 'Filter (Sieve)', icon: <FileCode className="h-4 w-4" /> }
+    { id: 'filters', label: 'Filter (Sieve)', icon: <FileCode className="h-4 w-4" /> },
+    { id: 'about', label: 'Über', icon: <Info className="h-4 w-4" /> }
   ]
 
   return (
@@ -58,6 +59,7 @@ export default function Settings({ onClose }: Props): JSX.Element {
             {section === 'labels' && <LabelsPanel />}
             {section === 'calendar' && <CalendarPanel />}
             {section === 'filters' && <FiltersPanel />}
+            {section === 'about' && <AboutPanel />}
           </div>
         </div>
       </div>
@@ -620,6 +622,78 @@ function FiltersPanel(): JSX.Element {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+/** Minimal renderer for the bundled CHANGELOG.md (headings, sub-headings, bullets). */
+function ChangelogView({ text }: { text: string }): JSX.Element {
+  // Drop the top-level "# Changelog" title + intro; start at the first version.
+  const start = text.indexOf('## [')
+  const body = start >= 0 ? text.slice(start) : text
+  const lines = body.split('\n')
+  const out: JSX.Element[] = []
+  let bullets: string[] = []
+
+  const flush = (key: string): void => {
+    if (bullets.length) {
+      out.push(
+        <ul key={key} className="ml-4 list-disc space-y-1 text-sm text-gray-600">
+          {bullets.map((b, i) => (
+            <li key={i}>{b}</li>
+          ))}
+        </ul>
+      )
+      bullets = []
+    }
+  }
+
+  lines.forEach((raw, idx) => {
+    const line = raw.trimEnd()
+    if (line.startsWith('## ')) {
+      flush(`b${idx}`)
+      out.push(
+        <h3 key={idx} className="mt-4 text-sm font-semibold first:mt-0">
+          {line.replace(/^##\s*/, '').replace(/[[\]]/g, '')}
+        </h3>
+      )
+    } else if (line.startsWith('### ')) {
+      flush(`b${idx}`)
+      out.push(
+        <div key={idx} className="mt-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
+          {line.replace(/^###\s*/, '')}
+        </div>
+      )
+    } else if (line.startsWith('- ')) {
+      // Strip markdown bold markers for plain rendering.
+      bullets.push(line.replace(/^-\s*/, '').replace(/\*\*/g, ''))
+    } else if (line === '---' || line === '') {
+      flush(`b${idx}`)
+    }
+  })
+  flush('last')
+  return <div className="space-y-1">{out}</div>
+}
+
+function AboutPanel(): JSX.Element {
+  return (
+    <div className="max-w-lg space-y-5">
+      <div className="flex items-baseline gap-2">
+        <span className="text-xl font-semibold">N-MailClient</span>
+        <span className="rounded bg-gray-100 px-2 py-0.5 text-sm text-gray-600">
+          v{__APP_VERSION__}
+        </span>
+      </div>
+      <p className="text-sm text-gray-600">
+        Desktop-E-Mail-Client für beliebige IMAP/SMTP-Konten mit Kalender (CalDAV) und Kontakten
+        (CardDAV). Updates werden automatisch aus den GitHub-Releases bezogen.
+      </p>
+      <div>
+        <h2 className="mb-2 text-sm font-semibold text-gray-700">Änderungsverlauf</h2>
+        <div className="max-h-[46vh] overflow-y-auto rounded border p-4">
+          <ChangelogView text={__CHANGELOG__} />
+        </div>
+      </div>
     </div>
   )
 }
