@@ -25,6 +25,7 @@ import type {
   SaveResult,
   SendRequest,
   SieveScript,
+  UpdateStatus,
   WebDavConfig
 } from '../main/types'
 
@@ -186,6 +187,17 @@ const api = {
       ipcRenderer.invoke('sieve:setActive', accountId, name),
     delete: (accountId: string, name: string): Promise<IpcResult<void>> =>
       ipcRenderer.invoke('sieve:delete', accountId, name)
+  },
+  update: {
+    check: (): Promise<IpcResult<void>> => ipcRenderer.invoke('update:check'),
+    install: (): Promise<IpcResult<void>> => ipcRenderer.invoke('update:install'),
+    status: (): Promise<IpcResult<UpdateStatus | null>> => ipcRenderer.invoke('update:status'),
+    /** Subscribe to update-status pushes. Returns an unsubscribe fn. */
+    onStatus: (cb: (status: UpdateStatus) => void): (() => void) => {
+      const listener = (_e: unknown, status: UpdateStatus): void => cb(status)
+      ipcRenderer.on('update:status', listener)
+      return () => ipcRenderer.removeListener('update:status', listener)
+    }
   },
   events: {
     /** Subscribe to new-mail pushes (IMAP IDLE). Returns an unsubscribe fn. */

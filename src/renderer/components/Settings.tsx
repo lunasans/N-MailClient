@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Bell, Calendar, Check, FileCode, Info, Plus, Tag, Trash2, User, X } from 'lucide-react'
-import type { Account, CalendarConfig, SieveScript } from '@shared/index'
+import type { Account, CalendarConfig, SieveScript, UpdateStatus } from '@shared/index'
 import { useMailStore } from '../store/useMailStore'
 import { ACCOUNT_PALETTE, colorForAccount } from '../lib/accountColor'
 import AccountSettings from './AccountSettings'
@@ -688,12 +688,74 @@ function AboutPanel(): JSX.Element {
         Desktop-E-Mail-Client für beliebige IMAP/SMTP-Konten mit Kalender (CalDAV) und Kontakten
         (CardDAV). Updates werden automatisch aus den GitHub-Releases bezogen.
       </p>
+      <UpdateChecker />
+
       <div>
         <h2 className="mb-2 text-sm font-semibold text-gray-700">Änderungsverlauf</h2>
-        <div className="max-h-[46vh] overflow-y-auto rounded border p-4">
+        <div className="max-h-[40vh] overflow-y-auto rounded border p-4">
           <ChangelogView text={__CHANGELOG__} />
         </div>
       </div>
+    </div>
+  )
+}
+
+function updateStatusText(s: UpdateStatus): string {
+  switch (s.state) {
+    case 'checking':
+      return 'Suche nach Updates…'
+    case 'available':
+      return `Version ${s.version} gefunden — wird heruntergeladen…`
+    case 'downloading':
+      return `Lädt Update… ${s.percent}%`
+    case 'downloaded':
+      return `Version ${s.version} bereit — wird beim Neustart installiert.`
+    case 'none':
+      return 'Du verwendest die neueste Version.'
+    case 'error':
+      return s.message
+  }
+}
+
+function UpdateChecker(): JSX.Element {
+  const [status, setStatus] = useState<UpdateStatus | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    window.api.update.status().then((res) => res.ok && res.data && setStatus(res.data))
+    return window.api.update.onStatus(setStatus)
+  }, [])
+
+  async function check(): Promise<void> {
+    setBusy(true)
+    await window.api.update.check()
+    setBusy(false)
+  }
+
+  return (
+    <div className="flex items-center gap-3">
+      <button
+        onClick={check}
+        disabled={busy || status?.state === 'checking'}
+        className="rounded border px-4 py-2 text-sm hover:bg-gray-50 disabled:opacity-50"
+      >
+        Nach Updates suchen
+      </button>
+      {status && (
+        <span
+          className={`text-sm ${status.state === 'error' ? 'text-red-600' : 'text-gray-600'}`}
+        >
+          {updateStatusText(status)}
+        </span>
+      )}
+      {status?.state === 'downloaded' && (
+        <button
+          onClick={() => window.api.update.install()}
+          className="rounded bg-brand px-3 py-2 text-sm text-white hover:bg-brand-dark"
+        >
+          Neu starten &amp; installieren
+        </button>
+      )}
     </div>
   )
 }

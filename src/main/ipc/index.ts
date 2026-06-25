@@ -65,6 +65,7 @@ import {
   putScript,
   setActiveScript
 } from '../services/sieveService'
+import { checkForUpdates, getStatus, quitAndInstall } from '../services/updateService'
 import { sendMessage } from '../services/smtpService'
 import { deleteDraft, saveDraft } from '../services/draftService'
 import { restartIdle, startIdle, stopIdle } from '../services/idleService'
@@ -213,6 +214,10 @@ export function registerIpc(): void {
   )
   handle('sieve:setActive', (accountId: string, name: string) => setActiveScript(accountId, name))
   handle('sieve:delete', (accountId: string, name: string) => deleteScript(accountId, name))
+
+  handle('update:check', () => checkForUpdates())
+  handle('update:install', () => quitAndInstall())
+  handle('update:status', () => getStatus())
 
   handle('mail:send', (req: SendRequest) => sendMessage(req))
   handle('mail:pickAttachments', () => pickAttachments())

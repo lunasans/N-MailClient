@@ -301,5 +301,14 @@ export interface SieveScript {
   active: boolean
 }
 
+/** Auto-update progress, pushed from the main process to the renderer. */
+export type UpdateStatus =
+  | { state: 'checking' }
+  | { state: 'available'; version: string }
+  | { state: 'none' }
+  | { state: 'downloading'; percent: number }
+  | { state: 'downloaded'; version: string }
+  | { state: 'error'; message: string }
+
 /** Uniform result wrapper so the renderer never has to try/catch IPC. */
 export type IpcResult<T> = { ok: true; data: T } | { ok: false; error: string }

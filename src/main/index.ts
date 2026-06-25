@@ -1,12 +1,10 @@
 import { app, BrowserWindow, shell } from 'electron'
 import { join } from 'path'
-import electronUpdater from 'electron-updater'
 import { initDb } from './services/db'
 import { registerIpc } from './ipc'
 import { getAccounts } from './services/accountStore'
 import { startIdle, stopAllIdle } from './services/idleService'
-
-const { autoUpdater } = electronUpdater
+import { checkForUpdates, initUpdater } from './services/updateService'
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -49,11 +47,10 @@ app.whenReady().then(() => {
   // Start live new-mail watching (IMAP IDLE) for every account.
   for (const acc of getAccounts()) startIdle(acc.id)
 
-  // Auto-update from GitHub releases (packaged builds only).
+  // Auto-update from GitHub releases (packaged builds only); UI shows progress.
+  initUpdater()
   if (app.isPackaged) {
-    autoUpdater.checkForUpdatesAndNotify().catch(() => {
-      /* offline or no release yet — ignore */
-    })
+    void checkForUpdates()
   }
 
   app.on('activate', () => {

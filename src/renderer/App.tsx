@@ -12,6 +12,7 @@ import MailView from './components/MailView'
 import SettingsModal from './components/Settings'
 import Sidebar from './components/Sidebar'
 import UndoSendBanner from './components/UndoSendBanner'
+import UpdateBanner from './components/UpdateBanner'
 
 /** Optional brand logo (drop a file at src/renderer/assets/logo.*). */
 const logoUrl: string | null = (() => {
@@ -210,6 +211,8 @@ export default function App(): JSX.Element {
           </button>
         </div>
       </header>
+
+      <UpdateBanner />
 
       {error && (
         <div className="flex items-center justify-between bg-red-50 px-4 py-2 text-sm text-red-700">
