@@ -236,6 +236,8 @@ export interface MessageDetail {
   messageId: string | null
   /** Reference chain (References header), for threading. */
   references: string[]
+  /** PGP status, when the message contained encrypted/signed content. */
+  pgp?: PgpInfo
 }
 
 export interface SendRequest {
@@ -312,6 +314,18 @@ export interface PgpKeyInfo {
   hasPrivate: boolean
   /** ISO creation date of the key. */
   created: string
+}
+
+/** PGP status of a received message (decryption / signature). */
+export interface PgpInfo {
+  encrypted: boolean
+  signed: boolean
+  /** true = valid signature, false = invalid, null = unknown (no matching key). */
+  verified: boolean | null
+  /** Signer user id or key id, if determinable. */
+  signer?: string
+  /** Error during decryption/verification, if any. */
+  error?: string
 }
 
 /** Input for generating a new PGP key pair. */

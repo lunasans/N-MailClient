@@ -8,11 +8,15 @@ import {
   FolderInput,
   Forward,
   ImageOff,
+  Lock,
   Paperclip,
   Printer,
   Reply,
   ReplyAll,
-  Save
+  Save,
+  ShieldAlert,
+  ShieldCheck,
+  ShieldQuestion
 } from 'lucide-react'
 import type { AttachmentMeta, AttachmentRef, MessageDetail } from '@shared/index'
 import { useMailStore, type ComposeDraft } from '../store/useMailStore'
@@ -297,6 +301,43 @@ export default function MailView(): JSX.Element {
           </div>
         )}
       </div>
+
+      {message.pgp && (
+        <div
+          className={`flex flex-wrap items-center gap-x-4 gap-y-1 border-b px-6 py-2 text-sm ${
+            message.pgp.error || message.pgp.verified === false
+              ? 'bg-red-50 text-red-700'
+              : message.pgp.verified === true
+                ? 'bg-green-50 text-green-700'
+                : 'bg-blue-50 text-blue-700'
+          }`}
+        >
+          {message.pgp.encrypted && (
+            <span className="flex items-center gap-1.5">
+              <Lock className="h-4 w-4" />
+              {message.pgp.error
+                ? `Entschlüsselung fehlgeschlagen: ${message.pgp.error}`
+                : 'Ende-zu-Ende verschlüsselt (PGP)'}
+            </span>
+          )}
+          {message.pgp.signed && (
+            <span className="flex items-center gap-1.5">
+              {message.pgp.verified === true ? (
+                <ShieldCheck className="h-4 w-4" />
+              ) : message.pgp.verified === false ? (
+                <ShieldAlert className="h-4 w-4" />
+              ) : (
+                <ShieldQuestion className="h-4 w-4" />
+              )}
+              {message.pgp.verified === true
+                ? `Signatur gültig${message.pgp.signer ? ' — ' + message.pgp.signer : ''}`
+                : message.pgp.verified === false
+                  ? 'Ungültige Signatur'
+                  : 'Signiert (Schlüssel unbekannt)'}
+            </span>
+          )}
+        </div>
+      )}
 
       {rendered && rendered.blocked > 0 && !showImages && (
         <div className="flex items-center justify-between gap-3 bg-amber-50 px-6 py-2 text-sm text-amber-800">

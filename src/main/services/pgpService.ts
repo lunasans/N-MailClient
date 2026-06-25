@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto'
 import * as openpgp from 'openpgp'
-import type { Key } from 'openpgp'
-import type { PgpGenerateInput, PgpKeyInfo } from '../types'
+import type { Key, KeyID, VerificationResult } from 'openpgp'
+import type { PgpGenerateInput, PgpInfo, PgpKeyInfo } from '../types'
 import { decryptPassword, encryptPassword, getPgpKeys, setPgpKeys, type StoredPgpKey } from './db'
 
 // PGP key management (OpenPGP.js). Private keys are stored passphrase-removed but
@@ -120,11 +120,128 @@ export async function getPrivateKeys(): Promise<openpgp.PrivateKey[]> {
   return out
 }
 
-/** All stored public keys (for later verify/encrypt use). */
+/** All stored public keys (for verify/encrypt use). */
 export async function getPublicKeys(): Promise<openpgp.PublicKey[]> {
   const out: openpgp.PublicKey[] = []
   for (const k of getPgpKeys()) {
     out.push(await openpgp.readKey({ armoredKey: k.publicArmored }))
   }
   return out
+}
+
+/** Resolve a signer key id to a stored key's first user id, if known. */
+function signerName(keyID: KeyID, pubs: openpgp.PublicKey[]): string | undefined {
+  const hex = keyID.toHex()
+  for (const p of pubs) {
+    if (p.getKeyID().toHex() === hex) return p.getUserIDs()[0]
+    if (p.getSubkeys().some((sk) => sk.getKeyID().toHex() === hex)) return p.getUserIDs()[0]
+  }
+  return hex
+}
+
+async function summarize(
+  signatures: VerificationResult[] | undefined,
+  pubs: openpgp.PublicKey[]
+): Promise<{ signed: boolean; verified: boolean | null; signer?: string }> {
+  if (!signatures || signatures.length === 0) return { signed: false, verified: null }
+  const s = signatures[0]
+  const signer = signerName(s.keyID, pubs)
+  if (pubs.length === 0) return { signed: true, verified: null, signer }
+  try {
+    await s.verified // rejects if the signature is invalid
+    return { signed: true, verified: true, signer }
+  } catch {
+    return { signed: true, verified: false, signer }
+  }
+}
+
+const PGP_MESSAGE = /-----BEGIN PGP MESSAGE-----[\s\S]*?-----END PGP MESSAGE-----/
+const PGP_SIGNED = /-----BEGIN PGP SIGNED MESSAGE-----[\s\S]*?-----END PGP SIGNATURE-----/
+
+/**
+ * Detect and process PGP content in a raw message. Handles inline PGP and the
+ * armored payload of PGP/MIME (multipart/encrypted). Returns the cleartext plus
+ * a status, or null when the message contains no recognizable PGP block.
+ */
+export async function processIncoming(
+  rawText: string
+): Promise<{ info: PgpInfo; cleartext: string; isMime: boolean } | null> {
+  const enc = rawText.match(PGP_MESSAGE)
+  if (enc) {
+    const privs = await getPrivateKeys()
+    if (privs.length === 0) {
+      return {
+        info: {
+          encrypted: true,
+          signed: false,
+          verified: null,
+          error: 'Kein privater Schlüssel zum Entschlüsseln vorhanden.'
+        },
+        cleartext: '',
+        isMime: false
+      }
+    }
+    try {
+      const message = await openpgp.readMessage({ armoredMessage: enc[0] })
+      const pubs = await getPublicKeys()
+      const { data, signatures } = await openpgp.decrypt({
+        message,
+        decryptionKeys: privs,
+        verificationKeys: pubs.length ? pubs : undefined
+      })
+      const text = typeof data === 'string' ? data : Buffer.from(data as Uint8Array).toString('utf8')
+      const sig = await summarize(signatures, pubs)
+      const isMime = /content-type:/i.test(text.slice(0, 800))
+      return {
+        info: { encrypted: true, signed: sig.signed, verified: sig.verified, signer: sig.signer },
+        cleartext: text,
+        isMime
+      }
+    } catch (err) {
+      return {
+        info: {
+          encrypted: true,
+          signed: false,
+          verified: null,
+          error: err instanceof Error ? err.message : 'Entschlüsselung fehlgeschlagen.'
+        },
+        cleartext: '',
+        isMime: false
+      }
+    }
+  }
+
+  const clear = rawText.match(PGP_SIGNED)
+  if (clear) {
+    try {
+      const cleartextMessage = await openpgp.readCleartextMessage({ cleartextMessage: clear[0] })
+      const pubs = await getPublicKeys()
+      let verified: boolean | null = null
+      let signer: string | undefined
+      if (pubs.length) {
+        const result = await openpgp.verify({ message: cleartextMessage, verificationKeys: pubs })
+        const sig = await summarize(result.signatures, pubs)
+        verified = sig.verified
+        signer = sig.signer
+      }
+      return {
+        info: { encrypted: false, signed: true, verified, signer },
+        cleartext: cleartextMessage.getText(),
+        isMime: false
+      }
+    } catch (err) {
+      return {
+        info: {
+          encrypted: false,
+          signed: true,
+          verified: false,
+          error: err instanceof Error ? err.message : 'Signaturprüfung fehlgeschlagen.'
+        },
+        cleartext: '',
+        isMime: false
+      }
+    }
+  }
+
+  return null
 }

@@ -8,6 +8,7 @@ import type {
 } from '../types'
 import { getCredentials } from './accountStore'
 import { getFolderCache, setFolderCache } from './db'
+import { processIncoming } from './pgpService'
 
 /**
  * IMAP read operations via imapflow. Each call opens a short-lived connection,
@@ -247,7 +248,8 @@ export async function getMessage(
       const { content } = await client.download(`${uid}`, undefined, { uid: true })
       const chunks: Buffer[] = []
       for await (const chunk of content) chunks.push(chunk as Buffer)
-      const parsed = await simpleParser(Buffer.concat(chunks))
+      const raw = Buffer.concat(chunks)
+      const parsed = await simpleParser(raw)
 
       const attachments: AttachmentMeta[] = (parsed.attachments ?? []).map((a, i) => ({
         filename: a.filename ?? `anhang-${i + 1}`,
@@ -262,7 +264,7 @@ export async function getMessage(
           ? [parsed.references]
           : []
 
-      return {
+      const detail: MessageDetail = {
         uid,
         subject: parsed.subject ?? '(kein Betreff)',
         from: parsed.from?.text ?? '',
@@ -282,6 +284,31 @@ export async function getMessage(
         messageId: parsed.messageId ?? null,
         references
       }
+
+      // PGP: decrypt / verify if the message carries an armored block.
+      try {
+        const pgpRes = await processIncoming(raw.toString('utf8'))
+        if (pgpRes) {
+          detail.pgp = pgpRes.info
+          if (pgpRes.cleartext) {
+            if (pgpRes.isMime) {
+              const inner = await simpleParser(Buffer.from(pgpRes.cleartext))
+              detail.html = inner.html || null
+              detail.text = inner.text ?? (inner.html ? null : pgpRes.cleartext)
+              // Inner (decrypted) attachments aren't fetchable via the IMAP part path.
+              detail.attachments = []
+            } else {
+              detail.text = pgpRes.cleartext
+              detail.html = null
+              if (pgpRes.info.encrypted) detail.attachments = []
+            }
+          }
+        }
+      } catch {
+        /* leave the original (possibly ciphertext) body if PGP handling fails */
+      }
+
+      return detail
     } finally {
       lock.release()
     }
