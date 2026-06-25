@@ -71,6 +71,7 @@ import { restartIdle, startIdle, stopIdle } from '../services/idleService'
 import {
   archiveAttachment,
   configureWebdav,
+  deleteArchiveFile,
   listArchive,
   openArchiveFile,
   pickArchiveFolder,
@@ -226,6 +227,7 @@ export function registerIpc(): void {
   handle('archive:list', (accountId: string) => listArchive(accountId))
   handle('archive:open', (accountId: string, path: string) => openArchiveFile(accountId, path))
   handle('archive:reveal', (accountId: string, path: string) => revealArchiveFile(accountId, path))
+  handle('archive:delete', (accountId: string, path: string) => deleteArchiveFile(accountId, path))
 
   handle('pdf:viewAttachment', (ref: AttachmentRef) => viewAttachmentPdf(ref))
   handle('pdf:viewArchive', (accountId: string, path: string) => viewArchivePdf(accountId, path))

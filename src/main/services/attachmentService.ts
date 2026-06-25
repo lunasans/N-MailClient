@@ -1,6 +1,15 @@
 import { app, BrowserWindow, dialog, shell } from 'electron'
-import { basename, join } from 'path'
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'fs'
+import { basename, dirname, join, resolve, sep } from 'path'
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmdirSync,
+  statSync,
+  unlinkSync,
+  writeFileSync
+} from 'fs'
 import type {
   ArchiveListing,
   AttachmentRef,
@@ -174,6 +183,35 @@ export async function listArchive(accountId: string): Promise<ArchiveListing> {
   if (!password) throw new Error('WebDAV-Passwort fehlt')
   const groups = await webdav.listArchive(target.webdav, password)
   return { target, groups }
+}
+
+/** Delete an archived file (local or WebDAV); cleans up an emptied sender folder. */
+export async function deleteArchiveFile(accountId: string, filePath: string): Promise<void> {
+  const target = getArchiveTarget(accountId)
+  if (!target) throw new Error('NO_ARCHIVE_TARGET')
+
+  if (target.type === 'webdav') {
+    const password = getWebdavPassword(accountId)
+    if (!password) throw new Error('WebDAV-Passwort fehlt')
+    await webdav.deleteFile(target.webdav, password, filePath)
+    return
+  }
+
+  // Local: refuse anything outside the bound archive folder.
+  const root = resolve(target.folder)
+  const full = resolve(filePath)
+  if (full !== root && !full.startsWith(root + sep)) {
+    throw new Error('Pfad liegt außerhalb des Archivordners.')
+  }
+  if (!existsSync(full)) return
+  unlinkSync(full)
+  // Remove the sender subfolder if it became empty.
+  const dir = dirname(full)
+  try {
+    if (dir !== root && readdirSync(dir).length === 0) rmdirSync(dir)
+  } catch {
+    /* ignore */
+  }
 }
 
 /** Open an archived file with the OS default application. */

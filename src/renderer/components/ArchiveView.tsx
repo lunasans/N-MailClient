@@ -10,6 +10,7 @@ import {
   HardDrive,
   RefreshCw,
   Search,
+  Trash2,
   User,
   X
 } from 'lucide-react'
@@ -56,6 +57,14 @@ export default function ArchiveView(): JSX.Element {
   useEffect(() => {
     reload()
   }, [reload])
+
+  async function deleteFile(path: string, name: string): Promise<void> {
+    if (!accountId) return
+    if (!confirm(`„${name}" wirklich aus dem Archiv löschen?`)) return
+    const res = await window.api.archive.delete(accountId, path)
+    if (res.ok) await reload()
+    else setError(res.error)
+  }
 
   async function bindLocal(): Promise<void> {
     if (!accountId) return
@@ -249,6 +258,13 @@ export default function ArchiveView(): JSX.Element {
                       title={isWebdav ? 'Im Browser öffnen' : 'Im Explorer anzeigen'}
                     >
                       {isWebdav ? <Globe className="h-4 w-4" /> : <FolderOpen className="h-4 w-4" />}
+                    </button>
+                    <button
+                      onClick={() => deleteFile(file.path, file.name)}
+                      className="shrink-0 rounded p-1 text-gray-500 hover:bg-red-50 hover:text-red-600"
+                      title="Aus dem Archiv löschen"
+                    >
+                      <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
                 ))}

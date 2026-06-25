@@ -113,6 +113,16 @@ export async function listArchive(
     .sort((a, b) => a.sender.localeCompare(b.sender, 'de'))
 }
 
+/** Delete a remote file. */
+export async function deleteFile(
+  config: WebDavConfig,
+  password: string,
+  remotePath: string
+): Promise<void> {
+  const client = clientFor(config, password)
+  await client.deleteFile(remotePath)
+}
+
 /** Download a remote file's bytes. */
 export async function downloadFile(
   config: WebDavConfig,

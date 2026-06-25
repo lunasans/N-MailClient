@@ -131,7 +131,9 @@ const api = {
     open: (accountId: string, path: string): Promise<IpcResult<void>> =>
       ipcRenderer.invoke('archive:open', accountId, path),
     reveal: (accountId: string, path: string): Promise<IpcResult<void>> =>
-      ipcRenderer.invoke('archive:reveal', accountId, path)
+      ipcRenderer.invoke('archive:reveal', accountId, path),
+    delete: (accountId: string, path: string): Promise<IpcResult<void>> =>
+      ipcRenderer.invoke('archive:delete', accountId, path)
   },
   pdf: {
     viewAttachment: (ref: AttachmentRef): Promise<IpcResult<void>> =>
