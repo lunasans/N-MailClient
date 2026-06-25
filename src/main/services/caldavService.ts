@@ -38,6 +38,37 @@ function resolveCreds(): Creds | null {
   return { serverUrl: cfg.serverUrl, user: cfg.user, password: decryptPassword(cfg.secret) }
 }
 
+type DiscoveredCalendars = Awaited<ReturnType<DAVClient['fetchCalendars']>>
+
+// CalDAV login + calendar discovery cost several round trips; without caching
+// every view change re-pays it (the 5–10 s delay users saw). Cache the
+// logged-in client and calendar list per connection for a short window.
+const DISCOVERY_TTL = 5 * 60 * 1000
+let discoveryCache: {
+  key: string
+  client: DAVClient
+  calendars: DiscoveredCalendars
+  ts: number
+} | null = null
+
+function invalidateDiscovery(): void {
+  discoveryCache = null
+}
+
+async function connect(
+  creds: Creds
+): Promise<{ client: DAVClient; calendars: DiscoveredCalendars }> {
+  const key = `${creds.serverUrl}|${creds.user}`
+  if (discoveryCache && discoveryCache.key === key && Date.now() - discoveryCache.ts < DISCOVERY_TTL) {
+    return { client: discoveryCache.client, calendars: discoveryCache.calendars }
+  }
+  const client = clientFor(creds)
+  await client.login()
+  const calendars = await client.fetchCalendars()
+  discoveryCache = { key, client, calendars, ts: Date.now() }
+  return { client, calendars }
+}
+
 /** Validate a connection and return the number of discovered calendars. */
 export async function testConnection(
   serverUrl: string,
@@ -64,19 +95,19 @@ export async function saveConfig(
 ): Promise<void> {
   await testConnection(serverUrl, user, password)
   setCalendar({ serverUrl, user }, password)
+  invalidateDiscovery()
 }
 
 export function clearConfig(): void {
   clearCalendar()
+  invalidateDiscovery()
 }
 
 /** List calendars that accept events (for the create picker). */
 export async function listCalendars(): Promise<CalendarInfo[]> {
   const creds = resolveCreds()
   if (!creds) return []
-  const client = clientFor(creds)
-  await client.login()
-  const cals = await client.fetchCalendars()
+  const { calendars: cals } = await connect(creds)
   return cals
     .filter((c) => {
       const comps = (c.components ?? []) as string[]
@@ -157,9 +188,7 @@ export async function deleteEvent(href: string, etag: string): Promise<void> {
 export async function fetchEvents(startISO: string, endISO: string): Promise<CalEvent[]> {
   const creds = resolveCreds()
   if (!creds) return []
-  const client = clientFor(creds)
-  await client.login()
-  const calendars = await client.fetchCalendars()
+  const { client, calendars } = await connect(creds)
   const rangeStart = new Date(startISO)
   const rangeEnd = new Date(endISO)
   const out: CalEvent[] = []
