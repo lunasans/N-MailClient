@@ -4,6 +4,19 @@ Alle nennenswerten Änderungen an N-MailClient werden hier dokumentiert.
 Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.1.1] - 2026-06-25
+
+### Behoben
+
+- **Sieve-Filter:** Der Button „Neues Skript" hatte keine Funktion (`prompt()` wird
+  im Electron-Renderer nicht unterstützt) — ersetzt durch ein Inline-Namensfeld. (#1)
+- **Ordnerliste:** Beim Start waren alle Ordner mit Unterordnern aufgeklappt;
+  Unterordner starten jetzt eingeklappt. (#2)
+- **Tastenkürzel:** Strg+A markiert nun alle Mails in der aktuellen Ordneransicht. (#3)
+- **Kalender:** Termine erschienen erst nach 5–10 Sekunden — CalDAV-Login und
+  Kalender-Discovery werden jetzt zwischengespeichert, wiederholte Ladevorgänge sind
+  deutlich schneller. (#4)
+
 ## [0.1.0] - 2026-06-25
 
 Erste Version.
