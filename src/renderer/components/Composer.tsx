@@ -99,7 +99,8 @@ export default function Composer(): JSX.Element {
       answeredFrom: draft.answeredFrom,
       attachments: s.attachments.map((a) => ({ path: a.path, filename: a.filename })),
       pgpEncrypt: pgpEncrypt || undefined,
-      pgpSign: pgpSign || undefined
+      pgpSign: pgpSign || undefined,
+      requestDsn: localStorage.getItem('nmc.requestDsn') === '1' || undefined
     }
   }
 

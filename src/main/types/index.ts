@@ -238,6 +238,8 @@ export interface MessageDetail {
   references: string[]
   /** PGP status, when the message contained encrypted/signed content. */
   pgp?: PgpInfo
+  /** Delivery status, when the message is a DSN (delivery report). */
+  delivery?: DeliveryInfo
 }
 
 export interface SendRequest {
@@ -264,6 +266,8 @@ export interface SendRequest {
   pgpEncrypt?: boolean
   /** Sign with the sender's private key (PGP/MIME). */
   pgpSign?: boolean
+  /** Request a delivery status notification (DSN) from the servers. */
+  requestDsn?: boolean
 }
 
 export interface SaveResult {
@@ -318,6 +322,17 @@ export interface PgpKeyInfo {
   hasPrivate: boolean
   /** ISO creation date of the key. */
   created: string
+}
+
+/** Delivery status parsed from an incoming DSN (multipart/report). */
+export interface DeliveryInfo {
+  status: 'delivered' | 'failed' | 'delayed' | 'relayed' | 'unknown'
+  /** The recipient the report concerns. */
+  recipient?: string
+  /** RFC 3463 status code, e.g. "5.1.1". */
+  code?: string
+  /** Server diagnostic text, if any. */
+  diagnostic?: string
 }
 
 /** PGP status of a received message (decryption / signature). */

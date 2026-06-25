@@ -99,6 +99,9 @@ function GeneralPanel(): JSX.Element {
   const [reminder, setReminder] = useState(() =>
     Number(localStorage.getItem('nmc.reminderLead') ?? '15')
   )
+  const [requestDsn, setRequestDsn] = useState(
+    () => localStorage.getItem('nmc.requestDsn') === '1'
+  )
 
   return (
     <div className="max-w-md space-y-4">
@@ -114,6 +117,18 @@ function GeneralPanel(): JSX.Element {
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" checked={darkMode} onChange={(e) => setDarkMode(e.target.checked)} />
         Dunkler Modus
+      </label>
+
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={requestDsn}
+          onChange={(e) => {
+            setRequestDsn(e.target.checked)
+            localStorage.setItem('nmc.requestDsn', e.target.checked ? '1' : '0')
+          }}
+        />
+        Zustellbestätigung anfordern (DSN) beim Senden
       </label>
 
       <label className="block">

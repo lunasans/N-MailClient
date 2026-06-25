@@ -71,7 +71,7 @@ Version 0.2.0
 - [x] „Über"-Ansicht in den Einstellungen (App-Version + Änderungsverlauf/Changelog, zur Build-Zeit injiziert)
 - [x] In-App-Update-UI (Banner „Update verfügbar", Download-Fortschritt, „Jetzt neu starten & installieren", „Nach Updates suchen" in der Über-Ansicht) — electron-updater-Events werden an den Renderer gebroadcastet
 - [x] PGP verschlüsselung (OpenPGP.js, PGP/MIME): Schlüsselverwaltung (Import/Erzeugen/Export/Löschen); Lesen (entschlüsseln + Signatur prüfen, Status-Banner); Senden (PGP/MIME signieren/verschlüsseln, Composer-Toggles)
-- [] Sendeverfolgung 
+- [x] Sendeverfolgung — Zustellstatus (DSN): optionale Zustellbestätigung beim Senden anfordern (Einstellung), eingehende Zustellberichte (multipart/report) parsen + Banner in der MailView (zugestellt/fehlgeschlagen/verzögert + Empfänger/Diagnose)
 - [] Mehrsprachigkeit (i18n) DE/EN
 - [] Mail-Regeln/Filter lokal (auto-verschieben/etikettieren)
 - [] Backup/Export der App-Einstellungen

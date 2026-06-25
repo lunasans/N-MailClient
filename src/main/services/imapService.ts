@@ -9,6 +9,7 @@ import type {
 import { getCredentials } from './accountStore'
 import { getFolderCache, setFolderCache } from './db'
 import { processIncoming } from './pgpService'
+import { parseDeliveryReport } from './dsnService'
 
 /**
  * IMAP read operations via imapflow. Each call opens a short-lived connection,
@@ -306,6 +307,14 @@ export async function getMessage(
         }
       } catch {
         /* leave the original (possibly ciphertext) body if PGP handling fails */
+      }
+
+      // Delivery status notifications (bounces / delivery reports).
+      try {
+        const delivery = parseDeliveryReport(raw.toString('utf8'))
+        if (delivery) detail.delivery = delivery
+      } catch {
+        /* ignore — not a parseable report */
       }
 
       return detail

@@ -24,6 +24,15 @@ function encHeader(value: string): string {
   return mimeFuncs.encodeWords(value, 'Q', 0)
 }
 
+/** DSN request asking servers to report delivery success/failure/delay. */
+function dsnFor(senderEmail: string): {
+  notify: ('SUCCESS' | 'FAILURE' | 'DELAY')[]
+  recipient: string
+  return: 'headers'
+} {
+  return { notify: ['SUCCESS', 'FAILURE', 'DELAY'], recipient: senderEmail, return: 'headers' }
+}
+
 /** Send a message via the account's SMTP server and save a copy to "Sent". */
 export async function sendMessage(req: SendRequest): Promise<void> {
   const creds = getCredentials(req.accountId)
@@ -99,7 +108,8 @@ export async function sendMessage(req: SendRequest): Promise<void> {
     try {
       await transport.sendMail({
         envelope: { from: senderEmail, to: parseEmails(req.to, req.cc, req.bcc) },
-        raw: outer
+        raw: outer,
+        dsn: req.requestDsn ? dsnFor(senderEmail) : undefined
       })
     } finally {
       transport.close()
@@ -131,7 +141,8 @@ export async function sendMessage(req: SendRequest): Promise<void> {
     html: req.html || undefined,
     inReplyTo: req.inReplyTo || undefined,
     references: req.references && req.references.length ? req.references : undefined,
-    attachments
+    attachments,
+    dsn: req.requestDsn ? dsnFor(senderEmail) : undefined
   }
 
   try {

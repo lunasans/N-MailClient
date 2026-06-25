@@ -8,7 +8,10 @@ import {
   FolderInput,
   Forward,
   ImageOff,
+  Clock,
   Lock,
+  MailCheck,
+  MailX,
   Paperclip,
   Printer,
   Reply,
@@ -336,6 +339,40 @@ export default function MailView(): JSX.Element {
                   : 'Signiert (Schlüssel unbekannt)'}
             </span>
           )}
+        </div>
+      )}
+
+      {message.delivery && (
+        <div
+          className={`flex items-center gap-2 border-b px-6 py-2 text-sm ${
+            message.delivery.status === 'delivered'
+              ? 'bg-green-50 text-green-700'
+              : message.delivery.status === 'failed'
+                ? 'bg-red-50 text-red-700'
+                : message.delivery.status === 'delayed'
+                  ? 'bg-amber-50 text-amber-800'
+                  : 'bg-gray-50 text-gray-600'
+          }`}
+        >
+          {message.delivery.status === 'delivered' ? (
+            <MailCheck className="h-4 w-4 shrink-0" />
+          ) : message.delivery.status === 'failed' ? (
+            <MailX className="h-4 w-4 shrink-0" />
+          ) : (
+            <Clock className="h-4 w-4 shrink-0" />
+          )}
+          <span>
+            {message.delivery.status === 'delivered'
+              ? 'Zustellbericht: erfolgreich zugestellt'
+              : message.delivery.status === 'failed'
+                ? 'Zustellbericht: Zustellung fehlgeschlagen'
+                : message.delivery.status === 'delayed'
+                  ? 'Zustellbericht: Zustellung verzögert'
+                  : 'Zustellbericht'}
+            {message.delivery.recipient ? ` an ${message.delivery.recipient}` : ''}
+            {message.delivery.code ? ` (${message.delivery.code})` : ''}
+            {message.delivery.diagnostic ? ` — ${message.delivery.diagnostic}` : ''}
+          </span>
         </div>
       )}
 
