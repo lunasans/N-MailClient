@@ -75,7 +75,7 @@ Version 0.2.0
 - [] Mehrsprachigkeit (i18n) DE/EN
 - [x] Sieve-Regel-Baukasten (Wenn-Dann-UI „Absender/Betreff … → in Ordner verschieben / als gelesen", generiert serverseitiges Sieve-Skript „nmailclient-rules") — ersetzt die ursprünglich geplanten lokalen Regeln (Sieve deckt das ab)
 - [] Backup/Export der App-Einstellungen
-- [] Überlappende Termine in der Wochenansicht werden derzeit noch voll überlagert (keine Seite-an-Seite-Anordnung)
+- [x] Überlappende Termine in der Wochen-/Tagesansicht werden jetzt seite-an-seite in Spalten angeordnet (Cluster-/Spalten-Algorithmus)
 
 ## Mailcow-API-Integration (zukünftige Versionen)
 

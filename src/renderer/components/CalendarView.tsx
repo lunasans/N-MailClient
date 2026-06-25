@@ -23,6 +23,70 @@ function fmtTime(iso: string): string {
   return new Date(iso).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
 }
 
+interface LaidEvent {
+  e: CalEvent
+  top: number
+  height: number
+  leftPct: number
+  widthPct: number
+}
+
+/**
+ * Arrange a day's timed events into side-by-side columns so overlapping events
+ * don't fully cover each other. Events are grouped into clusters of mutual
+ * overlap; within a cluster each event gets the first free column.
+ */
+function layoutTimed(events: CalEvent[], day: Date): LaidEvent[] {
+  const ds = startOfDay(day).getTime()
+  const items = events
+    .filter((e) => !e.allDay)
+    .map((e) => {
+      const startMin = Math.max(0, (new Date(e.start).getTime() - ds) / 60000)
+      const endMin = Math.min(24 * 60, (new Date(e.end).getTime() - ds) / 60000)
+      return { e, startMin, endMin: Math.max(endMin, startMin + 15) }
+    })
+    .sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin)
+
+  const out: LaidEvent[] = []
+  let cluster: typeof items = []
+  let clusterEnd = -1
+
+  const flush = (): void => {
+    const colEnds: number[] = []
+    const colOf = cluster.map((it) => {
+      let c = colEnds.findIndex((end) => it.startMin >= end)
+      if (c === -1) {
+        c = colEnds.length
+        colEnds.push(0)
+      }
+      colEnds[c] = it.endMin
+      return c
+    })
+    const cols = colEnds.length
+    cluster.forEach((it, idx) => {
+      out.push({
+        e: it.e,
+        top: (it.startMin / 60) * HOUR_H,
+        height: Math.max(18, ((it.endMin - it.startMin) / 60) * HOUR_H),
+        leftPct: (colOf[idx] / cols) * 100,
+        widthPct: (1 / cols) * 100
+      })
+    })
+  }
+
+  for (const it of items) {
+    if (cluster.length && it.startMin >= clusterEnd) {
+      flush()
+      cluster = []
+      clusterEnd = -1
+    }
+    cluster.push(it)
+    clusterEnd = Math.max(clusterEnd, it.endMin)
+  }
+  if (cluster.length) flush()
+  return out
+}
+
 export default function CalendarView(): JSX.Element {
   const [config, setConfig] = useState<CalendarConfig | null>(null)
   const [loadedConfig, setLoadedConfig] = useState(false)
@@ -316,36 +380,29 @@ export default function CalendarView(): JSX.Element {
                   {Array.from({ length: 24 }, (_, h) => (
                     <div key={h} className="border-b" style={{ height: HOUR_H }} />
                   ))}
-                  {eventsForDay(day)
-                    .filter((e) => !e.allDay)
-                    .map((e, i) => {
-                      const ds = startOfDay(day).getTime()
-                      const startMin = Math.max(0, (new Date(e.start).getTime() - ds) / 60000)
-                      const endMin = Math.min(24 * 60, (new Date(e.end).getTime() - ds) / 60000)
-                      const top = (startMin / 60) * HOUR_H
-                      const height = Math.max(18, ((endMin - startMin) / 60) * HOUR_H)
-                      return (
-                        <button
-                          key={e.uid + i}
-                          onClick={(ev) => {
-                            ev.stopPropagation()
-                            setSelected(e)
-                          }}
-                          style={{
-                            top,
-                            height,
-                            backgroundColor: (e.color ?? '#2563eb') + '33',
-                            borderColor: e.color ?? '#2563eb',
-                            color: e.color ?? '#1d4ed8'
-                          }}
-                          className="absolute inset-x-0.5 overflow-hidden rounded border-l-2 px-1 py-0.5 text-left text-xs"
-                          title={e.summary}
-                        >
-                          <span className="mr-1 opacity-70">{fmtTime(e.start)}</span>
-                          {e.summary}
-                        </button>
-                      )
-                    })}
+                  {layoutTimed(eventsForDay(day), day).map(({ e, top, height, leftPct, widthPct }, i) => (
+                    <button
+                      key={e.uid + i}
+                      onClick={(ev) => {
+                        ev.stopPropagation()
+                        setSelected(e)
+                      }}
+                      style={{
+                        top,
+                        height,
+                        left: `calc(${leftPct}% + 1px)`,
+                        width: `calc(${widthPct}% - 2px)`,
+                        backgroundColor: (e.color ?? '#2563eb') + '33',
+                        borderColor: e.color ?? '#2563eb',
+                        color: e.color ?? '#1d4ed8'
+                      }}
+                      className="absolute overflow-hidden rounded border-l-2 px-1 py-0.5 text-left text-xs"
+                      title={e.summary}
+                    >
+                      <span className="mr-1 opacity-70">{fmtTime(e.start)}</span>
+                      {e.summary}
+                    </button>
+                  ))}
                 </div>
               ))}
             </div>
