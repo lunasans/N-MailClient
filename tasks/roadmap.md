@@ -70,7 +70,7 @@ Version 0.2.0
 - [x] #5 Löschfunktion im Anhangsarchiv (Dateien lokal/WebDAV löschen; Löschen-Button pro Datei mit Bestätigung, leere Absender-Ordner werden lokal aufgeräumt)
 - [x] „Über"-Ansicht in den Einstellungen (App-Version + Änderungsverlauf/Changelog, zur Build-Zeit injiziert)
 - [x] In-App-Update-UI (Banner „Update verfügbar", Download-Fortschritt, „Jetzt neu starten & installieren", „Nach Updates suchen" in der Über-Ansicht) — electron-updater-Events werden an den Renderer gebroadcastet
-- [ ] PGP verschlüsselung (OpenPGP.js, PGP/MIME) — Teil 1+2/3 erledigt: Schlüsselverwaltung; Lesen (PGP/MIME + Inline entschlüsseln, Signatur prüfen, Status-Banner in der MailView); offen: Senden (signieren/verschlüsseln)
+- [x] PGP verschlüsselung (OpenPGP.js, PGP/MIME): Schlüsselverwaltung (Import/Erzeugen/Export/Löschen); Lesen (entschlüsseln + Signatur prüfen, Status-Banner); Senden (PGP/MIME signieren/verschlüsseln, Composer-Toggles)
 - [] Sendeverfolgung 
 - [] Mehrsprachigkeit (i18n) DE/EN
 - [] Mail-Regeln/Filter lokal (auto-verschieben/etikettieren)

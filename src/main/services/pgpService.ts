@@ -155,6 +155,99 @@ async function summarize(
   }
 }
 
+/** Lowercased e-mail addresses found in a key's user IDs. */
+function keyEmails(key: Key): string[] {
+  return key.getUserIDs().map((u) => {
+    const m = u.match(/<([^>]+)>/)
+    return (m ? m[1] : u).trim().toLowerCase()
+  })
+}
+
+/** Match recipient e-mails to stored public keys; report any without a key. */
+export async function findRecipientKeys(
+  emails: string[]
+): Promise<{ keys: openpgp.PublicKey[]; missing: string[] }> {
+  const pubs = await getPublicKeys()
+  const keys: openpgp.PublicKey[] = []
+  const missing: string[] = []
+  for (const email of emails) {
+    const e = email.toLowerCase()
+    const key = pubs.find((p) => keyEmails(p).includes(e))
+    if (key) {
+      if (!keys.includes(key)) keys.push(key)
+    } else {
+      missing.push(email)
+    }
+  }
+  return { keys, missing }
+}
+
+/** Pick a private key to sign with (preferring one matching the sender). */
+export async function findSigningKey(email?: string): Promise<openpgp.PrivateKey | null> {
+  const privs = await getPrivateKeys()
+  if (privs.length === 0) return null
+  if (email) {
+    const match = privs.find((p) => keyEmails(p).includes(email.toLowerCase()))
+    if (match) return match
+  }
+  return privs[0]
+}
+
+/** Build a PGP/MIME multipart/encrypted body (optionally signed). */
+export async function encryptMimeBody(
+  innerMime: Buffer,
+  recipientKeys: openpgp.PublicKey[],
+  signingKey?: openpgp.PrivateKey | null
+): Promise<{ contentType: string; body: string }> {
+  const message = await openpgp.createMessage({ binary: new Uint8Array(innerMime) })
+  const armored = (await openpgp.encrypt({
+    message,
+    encryptionKeys: recipientKeys,
+    signingKeys: signingKey ?? undefined,
+    format: 'armored'
+  })) as string
+  const boundary = 'nmc-pgp-' + randomUUID()
+  const body =
+    `--${boundary}\r\n` +
+    'Content-Type: application/pgp-encrypted\r\n\r\n' +
+    'Version: 1\r\n\r\n' +
+    `--${boundary}\r\n` +
+    'Content-Type: application/octet-stream; name="encrypted.asc"\r\n\r\n' +
+    `${armored}\r\n` +
+    `--${boundary}--\r\n`
+  return {
+    contentType: `multipart/encrypted; protocol="application/pgp-encrypted"; boundary="${boundary}"`,
+    body
+  }
+}
+
+/** Build a PGP/MIME multipart/signed body (detached signature). */
+export async function signMimeBody(
+  innerMime: Buffer,
+  signingKey: openpgp.PrivateKey
+): Promise<{ contentType: string; body: string }> {
+  const text = innerMime.toString('utf8')
+  const message = await openpgp.createMessage({ text })
+  const signature = (await openpgp.sign({
+    message,
+    signingKeys: signingKey,
+    detached: true,
+    format: 'armored'
+  })) as string
+  const boundary = 'nmc-pgp-' + randomUUID()
+  const body =
+    `--${boundary}\r\n` +
+    `${text}\r\n` +
+    `--${boundary}\r\n` +
+    'Content-Type: application/pgp-signature; name="signature.asc"\r\n\r\n' +
+    `${signature}\r\n` +
+    `--${boundary}--\r\n`
+  return {
+    contentType: `multipart/signed; micalg="pgp-sha512"; protocol="application/pgp-signature"; boundary="${boundary}"`,
+    body
+  }
+}
+
 const PGP_MESSAGE = /-----BEGIN PGP MESSAGE-----[\s\S]*?-----END PGP MESSAGE-----/
 const PGP_SIGNED = /-----BEGIN PGP SIGNED MESSAGE-----[\s\S]*?-----END PGP SIGNATURE-----/
 

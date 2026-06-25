@@ -65,6 +65,9 @@ export interface ComposeDraft {
   answeredFrom?: { folder: string; uid: number }
   /** When editing an existing draft from the Drafts folder. */
   existingDraft?: { folder: string; uid: number }
+  /** PGP: encrypt / sign on send. */
+  pgpEncrypt?: boolean
+  pgpSign?: boolean
 }
 
 /** Data kept while a send is delayed and can still be undone. */

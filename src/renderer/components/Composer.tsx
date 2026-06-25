@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Paperclip, X } from 'lucide-react'
+import { Lock, Paperclip, PenLine, X } from 'lucide-react'
 import type { DraftRef, PickedAttachment, SendRequest } from '@shared/index'
 import { useMailStore, type ComposeDraft } from '../store/useMailStore'
 import RichTextEditor, { type RichEditorHandle } from './RichTextEditor'
@@ -55,6 +55,8 @@ export default function Composer(): JSX.Element {
   const [showBcc, setShowBcc] = useState(!!draft.bcc)
   const [subject, setSubject] = useState(draft.subject ?? '')
   const [attachments, setAttachments] = useState<PickedAttachment[]>(draft.attachments ?? [])
+  const [pgpEncrypt, setPgpEncrypt] = useState(!!draft.pgpEncrypt)
+  const [pgpSign, setPgpSign] = useState(!!draft.pgpSign)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [draftStatus, setDraftStatus] = useState<string | null>(null)
@@ -95,7 +97,9 @@ export default function Composer(): JSX.Element {
       references: draft.references,
       forwardFrom: draft.forwardFrom,
       answeredFrom: draft.answeredFrom,
-      attachments: s.attachments.map((a) => ({ path: a.path, filename: a.filename }))
+      attachments: s.attachments.map((a) => ({ path: a.path, filename: a.filename })),
+      pgpEncrypt: pgpEncrypt || undefined,
+      pgpSign: pgpSign || undefined
     }
   }
 
@@ -220,7 +224,9 @@ export default function Composer(): JSX.Element {
         references: draft.references,
         forwardFrom: draft.forwardFrom,
         answeredFrom: draft.answeredFrom,
-        existingDraft: draftRef.current ?? undefined
+        existingDraft: draftRef.current ?? undefined,
+        pgpEncrypt,
+        pgpSign
       }
       useMailStore.getState().scheduleSend(req, undoDraft, draftRef.current, delay)
       closeCompose()
@@ -346,6 +352,26 @@ export default function Composer(): JSX.Element {
           >
             <Paperclip className="h-4 w-4" />
             Anhang
+          </button>
+          <button
+            onClick={() => setPgpEncrypt((v) => !v)}
+            title="Mit PGP verschlüsseln (Empfänger brauchen einen importierten öffentlichen Schlüssel)"
+            className={`flex items-center gap-1.5 rounded border px-3 py-2 text-sm ${
+              pgpEncrypt ? 'border-brand bg-brand/10 text-brand' : 'hover:bg-gray-50'
+            }`}
+          >
+            <Lock className="h-4 w-4" />
+            Verschlüsseln
+          </button>
+          <button
+            onClick={() => setPgpSign((v) => !v)}
+            title="Mit PGP signieren (eigener privater Schlüssel erforderlich)"
+            className={`flex items-center gap-1.5 rounded border px-3 py-2 text-sm ${
+              pgpSign ? 'border-brand bg-brand/10 text-brand' : 'hover:bg-gray-50'
+            }`}
+          >
+            <PenLine className="h-4 w-4" />
+            Signieren
           </button>
           {draftStatus && <span className="text-xs text-gray-400">{draftStatus}</span>}
           <button

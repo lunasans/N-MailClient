@@ -260,6 +260,10 @@ export interface SendRequest {
   answeredFrom?: { folder: string; uid: number }
   /** Files to attach, by local path (read in the main process). */
   attachments?: { path: string; filename: string }[]
+  /** Encrypt to recipients' public keys (PGP/MIME). */
+  pgpEncrypt?: boolean
+  /** Sign with the sender's private key (PGP/MIME). */
+  pgpSign?: boolean
 }
 
 export interface SaveResult {
