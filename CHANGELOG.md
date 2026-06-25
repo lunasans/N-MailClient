@@ -4,6 +4,13 @@ Alle nennenswerten Änderungen an N-MailClient werden hier dokumentiert.
 Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.2.1] - 2026-06-25
+
+### Behoben
+
+- **App-Icon**: transparente Ränder entfernt, sodass das Taskleisten- und Programm-Icon
+  größer und füllender dargestellt wird.
+
 ## [0.2.0] - 2026-06-25
 
 ### Neu
