@@ -518,6 +518,15 @@ function FiltersPanel(): JSX.Element {
         </select>
       </label>
 
+      {accountId && <SieveRuleBuilder accountId={accountId} />}
+
+      <div className="border-t pt-4">
+        <h3 className="text-sm font-semibold text-gray-700">Erweitert: Roh-Skripte</h3>
+        <p className="text-xs text-gray-500">
+          Direkter Zugriff auf alle Sieve-Skripte des Servers.
+        </p>
+      </div>
+
       <div className="flex flex-wrap items-center gap-2">
         <button
           onClick={() => void loadScripts(accountId)}
@@ -1036,6 +1045,220 @@ function PgpPanel(): JSX.Element {
             Erzeugen
           </button>
         </div>
+      </div>
+    </div>
+  )
+}
+
+interface SieveRule {
+  id: string
+  field: 'from' | 'to' | 'cc' | 'subject'
+  op: 'contains' | 'is' | 'matches'
+  value: string
+  folder: string
+  markRead: boolean
+}
+
+const FIELD_LABELS: Record<SieveRule['field'], string> = {
+  from: 'Absender',
+  to: 'Empfänger',
+  cc: 'Kopie (Cc)',
+  subject: 'Betreff'
+}
+const OP_LABELS: Record<SieveRule['op'], string> = {
+  contains: 'enthält',
+  is: 'ist genau',
+  matches: 'Muster (* ?)'
+}
+const RULES_SCRIPT = 'nmailclient-rules'
+
+function escSieve(s: string): string {
+  return s.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+}
+
+function buildSieveScript(rules: SieveRule[]): string {
+  const valid = rules.filter((r) => r.value.trim() && r.folder)
+  const needFlags = valid.some((r) => r.markRead)
+  const reqs = ['fileinto', ...(needFlags ? ['imap4flags'] : [])]
+  const out = [
+    `require [${reqs.map((r) => `"${r}"`).join(', ')}];`,
+    '# N-MailClient Regeln — automatisch generiert, nicht von Hand bearbeiten',
+    ''
+  ]
+  for (const r of valid) {
+    out.push(`if header :${r.op} "${r.field}" "${escSieve(r.value.trim())}" {`)
+    if (r.markRead) out.push('  setflag "\\\\Seen";')
+    out.push(`  fileinto "${escSieve(r.folder)}";`)
+    out.push('}')
+  }
+  return out.join('\n') + '\n'
+}
+
+function SieveRuleBuilder({ accountId }: { accountId: string }): JSX.Element {
+  const foldersByAccount = useMailStore((s) => s.foldersByAccount)
+  const ensureFolders = useMailStore((s) => s.ensureFolders)
+  const [rules, setRules] = useState<SieveRule[]>([])
+  const [field, setField] = useState<SieveRule['field']>('from')
+  const [op, setOp] = useState<SieveRule['op']>('contains')
+  const [value, setValue] = useState('')
+  const [folder, setFolder] = useState('')
+  const [markRead, setMarkRead] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState('')
+  const [err, setErr] = useState('')
+
+  const storageKey = `nmc.sieveRules.${accountId}`
+  const folders = (foldersByAccount[accountId] ?? []).filter((f) => f.selectable)
+
+  useEffect(() => {
+    ensureFolders(accountId)
+    try {
+      const raw = localStorage.getItem(`nmc.sieveRules.${accountId}`)
+      setRules(raw ? (JSON.parse(raw) as SieveRule[]) : [])
+    } catch {
+      setRules([])
+    }
+    setMsg('')
+    setErr('')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountId])
+
+  function persist(next: SieveRule[]): void {
+    setRules(next)
+    localStorage.setItem(storageKey, JSON.stringify(next))
+    setMsg('')
+  }
+
+  function addRule(): void {
+    if (!value.trim() || !folder) return
+    persist([
+      ...rules,
+      { id: crypto.randomUUID(), field, op, value: value.trim(), folder, markRead }
+    ])
+    setValue('')
+    setMarkRead(false)
+  }
+
+  async function saveAndActivate(): Promise<void> {
+    setBusy(true)
+    setErr('')
+    setMsg('')
+    const script = buildSieveScript(rules)
+    const put = await window.api.sieve.put(accountId, RULES_SCRIPT, script)
+    if (!put.ok) {
+      setBusy(false)
+      setErr(put.error)
+      return
+    }
+    const act = await window.api.sieve.setActive(accountId, RULES_SCRIPT)
+    setBusy(false)
+    if (!act.ok) {
+      setErr(act.error)
+      return
+    }
+    setMsg('Regeln gespeichert und aktiviert.')
+  }
+
+  return (
+    <div className="rounded border p-3">
+      <h3 className="text-sm font-semibold text-gray-700">Regel-Baukasten</h3>
+      <p className="mt-0.5 text-xs text-gray-500">
+        Erzeugt ein serverseitiges Sieve-Skript „{RULES_SCRIPT}". Beim Speichern wird es das
+        aktive Skript — vorhandene eigene Skripte bleiben erhalten, aber inaktiv.
+      </p>
+
+      {err && <div className="mt-2 rounded bg-red-50 px-3 py-2 text-sm text-red-700">{err}</div>}
+      {msg && !err && (
+        <div className="mt-2 rounded bg-green-50 px-3 py-2 text-sm text-green-700">{msg}</div>
+      )}
+
+      {rules.length > 0 && (
+        <div className="mt-2 divide-y rounded border">
+          {rules.map((r) => (
+            <div key={r.id} className="flex items-center gap-2 px-3 py-1.5 text-sm">
+              <span className="min-w-0 flex-1">
+                Wenn <strong>{FIELD_LABELS[r.field]}</strong> {OP_LABELS[r.op]}{' '}
+                <span className="font-mono">„{r.value}"</span> → verschiebe nach{' '}
+                <strong>{r.folder}</strong>
+                {r.markRead && ' (als gelesen)'}
+              </span>
+              <button
+                onClick={() => persist(rules.filter((x) => x.id !== r.id))}
+                className="shrink-0 rounded p-1 text-red-500 hover:bg-red-50"
+                title="Regel entfernen"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+        <span className="text-gray-500">Wenn</span>
+        <select
+          className="rounded border px-2 py-1.5"
+          value={field}
+          onChange={(e) => setField(e.target.value as SieveRule['field'])}
+        >
+          {(Object.keys(FIELD_LABELS) as SieveRule['field'][]).map((f) => (
+            <option key={f} value={f}>
+              {FIELD_LABELS[f]}
+            </option>
+          ))}
+        </select>
+        <select
+          className="rounded border px-2 py-1.5"
+          value={op}
+          onChange={(e) => setOp(e.target.value as SieveRule['op'])}
+        >
+          {(Object.keys(OP_LABELS) as SieveRule['op'][]).map((o) => (
+            <option key={o} value={o}>
+              {OP_LABELS[o]}
+            </option>
+          ))}
+        </select>
+        <input
+          className="min-w-[140px] flex-1 rounded border px-2 py-1.5"
+          placeholder="Wert (z. B. newsletter@…)"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+        />
+        <span className="text-gray-500">→</span>
+        <select
+          className="rounded border px-2 py-1.5"
+          value={folder}
+          onChange={(e) => setFolder(e.target.value)}
+        >
+          <option value="">Ordner wählen…</option>
+          {folders.map((f) => (
+            <option key={f.path} value={f.path}>
+              {f.path}
+            </option>
+          ))}
+        </select>
+        <label className="flex items-center gap-1 text-gray-600">
+          <input type="checkbox" checked={markRead} onChange={(e) => setMarkRead(e.target.checked)} />
+          gelesen
+        </label>
+        <button
+          onClick={addRule}
+          disabled={!value.trim() || !folder}
+          className="flex items-center gap-1 rounded border px-2 py-1.5 hover:bg-gray-50 disabled:opacity-50"
+        >
+          <Plus className="h-4 w-4" />
+          Regel
+        </button>
+      </div>
+
+      <div className="mt-3">
+        <button
+          onClick={() => void saveAndActivate()}
+          disabled={busy}
+          className="rounded bg-brand px-4 py-2 text-sm text-white hover:bg-brand-dark disabled:opacity-50"
+        >
+          {busy ? 'Speichere…' : 'Regeln speichern & aktivieren'}
+        </button>
       </div>
     </div>
   )

@@ -73,7 +73,7 @@ Version 0.2.0
 - [x] PGP verschlüsselung (OpenPGP.js, PGP/MIME): Schlüsselverwaltung (Import/Erzeugen/Export/Löschen); Lesen (entschlüsseln + Signatur prüfen, Status-Banner); Senden (PGP/MIME signieren/verschlüsseln, Composer-Toggles)
 - [x] Sendeverfolgung — Zustellstatus (DSN): optionale Zustellbestätigung beim Senden anfordern (Einstellung), eingehende Zustellberichte (multipart/report) parsen + Banner in der MailView (zugestellt/fehlgeschlagen/verzögert + Empfänger/Diagnose)
 - [] Mehrsprachigkeit (i18n) DE/EN
-- [] Mail-Regeln/Filter lokal (auto-verschieben/etikettieren)
+- [x] Sieve-Regel-Baukasten (Wenn-Dann-UI „Absender/Betreff … → in Ordner verschieben / als gelesen", generiert serverseitiges Sieve-Skript „nmailclient-rules") — ersetzt die ursprünglich geplanten lokalen Regeln (Sieve deckt das ab)
 - [] Backup/Export der App-Einstellungen
 - [] Überlappende Termine in der Wochenansicht werden derzeit noch voll überlagert (keine Seite-an-Seite-Anordnung)
 
