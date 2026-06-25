@@ -58,8 +58,17 @@ Initial Version 0.1.0
 - [x] Tastenkürzel (Entf löschen, Strg+Enter senden, j/k bzw. Pfeile navigieren)
 - [x] Spam-Training (Junk-Move lernt Spam; „Kein Spam" → Posteingang lernt Ham via Dovecot/Rspamd antispam)
 
+Version 0.1.1 (nur Fixes)
+
+- [x] #1 Filter (Sieve): Button „+Neues Script" hat keine Funktion (prompt() in Electron-Renderer durch Inline-Namensfeld ersetzt)
+- [ ] #2 Sidebar: beim Start sind alle Ordner mit Unterordnern aufgeklappt (sollen eingeklappt sein)
+- [ ] #3 Tastenkombi Strg+A markiert nicht alle Mails
+- [ ] #4 Kalendereinträge erscheinen erst nach 5–10 Sekunden
+
 Version 0.2.0 
 
+- [] #5 Löschfunktion im Anhangsarchiv (Dateien lokal/WebDAV löschen)
+- [] In-App-Update-UI (Banner „Update verfügbar", Download-Fortschritt, „Jetzt neu starten & installieren", „Nach Updates suchen" in den Einstellungen) — baut auf der bestehenden electron-updater-Hintergrundprüfung auf
 - [] PGP verschlüsseklung
 - [] Sendeverfolgung 
 - [] Mehrsprachigkeit (i18n) DE/EN

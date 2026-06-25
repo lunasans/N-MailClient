@@ -350,6 +350,8 @@ function FiltersPanel(): JSX.Element {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [status, setStatus] = useState('')
+  const [naming, setNaming] = useState(false)
+  const [newName, setNewName] = useState('')
 
   async function loadScripts(id: string): Promise<void> {
     setError('')
@@ -432,8 +434,8 @@ function FiltersPanel(): JSX.Element {
     void loadScripts(accountId)
   }
 
-  function newScript(): void {
-    const name = prompt('Name des neuen Skripts:')?.trim()
+  function confirmNewScript(): void {
+    const name = newName.trim()
     if (!name) return
     if (scripts.some((s) => s.name === name)) {
       setError('Ein Skript mit diesem Namen existiert bereits.')
@@ -442,7 +444,10 @@ function FiltersPanel(): JSX.Element {
     setSelected(name)
     setBody(SIEVE_TEMPLATE)
     setDirty(true)
+    setError('')
     setStatus('Neues Skript — zum Anlegen speichern.')
+    setNaming(false)
+    setNewName('')
   }
 
   return (
@@ -484,7 +489,11 @@ function FiltersPanel(): JSX.Element {
           {busy ? 'Lädt…' : 'Verbinden / Laden'}
         </button>
         <button
-          onClick={newScript}
+          onClick={() => {
+            setNaming(true)
+            setNewName('')
+            setError('')
+          }}
           disabled={!accountId}
           className="flex items-center gap-1.5 rounded border px-3 py-2 text-sm hover:bg-gray-50 disabled:opacity-50"
         >
@@ -492,6 +501,41 @@ function FiltersPanel(): JSX.Element {
           Neues Skript
         </button>
       </div>
+
+      {naming && (
+        <div className="flex items-center gap-2">
+          <input
+            autoFocus
+            className="flex-1 rounded border px-3 py-2 text-sm"
+            placeholder="Name des neuen Skripts"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') confirmNewScript()
+              if (e.key === 'Escape') {
+                setNaming(false)
+                setNewName('')
+              }
+            }}
+          />
+          <button
+            onClick={confirmNewScript}
+            disabled={!newName.trim()}
+            className="rounded bg-brand px-4 py-2 text-sm text-white hover:bg-brand-dark disabled:opacity-50"
+          >
+            Anlegen
+          </button>
+          <button
+            onClick={() => {
+              setNaming(false)
+              setNewName('')
+            }}
+            className="rounded border px-3 py-2 text-sm hover:bg-gray-50"
+          >
+            Abbrechen
+          </button>
+        </div>
+      )}
 
       {error && <div className="rounded bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
       {status && !error && (
