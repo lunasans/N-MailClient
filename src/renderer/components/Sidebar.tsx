@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Archive,
   Ban,
@@ -129,6 +129,8 @@ export default function Sidebar(): JSX.Element {
   const [dropTarget, setDropTarget] = useState<string | null>(null)
   const [menu, setMenu] = useState<FolderMenu | null>(null)
   const [dialog, setDialog] = useState<NameDialog | null>(null)
+  // Accounts whose folder tree has already had its default-collapsed state applied.
+  const collapseInitRef = useRef<Set<string>>(new Set())
 
   useEffect(() => {
     if (activeAccountId) {
@@ -136,6 +138,26 @@ export default function Sidebar(): JSX.Element {
       ensureFolders(activeAccountId)
     }
   }, [activeAccountId, ensureFolders])
+
+  // Start with every parent folder collapsed (once per account, when folders load).
+  useEffect(() => {
+    setCollapsed((prev) => {
+      let next = prev
+      for (const [accId, folders] of Object.entries(foldersByAccount)) {
+        if (!folders || collapseInitRef.current.has(accId)) continue
+        collapseInitRef.current.add(accId)
+        const delim = folders[0]?.delimiter || '/'
+        for (const f of folders) {
+          const idx = f.path.lastIndexOf(delim)
+          if (idx > 0) {
+            if (next === prev) next = new Set(prev)
+            next.add(f.path.slice(0, idx))
+          }
+        }
+      }
+      return next
+    })
+  }, [foldersByAccount])
 
   function delimFor(accountId: string): string {
     return foldersByAccount[accountId]?.[0]?.delimiter || '/'
