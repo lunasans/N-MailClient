@@ -4,6 +4,29 @@ Alle nennenswerten Änderungen an N-MailClient werden hier dokumentiert.
 Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.2.0] - 2026-06-25
+
+### Neu
+
+- **PGP-Verschlüsselung** (OpenPGP.js, PGP/MIME): Schlüsselverwaltung
+  (Import/Erzeugen/Export/Löschen, private Schlüssel verschlüsselt via safeStorage);
+  eingehende Mails werden entschlüsselt und Signaturen geprüft (Status-Banner in der
+  Mailansicht); Versand wahlweise signiert und/oder verschlüsselt (Schalter im Composer).
+- **Sieve-Regel-Baukasten**: Wenn-Dann-Regeln (Absender/Empfänger/Cc/Betreff … → in Ordner
+  verschieben / als gelesen markieren) erzeugen ein serverseitiges Sieve-Skript.
+- **Sendeverfolgung (Zustellstatus)**: optionale Zustellbestätigung (DSN) beim Senden
+  anfordern; eingehende Zustellberichte werden als Banner angezeigt
+  (zugestellt / fehlgeschlagen / verzögert, mit Empfänger und Diagnose).
+- **In-App-Update-UI**: Banner mit Download-Fortschritt und „Jetzt neu starten &
+  installieren"; „Nach Updates suchen" in der Über-Ansicht.
+- **„Über"-Ansicht** in den Einstellungen mit App-Version und Änderungsverlauf.
+- **Anhang-Archiv**: Dateien lassen sich jetzt aus dem Archiv löschen (lokal und WebDAV).
+
+### Geändert
+
+- **Kalender**: überlappende Termine werden in der Wochen- und Tagesansicht nebeneinander
+  in Spalten angeordnet statt voll überlagert.
+
 ## [0.1.1] - 2026-06-25
 
 ### Behoben
