@@ -1,0 +1,145 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family:
+    'Segoe UI', system-ui, -apple-system, sans-serif;
+  @apply bg-gray-50 text-gray-900;
+}
+
+/* Make sanitized mail HTML render in a contained, readable way. */
+.mail-body img {
+  max-width: 100%;
+  height: auto;
+}
+.mail-body a {
+  @apply text-brand underline;
+}
+
+/* Rich-text composer content (Tailwind preflight strips list/quote styles). */
+.rich-editor ul {
+  list-style: disc;
+  padding-left: 1.5rem;
+}
+.rich-editor ol {
+  list-style: decimal;
+  padding-left: 1.5rem;
+}
+.rich-editor blockquote {
+  border-left: 3px solid #d1d5db;
+  margin: 0.25rem 0;
+  padding-left: 0.75rem;
+  color: #4b5563;
+}
+.rich-editor a {
+  @apply text-brand underline;
+}
+.rich-editor:empty::before {
+  content: 'Nachricht…';
+  color: #9ca3af;
+}
+
+/* ---- Dark mode: override the surface utilities used across the app ---- */
+.dark body {
+  background-color: #0f1623;
+  color: #e5e7eb;
+}
+.dark *,
+.dark ::before,
+.dark ::after {
+  border-color: #374151;
+}
+
+.dark .bg-white {
+  background-color: #1f2937;
+}
+.dark .bg-gray-50 {
+  background-color: #161f2e;
+}
+.dark .bg-gray-100 {
+  background-color: #243042;
+}
+.dark .bg-gray-200 {
+  background-color: #374151;
+}
+
+.dark .text-gray-900 {
+  color: #f9fafb;
+}
+.dark .text-gray-800 {
+  color: #f3f4f6;
+}
+.dark .text-gray-700 {
+  color: #e5e7eb;
+}
+.dark .text-gray-600 {
+  color: #d1d5db;
+}
+.dark .text-gray-500 {
+  color: #9ca3af;
+}
+.dark .text-gray-400 {
+  color: #6b7280;
+}
+
+.dark .hover\:bg-gray-50:hover {
+  background-color: #243042;
+}
+.dark .hover\:bg-gray-100:hover {
+  background-color: #374151;
+}
+.dark .hover\:bg-gray-200:hover {
+  background-color: #4b5563;
+}
+.dark .hover\:bg-blue-50:hover {
+  background-color: #1e3350;
+}
+
+.dark .bg-blue-50 {
+  background-color: #1e3350;
+}
+.dark .bg-blue-100 {
+  background-color: #1e40af;
+}
+.dark .bg-red-50 {
+  background-color: #3a1d1d;
+}
+.dark .text-red-700 {
+  color: #fca5a5;
+}
+.dark .hover\:bg-red-50:hover {
+  background-color: #3a1d1d;
+}
+.dark .bg-amber-50 {
+  background-color: #3a2e12;
+}
+.dark .text-amber-800 {
+  color: #fcd34d;
+}
+
+.dark input,
+.dark textarea,
+.dark select {
+  background-color: #2b3648;
+  color: #f3f4f6;
+}
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #9ca3af;
+}
+
+/* Mail HTML keeps its own light surface so emails render as intended. */
+.dark .mail-body {
+  background: #ffffff;
+  color: #111827;
+  border-radius: 6px;
+  padding: 12px;
+}
