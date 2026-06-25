@@ -301,6 +301,27 @@ export interface SieveScript {
   active: boolean
 }
 
+/** A PGP key as exposed to the renderer (never includes private material). */
+export interface PgpKeyInfo {
+  id: string
+  /** Key fingerprint (hex, lowercase). */
+  fingerprint: string
+  /** User IDs on the key, e.g. "Name <email>". */
+  userIds: string[]
+  /** True if a (decryptable) private key is stored for this entry. */
+  hasPrivate: boolean
+  /** ISO creation date of the key. */
+  created: string
+}
+
+/** Input for generating a new PGP key pair. */
+export interface PgpGenerateInput {
+  name: string
+  email: string
+  /** Optional passphrase to protect the exported private key. */
+  passphrase?: string
+}
+
 /** Auto-update progress, pushed from the main process to the renderer. */
 export type UpdateStatus =
   | { state: 'checking' }

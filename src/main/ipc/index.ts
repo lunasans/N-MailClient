@@ -9,6 +9,7 @@ import type {
   DraftRef,
   IpcResult,
   NewAccount,
+  PgpGenerateInput,
   SendRequest,
   WebDavConfig
 } from '../types'
@@ -66,6 +67,15 @@ import {
   setActiveScript
 } from '../services/sieveService'
 import { checkForUpdates, getStatus, quitAndInstall } from '../services/updateService'
+import {
+  exportPrivateKey,
+  exportPublicKey,
+  generateKey,
+  importPrivateKey,
+  importPublicKey,
+  listKeys,
+  removeKey
+} from '../services/pgpService'
 import { sendMessage } from '../services/smtpService'
 import { deleteDraft, saveDraft } from '../services/draftService'
 import { restartIdle, startIdle, stopIdle } from '../services/idleService'
@@ -214,6 +224,16 @@ export function registerIpc(): void {
   )
   handle('sieve:setActive', (accountId: string, name: string) => setActiveScript(accountId, name))
   handle('sieve:delete', (accountId: string, name: string) => deleteScript(accountId, name))
+
+  handle('pgp:list', () => listKeys())
+  handle('pgp:importPublic', (armored: string) => importPublicKey(armored))
+  handle('pgp:importPrivate', (armored: string, passphrase: string) =>
+    importPrivateKey(armored, passphrase)
+  )
+  handle('pgp:generate', (input: PgpGenerateInput) => generateKey(input))
+  handle('pgp:exportPublic', (id: string) => exportPublicKey(id))
+  handle('pgp:exportPrivate', (id: string) => exportPrivateKey(id))
+  handle('pgp:remove', (id: string) => removeKey(id))
 
   handle('update:check', () => checkForUpdates())
   handle('update:install', () => quitAndInstall())

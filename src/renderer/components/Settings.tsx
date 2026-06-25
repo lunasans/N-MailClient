@@ -1,13 +1,32 @@
 import { useEffect, useState } from 'react'
-import { Bell, Calendar, Check, FileCode, Info, Plus, Tag, Trash2, User, X } from 'lucide-react'
-import type { Account, CalendarConfig, SieveScript, UpdateStatus } from '@shared/index'
+import {
+  Bell,
+  Calendar,
+  Check,
+  Copy,
+  FileCode,
+  Info,
+  KeyRound,
+  Plus,
+  Tag,
+  Trash2,
+  User,
+  X
+} from 'lucide-react'
+import type {
+  Account,
+  CalendarConfig,
+  PgpKeyInfo,
+  SieveScript,
+  UpdateStatus
+} from '@shared/index'
 import { useMailStore } from '../store/useMailStore'
 import { ACCOUNT_PALETTE, colorForAccount } from '../lib/accountColor'
 import AccountSettings from './AccountSettings'
 import AccountSetup from './AccountSetup'
 import CalDavSetup from './CalDavSetup'
 
-type Section = 'general' | 'accounts' | 'labels' | 'calendar' | 'filters' | 'about'
+type Section = 'general' | 'accounts' | 'labels' | 'calendar' | 'filters' | 'pgp' | 'about'
 
 interface Props {
   onClose: () => void
@@ -25,6 +44,7 @@ export default function Settings({ onClose }: Props): JSX.Element {
     { id: 'labels', label: 'Etiketten', icon: <Tag className="h-4 w-4" /> },
     { id: 'calendar', label: 'Kalender & Kontakte', icon: <Calendar className="h-4 w-4" /> },
     { id: 'filters', label: 'Filter (Sieve)', icon: <FileCode className="h-4 w-4" /> },
+    { id: 'pgp', label: 'Verschlüsselung (PGP)', icon: <KeyRound className="h-4 w-4" /> },
     { id: 'about', label: 'Über', icon: <Info className="h-4 w-4" /> }
   ]
 
@@ -59,6 +79,7 @@ export default function Settings({ onClose }: Props): JSX.Element {
             {section === 'labels' && <LabelsPanel />}
             {section === 'calendar' && <CalendarPanel />}
             {section === 'filters' && <FiltersPanel />}
+            {section === 'pgp' && <PgpPanel />}
             {section === 'about' && <AboutPanel />}
           </div>
         </div>
@@ -756,6 +777,251 @@ function UpdateChecker(): JSX.Element {
           Neu starten &amp; installieren
         </button>
       )}
+    </div>
+  )
+}
+
+function PgpPanel(): JSX.Element {
+  const [keys, setKeys] = useState<PgpKeyInfo[]>([])
+  const [importText, setImportText] = useState('')
+  const [importPass, setImportPass] = useState('')
+  const [genName, setGenName] = useState('')
+  const [genEmail, setGenEmail] = useState('')
+  const [genPass, setGenPass] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [status, setStatus] = useState('')
+  const [shown, setShown] = useState<{ title: string; armored: string } | null>(null)
+  const [copied, setCopied] = useState(false)
+
+  async function load(): Promise<void> {
+    const res = await window.api.pgp.list()
+    if (res.ok) setKeys(res.data)
+  }
+  useEffect(() => {
+    void load()
+  }, [])
+
+  function reset(): void {
+    setError('')
+    setStatus('')
+  }
+
+  async function doImport(): Promise<void> {
+    reset()
+    const text = importText.trim()
+    if (!text) return
+    const isPrivate = /BEGIN PGP PRIVATE KEY/.test(text)
+    setBusy(true)
+    const res = isPrivate
+      ? await window.api.pgp.importPrivate(text, importPass)
+      : await window.api.pgp.importPublic(text)
+    setBusy(false)
+    if (!res.ok) {
+      setError(res.error)
+      return
+    }
+    setStatus(`${isPrivate ? 'Privater' : 'Öffentlicher'} Schlüssel importiert.`)
+    setImportText('')
+    setImportPass('')
+    void load()
+  }
+
+  async function doGenerate(): Promise<void> {
+    reset()
+    if (!genName.trim() || !genEmail.trim()) {
+      setError('Name und E-Mail sind erforderlich.')
+      return
+    }
+    setBusy(true)
+    const res = await window.api.pgp.generate({
+      name: genName.trim(),
+      email: genEmail.trim(),
+      passphrase: genPass || undefined
+    })
+    setBusy(false)
+    if (!res.ok) {
+      setError(res.error)
+      return
+    }
+    setStatus('Neues Schlüsselpaar erzeugt.')
+    setGenName('')
+    setGenEmail('')
+    setGenPass('')
+    void load()
+  }
+
+  async function showPublic(k: PgpKeyInfo): Promise<void> {
+    reset()
+    const res = await window.api.pgp.exportPublic(k.id)
+    if (res.ok) setShown({ title: `Öffentlicher Schlüssel — ${k.userIds[0] ?? k.fingerprint}`, armored: res.data })
+    else setError(res.error)
+  }
+
+  async function showPrivate(k: PgpKeyInfo): Promise<void> {
+    reset()
+    if (!confirm('Privaten Schlüssel im Klartext anzeigen? Nur für Backup an einem sicheren Ort.'))
+      return
+    const res = await window.api.pgp.exportPrivate(k.id)
+    if (res.ok) setShown({ title: `Privater Schlüssel — ${k.userIds[0] ?? k.fingerprint}`, armored: res.data })
+    else setError(res.error)
+  }
+
+  async function remove(k: PgpKeyInfo): Promise<void> {
+    if (!confirm(`Schlüssel „${k.userIds[0] ?? k.fingerprint}" löschen?`)) return
+    reset()
+    const res = await window.api.pgp.remove(k.id)
+    if (res.ok) void load()
+    else setError(res.error)
+  }
+
+  return (
+    <div className="space-y-5">
+      <p className="text-sm text-gray-600">
+        PGP-Schlüssel für signierte und verschlüsselte E-Mails. Private Schlüssel werden
+        verschlüsselt auf dem Gerät gespeichert (Windows DPAPI), niemals im Klartext.
+      </p>
+
+      {error && <div className="rounded bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+      {status && !error && (
+        <div className="rounded bg-green-50 px-3 py-2 text-sm text-green-700">{status}</div>
+      )}
+
+      <div className="divide-y rounded border">
+        {keys.length === 0 && (
+          <div className="px-3 py-2 text-sm text-gray-400">Noch keine Schlüssel.</div>
+        )}
+        {keys.map((k) => (
+          <div key={k.id} className="flex items-center gap-2 px-3 py-2 text-sm">
+            <KeyRound className={`h-4 w-4 shrink-0 ${k.hasPrivate ? 'text-brand' : 'text-gray-400'}`} />
+            <div className="min-w-0 flex-1">
+              <div className="truncate font-medium">{k.userIds[0] ?? '(ohne UID)'}</div>
+              <div className="truncate font-mono text-xs text-gray-400">{k.fingerprint}</div>
+            </div>
+            <span
+              className={`shrink-0 rounded-full px-2 py-0.5 text-xs ${
+                k.hasPrivate ? 'bg-brand/10 text-brand' : 'bg-gray-100 text-gray-500'
+              }`}
+            >
+              {k.hasPrivate ? 'privat + öffentlich' : 'öffentlich'}
+            </span>
+            <button
+              onClick={() => void showPublic(k)}
+              className="shrink-0 rounded border px-2 py-1 text-xs hover:bg-gray-50"
+            >
+              Öffentl. exportieren
+            </button>
+            {k.hasPrivate && (
+              <button
+                onClick={() => void showPrivate(k)}
+                className="shrink-0 rounded border px-2 py-1 text-xs hover:bg-gray-50"
+              >
+                Privat exportieren
+              </button>
+            )}
+            <button
+              onClick={() => void remove(k)}
+              className="shrink-0 rounded p-1 text-red-500 hover:bg-red-50"
+              title="Löschen"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {shown && (
+        <div className="rounded border p-3">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-sm font-medium">{shown.title}</span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(shown.armored)
+                  setCopied(true)
+                  setTimeout(() => setCopied(false), 1500)
+                }}
+                className="flex items-center gap-1 rounded border px-2 py-1 text-xs hover:bg-gray-50"
+              >
+                {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                {copied ? 'Kopiert' : 'Kopieren'}
+              </button>
+              <button
+                onClick={() => setShown(null)}
+                className="rounded p-1 text-gray-400 hover:text-gray-700"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+          <textarea
+            readOnly
+            value={shown.armored}
+            className="h-40 w-full rounded border bg-gray-50 px-2 py-1 font-mono text-xs"
+          />
+        </div>
+      )}
+
+      <div className="rounded border p-3">
+        <span className="text-sm font-medium text-gray-700">Schlüssel importieren</span>
+        <textarea
+          className="mt-2 h-28 w-full rounded border px-3 py-2 font-mono text-xs"
+          placeholder="-----BEGIN PGP PUBLIC KEY BLOCK----- … (oder PRIVATE KEY)"
+          value={importText}
+          onChange={(e) => setImportText(e.target.value)}
+        />
+        <div className="mt-2 flex items-center gap-2">
+          <input
+            type="password"
+            className="flex-1 rounded border px-3 py-2 text-sm"
+            placeholder="Passwort (nur bei privatem Schlüssel)"
+            value={importPass}
+            onChange={(e) => setImportPass(e.target.value)}
+          />
+          <button
+            onClick={() => void doImport()}
+            disabled={busy || !importText.trim()}
+            className="rounded bg-brand px-4 py-2 text-sm text-white hover:bg-brand-dark disabled:opacity-50"
+          >
+            Importieren
+          </button>
+        </div>
+      </div>
+
+      <div className="rounded border p-3">
+        <span className="text-sm font-medium text-gray-700">Neues Schlüsselpaar erzeugen</span>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <input
+            className="rounded border px-3 py-2 text-sm"
+            placeholder="Name"
+            value={genName}
+            onChange={(e) => setGenName(e.target.value)}
+          />
+          <input
+            className="rounded border px-3 py-2 text-sm"
+            placeholder="E-Mail"
+            value={genEmail}
+            onChange={(e) => setGenEmail(e.target.value)}
+          />
+        </div>
+        <div className="mt-2 flex items-center gap-2">
+          <input
+            type="password"
+            className="flex-1 rounded border px-3 py-2 text-sm"
+            placeholder="Passwort für Export (optional)"
+            value={genPass}
+            onChange={(e) => setGenPass(e.target.value)}
+          />
+          <button
+            onClick={() => void doGenerate()}
+            disabled={busy || !genName.trim() || !genEmail.trim()}
+            className="flex items-center gap-1.5 rounded bg-brand px-4 py-2 text-sm text-white hover:bg-brand-dark disabled:opacity-50"
+          >
+            <Plus className="h-4 w-4" />
+            Erzeugen
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

@@ -23,6 +23,8 @@ import type {
   PickedAttachment,
   ProbeResult,
   SaveResult,
+  PgpGenerateInput,
+  PgpKeyInfo,
   SendRequest,
   SieveScript,
   UpdateStatus,
@@ -187,6 +189,20 @@ const api = {
       ipcRenderer.invoke('sieve:setActive', accountId, name),
     delete: (accountId: string, name: string): Promise<IpcResult<void>> =>
       ipcRenderer.invoke('sieve:delete', accountId, name)
+  },
+  pgp: {
+    list: (): Promise<IpcResult<PgpKeyInfo[]>> => ipcRenderer.invoke('pgp:list'),
+    importPublic: (armored: string): Promise<IpcResult<PgpKeyInfo>> =>
+      ipcRenderer.invoke('pgp:importPublic', armored),
+    importPrivate: (armored: string, passphrase: string): Promise<IpcResult<PgpKeyInfo>> =>
+      ipcRenderer.invoke('pgp:importPrivate', armored, passphrase),
+    generate: (input: PgpGenerateInput): Promise<IpcResult<PgpKeyInfo>> =>
+      ipcRenderer.invoke('pgp:generate', input),
+    exportPublic: (id: string): Promise<IpcResult<string>> =>
+      ipcRenderer.invoke('pgp:exportPublic', id),
+    exportPrivate: (id: string): Promise<IpcResult<string>> =>
+      ipcRenderer.invoke('pgp:exportPrivate', id),
+    remove: (id: string): Promise<IpcResult<void>> => ipcRenderer.invoke('pgp:remove', id)
   },
   update: {
     check: (): Promise<IpcResult<void>> => ipcRenderer.invoke('update:check'),

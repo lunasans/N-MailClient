@@ -32,6 +32,18 @@ export interface StoredAccount {
   aliases?: string[]
 }
 
+/** A stored PGP key. Private material is encrypted at rest via safeStorage. */
+export interface StoredPgpKey {
+  id: string
+  fingerprint: string
+  userIds: string[]
+  created: string
+  /** Armored public key (always present). */
+  publicArmored: string
+  /** safeStorage-encrypted armored private key (passphrase-removed); only for own keys. */
+  privateSecret?: string
+}
+
 interface DbShape {
   version: number
   accounts: StoredAccount[]
@@ -41,6 +53,8 @@ interface DbShape {
   labels?: Label[]
   /** CalDAV calendar connection (single, global). */
   calendar?: CalendarConfig & { secret: string }
+  /** Imported/generated PGP keys (global). */
+  pgpKeys?: StoredPgpKey[]
 }
 
 let dbPath = ''
@@ -112,6 +126,15 @@ export function getLabels(): Label[] {
 
 export function setLabels(labels: Label[]): void {
   data.labels = labels
+  persist()
+}
+
+export function getPgpKeys(): StoredPgpKey[] {
+  return data.pgpKeys ?? []
+}
+
+export function setPgpKeys(keys: StoredPgpKey[]): void {
+  data.pgpKeys = keys
   persist()
 }
 
