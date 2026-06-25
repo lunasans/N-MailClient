@@ -62,7 +62,7 @@ Version 0.1.1 (nur Fixes)
 
 - [x] #1 Filter (Sieve): Button „+Neues Script" hat keine Funktion (prompt() in Electron-Renderer durch Inline-Namensfeld ersetzt)
 - [x] #2 Sidebar: beim Start sind alle Ordner mit Unterordnern aufgeklappt (Unterordner werden jetzt standardmäßig eingeklappt)
-- [ ] #3 Tastenkombi Strg+A markiert nicht alle Mails
+- [x] #3 Tastenkombi Strg+A markiert nicht alle Mails (Select-all im Mail-View ergänzt)
 - [ ] #4 Kalendereinträge erscheinen erst nach 5–10 Sekunden
 
 Version 0.2.0 

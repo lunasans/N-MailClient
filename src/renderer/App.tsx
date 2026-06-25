@@ -70,7 +70,12 @@ export default function App(): JSX.Element {
       if (st.compose || st.view !== 'mail' || st.unified || st.activeLabel) return
       const msgs = st.messages
       const i = msgs.findIndex((m) => m.uid === st.selectedUid)
-      if (e.key === 'Delete' && st.selectedUids.length) {
+      if ((e.key === 'a' || e.key === 'A') && (e.ctrlKey || e.metaKey)) {
+        if (msgs.length) {
+          e.preventDefault()
+          st.selectAll()
+        }
+      } else if (e.key === 'Delete' && st.selectedUids.length) {
         e.preventDefault()
         st.removeMessages(st.selectedUids)
       } else if (e.key === 'j' || e.key === 'ArrowDown') {

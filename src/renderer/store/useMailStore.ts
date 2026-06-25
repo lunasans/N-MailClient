@@ -175,6 +175,7 @@ interface MailState {
   selectMessage: (uid: number) => Promise<void>
   toggleSelect: (uid: number) => void
   rangeSelect: (uid: number) => void
+  selectAll: () => void
   setDragging: (uids: number[]) => void
   refreshMessages: () => Promise<void>
   setMessagesSeen: (uids: number[], seen: boolean) => Promise<void>
@@ -664,6 +665,9 @@ export const useMailStore = create<MailState>((set, get) => ({
       const [lo, hi] = a < b ? [a, b] : [b, a]
       return { selectedUids: order.slice(lo, hi + 1) }
     }),
+
+  selectAll: () =>
+    set((s) => ({ selectedUids: s.messages.map((m) => m.uid) })),
 
   setMessagesSeen: async (uids, seen) => {
     const { activeAccountId, activeFolder, messages } = get()
