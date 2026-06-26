@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import {
   Archive,
   Ban,
@@ -66,6 +66,32 @@ function formatDate(iso: string): string {
   return sameDay
     ? d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
     : d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' })
+}
+
+/** Monday 00:00 of the week containing d. */
+function startOfWeek(d: Date): Date {
+  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+  x.setDate(x.getDate() - ((x.getDay() + 6) % 7))
+  return x
+}
+
+/** Bucket a message date into a relative-week section label. */
+function dateBucket(iso: string): string {
+  if (!iso) return 'Älter'
+  const d = new Date(iso).getTime()
+  const thisWeek = startOfWeek(new Date()).getTime()
+  if (d >= thisWeek) return 'Diese Woche'
+  if (d >= thisWeek - 7 * 86400000) return 'Letzte Woche'
+  if (d >= thisWeek - 14 * 86400000) return 'Vor zwei Wochen'
+  return 'Älter'
+}
+
+function DateHeader({ label }: { label: string }): JSX.Element {
+  return (
+    <div className="sticky top-0 z-10 border-b bg-gray-50 px-3 py-1 text-xs font-semibold text-gray-500">
+      {label}
+    </div>
+  )
 }
 
 interface MenuState {
@@ -290,11 +316,14 @@ function FolderMailList(): JSX.Element {
                 : 'Keine Nachrichten.'}
           </div>
         )}
-        {displayed.map((m) => {
+        {displayed.map((m, i) => {
           const inSelection = selectedUids.includes(m.uid)
+          const bucket = dateBucket(m.date)
+          const showHeader = i === 0 || dateBucket(displayed[i - 1].date) !== bucket
           return (
+            <Fragment key={m.uid}>
+              {showHeader && <DateHeader label={bucket} />}
             <div
-              key={m.uid}
               draggable
               onDragStart={(e) => startDrag(e, m)}
               onClick={(e) => handleClick(e, m)}
@@ -336,6 +365,7 @@ function FolderMailList(): JSX.Element {
                 </div>
               </div>
             </div>
+            </Fragment>
           )
         })}
       </div>
@@ -568,12 +598,15 @@ function UnifiedList(): JSX.Element {
         {!loading && items.length === 0 && (
           <div className="px-3 py-3 text-sm text-gray-400">Keine Nachrichten.</div>
         )}
-        {items.map((it) => {
+        {items.map((it, i) => {
           const color = colorById(accounts, it.accountId)
           const email = accounts.find((a) => a.id === it.accountId)?.email ?? ''
+          const bucket = dateBucket(it.date)
+          const showHeader = i === 0 || dateBucket(items[i - 1].date) !== bucket
           return (
+            <Fragment key={`${it.accountId}|${it.folder}|${it.uid}`}>
+              {showHeader && <DateHeader label={bucket} />}
             <div
-              key={`${it.accountId}|${it.folder}|${it.uid}`}
               onClick={() => selectUnified(it)}
               onContextMenu={(e) => openMenu(e, it)}
               style={{ borderLeftColor: color }}
@@ -619,6 +652,7 @@ function UnifiedList(): JSX.Element {
                 </div>
               </div>
             </div>
+            </Fragment>
           )
         })}
       </div>

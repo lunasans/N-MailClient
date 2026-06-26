@@ -324,6 +324,16 @@ export interface PgpKeyInfo {
   created: string
 }
 
+/** Result of probing a recipient domain's MX for STARTTLS support. */
+export interface RecipientTls {
+  domain: string
+  /** supported = STARTTLS advertised; unsupported = not advertised; no-mx = no MX;
+   *  unknown = couldn't determine (DNS error, port 25 blocked, timeout). */
+  status: 'supported' | 'unsupported' | 'no-mx' | 'unknown'
+  /** The MX host that was probed. */
+  mx?: string
+}
+
 /** Delivery status parsed from an incoming DSN (multipart/report). */
 export interface DeliveryInfo {
   status: 'delivered' | 'failed' | 'delayed' | 'relayed' | 'unknown'

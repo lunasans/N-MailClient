@@ -67,6 +67,7 @@ import {
   setActiveScript
 } from '../services/sieveService'
 import { checkForUpdates, getStatus, quitAndInstall } from '../services/updateService'
+import { checkRecipientTls } from '../services/mxTlsService'
 import {
   exportPrivateKey,
   exportPublicKey,
@@ -234,6 +235,8 @@ export function registerIpc(): void {
   handle('pgp:exportPublic', (id: string) => exportPublicKey(id))
   handle('pgp:exportPrivate', (id: string) => exportPrivateKey(id))
   handle('pgp:remove', (id: string) => removeKey(id))
+
+  handle('mx:checkTls', (domain: string) => checkRecipientTls(domain))
 
   handle('update:check', () => checkForUpdates())
   handle('update:install', () => quitAndInstall())

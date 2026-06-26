@@ -1,5 +1,9 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Lock, ShieldAlert, ShieldQuestion } from 'lucide-react'
+import type { RecipientTls } from '@shared/index'
 import { useMailStore } from '../store/useMailStore'
+
+const EMAIL_RE = /[^\s<>,";]+@[^\s<>,";]+\.[^\s<>,";]+/g
 
 interface Suggestion {
   name: string
@@ -30,6 +34,34 @@ export default function RecipientInput({
   const [open, setOpen] = useState(false)
   const [highlight, setHighlight] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // Recipient transport-encryption (STARTTLS) status, keyed by domain.
+  const [tls, setTls] = useState<Record<string, RecipientTls | 'pending'>>({})
+  const tlsRef = useRef(tls)
+  tlsRef.current = tls
+
+  const domains = useMemo(() => {
+    const emails = value.match(EMAIL_RE) ?? []
+    return [...new Set(emails.map((e) => e.split('@')[1].toLowerCase()))]
+  }, [value])
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const toFetch = domains.filter((d) => !tlsRef.current[d])
+      if (!toFetch.length) return
+      setTls((p) => {
+        const next = { ...p }
+        toFetch.forEach((d) => (next[d] = 'pending'))
+        return next
+      })
+      toFetch.forEach((d) => {
+        window.api.mx.checkTls(d).then((res) => {
+          setTls((p) => ({ ...p, [d]: res.ok ? res.data : { domain: d, status: 'unknown' } }))
+        })
+      })
+    }, 600)
+    return () => clearTimeout(t)
+  }, [domains])
 
   // The token currently being typed (after the last comma).
   const lastComma = value.lastIndexOf(',')
@@ -114,6 +146,44 @@ export default function RecipientInput({
               </span>
             </button>
           ))}
+        </div>
+      )}
+
+      {domains.length > 0 && (
+        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs">
+          {domains.map((d) => {
+            const r = tls[d]
+            if (r === 'pending' || !r) {
+              return (
+                <span key={d} className="flex items-center gap-1 text-gray-400">
+                  <ShieldQuestion className="h-3.5 w-3.5" />
+                  {d}: prüfe…
+                </span>
+              )
+            }
+            if (r.status === 'supported') {
+              return (
+                <span key={d} className="flex items-center gap-1 text-green-600" title={r.mx}>
+                  <Lock className="h-3.5 w-3.5" />
+                  {d}: Transportverschlüsselung
+                </span>
+              )
+            }
+            if (r.status === 'unsupported') {
+              return (
+                <span key={d} className="flex items-center gap-1 text-red-600" title={r.mx}>
+                  <ShieldAlert className="h-3.5 w-3.5" />
+                  {d}: keine TLS-Unterstützung
+                </span>
+              )
+            }
+            return (
+              <span key={d} className="flex items-center gap-1 text-gray-400">
+                <ShieldQuestion className="h-3.5 w-3.5" />
+                {d}: {r.status === 'no-mx' ? 'kein Mailserver' : 'TLS unbekannt'}
+              </span>
+            )
+          })}
         </div>
       )}
     </div>

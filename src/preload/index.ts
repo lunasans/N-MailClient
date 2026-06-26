@@ -25,6 +25,7 @@ import type {
   SaveResult,
   PgpGenerateInput,
   PgpKeyInfo,
+  RecipientTls,
   SendRequest,
   SieveScript,
   UpdateStatus,
@@ -203,6 +204,10 @@ const api = {
     exportPrivate: (id: string): Promise<IpcResult<string>> =>
       ipcRenderer.invoke('pgp:exportPrivate', id),
     remove: (id: string): Promise<IpcResult<void>> => ipcRenderer.invoke('pgp:remove', id)
+  },
+  mx: {
+    checkTls: (domain: string): Promise<IpcResult<RecipientTls>> =>
+      ipcRenderer.invoke('mx:checkTls', domain)
   },
   update: {
     check: (): Promise<IpcResult<void>> => ipcRenderer.invoke('update:check'),
