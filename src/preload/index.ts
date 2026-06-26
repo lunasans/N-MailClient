@@ -27,6 +27,8 @@ import type {
   PgpKeyInfo,
   RecipientTls,
   SendRequest,
+  TranslateConfig,
+  TranslateResult,
   SieveScript,
   UpdateStatus,
   WebDavConfig
@@ -224,6 +226,16 @@ const api = {
       ipcRenderer.invoke('settings:export', prefs),
     import: (): Promise<IpcResult<{ canceled: boolean; prefs?: Record<string, string> }>> =>
       ipcRenderer.invoke('settings:import')
+  },
+  translate: {
+    get: (): Promise<IpcResult<TranslateConfig | null>> => ipcRenderer.invoke('translate:get'),
+    test: (url: string, apiKey: string): Promise<IpcResult<void>> =>
+      ipcRenderer.invoke('translate:test', url, apiKey),
+    save: (url: string, target: string, apiKey: string): Promise<IpcResult<void>> =>
+      ipcRenderer.invoke('translate:save', url, target, apiKey),
+    clear: (): Promise<IpcResult<void>> => ipcRenderer.invoke('translate:clear'),
+    run: (text: string): Promise<IpcResult<TranslateResult>> =>
+      ipcRenderer.invoke('translate:run', text)
   },
   update: {
     check: (): Promise<IpcResult<void>> => ipcRenderer.invoke('update:check'),

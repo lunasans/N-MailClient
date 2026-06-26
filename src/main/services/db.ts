@@ -1,7 +1,14 @@
 import { app, safeStorage } from 'electron'
 import { join } from 'path'
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
-import type { ArchiveTarget, CalendarConfig, Label, MailboxNode, ServerConfig } from '../types'
+import type {
+  ArchiveTarget,
+  CalendarConfig,
+  Label,
+  MailboxNode,
+  ServerConfig,
+  TranslateConfig
+} from '../types'
 
 /**
  * Lightweight JSON-backed store in the userData directory.
@@ -55,6 +62,8 @@ interface DbShape {
   calendar?: CalendarConfig & { secret: string }
   /** Imported/generated PGP keys (global). */
   pgpKeys?: StoredPgpKey[]
+  /** LibreTranslate connection (API key, if any, encrypted in `secret`). */
+  translate?: TranslateConfig & { secret?: string }
 }
 
 let dbPath = ''
@@ -175,6 +184,20 @@ export function setCalendar(config: CalendarConfig, password: string): void {
 
 export function clearCalendar(): void {
   delete data.calendar
+  persist()
+}
+
+export function getTranslate(): (TranslateConfig & { secret?: string }) | undefined {
+  return data.translate
+}
+
+export function setTranslate(config: TranslateConfig, apiKey: string): void {
+  data.translate = { ...config, secret: apiKey ? encryptPassword(apiKey) : undefined }
+  persist()
+}
+
+export function clearTranslate(): void {
+  delete data.translate
   persist()
 }
 

@@ -324,6 +324,21 @@ export interface PgpKeyInfo {
   created: string
 }
 
+/** LibreTranslate connection (API key, if any, stored separately). */
+export interface TranslateConfig {
+  /** Base URL of the LibreTranslate instance, e.g. https://translate.example.com */
+  url: string
+  /** Target language code, e.g. "de". */
+  target: string
+}
+
+/** Result of a translation. */
+export interface TranslateResult {
+  text: string
+  /** Detected source language code, if reported. */
+  detected?: string
+}
+
 /** Result of probing a recipient domain's MX for STARTTLS support. */
 export interface RecipientTls {
   domain: string

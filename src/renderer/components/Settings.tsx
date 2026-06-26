@@ -7,6 +7,7 @@ import {
   FileCode,
   Info,
   KeyRound,
+  Languages,
   Plus,
   Tag,
   Trash2,
@@ -26,7 +27,15 @@ import AccountSettings from './AccountSettings'
 import AccountSetup from './AccountSetup'
 import CalDavSetup from './CalDavSetup'
 
-type Section = 'general' | 'accounts' | 'labels' | 'calendar' | 'filters' | 'pgp' | 'about'
+type Section =
+  | 'general'
+  | 'accounts'
+  | 'labels'
+  | 'calendar'
+  | 'filters'
+  | 'pgp'
+  | 'translate'
+  | 'about'
 
 interface Props {
   onClose: () => void
@@ -45,6 +54,7 @@ export default function Settings({ onClose }: Props): JSX.Element {
     { id: 'calendar', label: 'Kalender & Kontakte', icon: <Calendar className="h-4 w-4" /> },
     { id: 'filters', label: 'Filter (Sieve)', icon: <FileCode className="h-4 w-4" /> },
     { id: 'pgp', label: 'Verschlüsselung (PGP)', icon: <KeyRound className="h-4 w-4" /> },
+    { id: 'translate', label: 'Übersetzung', icon: <Languages className="h-4 w-4" /> },
     { id: 'about', label: 'Über', icon: <Info className="h-4 w-4" /> }
   ]
 
@@ -80,6 +90,7 @@ export default function Settings({ onClose }: Props): JSX.Element {
             {section === 'calendar' && <CalendarPanel />}
             {section === 'filters' && <FiltersPanel />}
             {section === 'pgp' && <PgpPanel />}
+            {section === 'translate' && <TranslatePanel />}
             {section === 'about' && <AboutPanel />}
           </div>
         </div>
@@ -1352,6 +1363,126 @@ function SieveRuleBuilder({ accountId }: { accountId: string }): JSX.Element {
         >
           {busy ? 'Speichere…' : 'Regeln speichern & aktivieren'}
         </button>
+      </div>
+    </div>
+  )
+}
+
+function TranslatePanel(): JSX.Element {
+  const [configured, setConfigured] = useState(false)
+  const [url, setUrl] = useState('')
+  const [target, setTarget] = useState('de')
+  const [apiKey, setApiKey] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [status, setStatus] = useState('')
+
+  useEffect(() => {
+    window.api.translate.get().then((res) => {
+      if (res.ok && res.data) {
+        setUrl(res.data.url)
+        setTarget(res.data.target)
+        setConfigured(true)
+      }
+    })
+  }, [])
+
+  async function test(): Promise<void> {
+    setBusy(true)
+    setError('')
+    setStatus('')
+    const res = await window.api.translate.test(url.trim(), apiKey)
+    setBusy(false)
+    if (res.ok) setStatus('Verbindung erfolgreich.')
+    else setError(res.error)
+  }
+
+  async function save(): Promise<void> {
+    setBusy(true)
+    setError('')
+    setStatus('')
+    const res = await window.api.translate.save(url.trim(), target.trim() || 'de', apiKey)
+    setBusy(false)
+    if (res.ok) {
+      setConfigured(true)
+      setStatus('Übersetzungsdienst gespeichert.')
+    } else setError(res.error)
+  }
+
+  async function disconnect(): Promise<void> {
+    await window.api.translate.clear()
+    setConfigured(false)
+    setUrl('')
+    setApiKey('')
+    setStatus('Verbindung getrennt.')
+  }
+
+  return (
+    <div className="max-w-md space-y-4">
+      <p className="text-sm text-gray-600">
+        Übersetzt Mailtexte über eine eigene <strong>LibreTranslate</strong>-Instanz. Der Mailinhalt
+        wird nur an diesen Server gesendet — wähle einen Server, dem du vertraust.
+      </p>
+
+      {error && <div className="rounded bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+      {status && !error && (
+        <div className="rounded bg-green-50 px-3 py-2 text-sm text-green-700">{status}</div>
+      )}
+
+      <label className="block">
+        <span className="text-sm text-gray-600">Server-URL</span>
+        <input
+          className="mt-1 w-full rounded border px-3 py-2 text-sm"
+          placeholder="https://translate.example.com"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+        />
+      </label>
+
+      <label className="block">
+        <span className="text-sm text-gray-600">Zielsprache (Code)</span>
+        <input
+          className="mt-1 w-full rounded border px-3 py-2 text-sm"
+          placeholder="de"
+          value={target}
+          onChange={(e) => setTarget(e.target.value)}
+        />
+      </label>
+
+      <label className="block">
+        <span className="text-sm text-gray-600">API-Key (optional)</span>
+        <input
+          type="password"
+          className="mt-1 w-full rounded border px-3 py-2 text-sm"
+          placeholder="nur falls der Server einen verlangt"
+          value={apiKey}
+          onChange={(e) => setApiKey(e.target.value)}
+        />
+      </label>
+
+      <div className="flex gap-2">
+        <button
+          onClick={() => void test()}
+          disabled={busy || !url.trim()}
+          className="rounded border px-4 py-2 text-sm hover:bg-gray-50 disabled:opacity-50"
+        >
+          Verbindung testen
+        </button>
+        <button
+          onClick={() => void save()}
+          disabled={busy || !url.trim()}
+          className="rounded bg-brand px-4 py-2 text-sm text-white hover:bg-brand-dark disabled:opacity-50"
+        >
+          Speichern
+        </button>
+        {configured && (
+          <button
+            onClick={() => void disconnect()}
+            className="rounded border px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+          >
+            Trennen
+          </button>
+        )}
       </div>
     </div>
   )

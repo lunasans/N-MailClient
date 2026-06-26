@@ -70,6 +70,13 @@ import { checkForUpdates, getStatus, quitAndInstall } from '../services/updateSe
 import { checkRecipientTls } from '../services/mxTlsService'
 import { exportSettings, importSettings } from '../services/settingsService'
 import {
+  clearConfig as clearTranslateConfig,
+  getPublicConfig as getTranslateConfig,
+  saveConfig as saveTranslateConfig,
+  testConnection as testTranslate,
+  translate
+} from '../services/translateService'
+import {
   exportPrivateKey,
   exportPublicKey,
   generateKey,
@@ -246,6 +253,14 @@ export function registerIpc(): void {
 
   handle('settings:export', (prefs: Record<string, string>) => exportSettings(prefs))
   handle('settings:import', () => importSettings())
+
+  handle('translate:get', () => getTranslateConfig())
+  handle('translate:test', (url: string, apiKey: string) => testTranslate(url, apiKey))
+  handle('translate:save', (url: string, target: string, apiKey: string) =>
+    saveTranslateConfig(url, target, apiKey)
+  )
+  handle('translate:clear', () => clearTranslateConfig())
+  handle('translate:run', (text: string) => translate(text))
 
   handle('update:check', () => checkForUpdates())
   handle('update:install', () => quitAndInstall())

@@ -9,6 +9,7 @@ import {
   Forward,
   ImageOff,
   Clock,
+  Languages,
   Lock,
   MailCheck,
   MailX,
@@ -106,16 +107,33 @@ export default function MailView(): JSX.Element {
   const openNewEvent = useMailStore((s) => s.openNewEvent)
   const [showImages, setShowImages] = useState(false)
   const [source, setSource] = useState<string | null>(null)
+  const [translated, setTranslated] = useState<{ text: string; detected?: string } | null>(null)
+  const [translating, setTranslating] = useState(false)
+  const [translateError, setTranslateError] = useState<string | null>(null)
 
   const accountId = previewCtx?.accountId ?? null
   const folder = previewCtx?.folder ?? null
   const ownEmail = accounts.find((a) => a.id === accountId)?.email ?? ''
 
-  // Re-block images whenever a different message is opened.
+  // Re-block images / reset translation whenever a different message is opened.
   useEffect(() => {
     setShowImages(false)
     setSource(null)
+    setTranslated(null)
+    setTranslateError(null)
   }, [message?.uid])
+
+  async function translateMessage(): Promise<void> {
+    if (!message) return
+    const text = message.text ?? (message.html ? message.html.replace(/<[^>]+>/g, ' ') : '')
+    if (!text.trim()) return
+    setTranslating(true)
+    setTranslateError(null)
+    const res = await window.api.translate.run(text)
+    setTranslating(false)
+    if (res.ok) setTranslated(res.data)
+    else setTranslateError(res.error)
+  }
 
   function reply(all: boolean): void {
     if (!message || !folder) return
@@ -263,8 +281,17 @@ export default function MailView(): JSX.Element {
             Als Termin
           </button>
           <button
+            onClick={translateMessage}
+            disabled={translating}
+            className="ml-auto flex items-center gap-1.5 rounded border px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+            title="Mailtext übersetzen"
+          >
+            <Languages className="h-4 w-4" />
+            {translating ? 'Übersetze…' : 'Übersetzen'}
+          </button>
+          <button
             onClick={printMail}
-            className="ml-auto flex items-center gap-1.5 rounded border px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+            className="flex items-center gap-1.5 rounded border px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
             title="Drucken"
           >
             <Printer className="h-4 w-4" />
@@ -392,8 +419,28 @@ export default function MailView(): JSX.Element {
         </div>
       )}
 
+      {translateError && (
+        <div className="bg-red-50 px-6 py-2 text-sm text-red-700">{translateError}</div>
+      )}
+      {translated && (
+        <div className="flex items-center justify-between gap-3 border-b bg-blue-50 px-6 py-2 text-sm text-blue-700">
+          <span className="flex items-center gap-2">
+            <Languages className="h-4 w-4" />
+            Übersetzt{translated.detected ? ` aus „${translated.detected}"` : ''}
+          </span>
+          <button
+            onClick={() => setTranslated(null)}
+            className="shrink-0 rounded border border-blue-300 px-3 py-1 hover:bg-blue-100"
+          >
+            Original anzeigen
+          </button>
+        </div>
+      )}
+
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
-        {rendered ? (
+        {translated ? (
+          <pre className="whitespace-pre-wrap font-sans text-sm text-gray-800">{translated.text}</pre>
+        ) : rendered ? (
           <div className="mail-body" dangerouslySetInnerHTML={{ __html: rendered.html }} />
         ) : (
           <pre className="whitespace-pre-wrap font-sans text-sm text-gray-800">
