@@ -214,6 +214,11 @@ const api = {
     checkTls: (domain: string): Promise<IpcResult<RecipientTls>> =>
       ipcRenderer.invoke('mx:checkTls', domain)
   },
+  app: {
+    getAutostart: (): Promise<IpcResult<boolean>> => ipcRenderer.invoke('app:getAutostart'),
+    setAutostart: (enabled: boolean): Promise<IpcResult<void>> =>
+      ipcRenderer.invoke('app:setAutostart', enabled)
+  },
   update: {
     check: (): Promise<IpcResult<void>> => ipcRenderer.invoke('update:check'),
     install: (): Promise<IpcResult<void>> => ipcRenderer.invoke('update:install'),

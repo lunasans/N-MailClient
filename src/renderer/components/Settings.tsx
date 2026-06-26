@@ -105,6 +105,11 @@ function GeneralPanel(): JSX.Element {
   const [confirmDelete, setConfirmDelete] = useState(
     () => localStorage.getItem('nmc.confirmDelete') !== '0'
   )
+  const [autostart, setAutostart] = useState(false)
+
+  useEffect(() => {
+    window.api.app.getAutostart().then((res) => res.ok && setAutostart(res.data))
+  }, [])
 
   return (
     <div className="max-w-md space-y-4">
@@ -120,6 +125,18 @@ function GeneralPanel(): JSX.Element {
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" checked={darkMode} onChange={(e) => setDarkMode(e.target.checked)} />
         Dunkler Modus
+      </label>
+
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={autostart}
+          onChange={(e) => {
+            setAutostart(e.target.checked)
+            window.api.app.setAutostart(e.target.checked)
+          }}
+        />
+        Beim Systemstart öffnen
       </label>
 
       <label className="flex items-center gap-2 text-sm">

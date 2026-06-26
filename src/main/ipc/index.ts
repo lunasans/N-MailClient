@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron'
+import { app, ipcMain } from 'electron'
 import type {
   AccountSettings,
   AttachmentRef,
@@ -237,6 +237,11 @@ export function registerIpc(): void {
   handle('pgp:remove', (id: string) => removeKey(id))
 
   handle('mx:checkTls', (domain: string) => checkRecipientTls(domain))
+
+  handle('app:getAutostart', () => app.getLoginItemSettings().openAtLogin)
+  handle('app:setAutostart', (enabled: boolean) =>
+    app.setLoginItemSettings({ openAtLogin: enabled })
+  )
 
   handle('update:check', () => checkForUpdates())
   handle('update:install', () => quitAndInstall())
