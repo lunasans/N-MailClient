@@ -4,6 +4,20 @@ Alle nennenswerten Änderungen an N-MailClient werden hier dokumentiert.
 Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.4.0] - 2026-06-26
+
+### Neu
+
+- **Mail-Übersetzung**: „Übersetzen"-Button in der Mailansicht übersetzt den Text in die
+  gewählte Zielsprache (Quellsprache automatisch erkannt) mit Umschalter Original/Übersetzung.
+  Nutzt eine eigene **LibreTranslate**-Instanz (Server-URL + optionaler API-Key in den
+  Einstellungen); der Mailinhalt wird nur an diesen Server gesendet. Beispiel-`docker-compose.yml`
+  liegt unter `docker/libretranslate/`.
+
+### Verbessert
+
+- Klare Trennlinie zwischen Mailliste und Vorschau im Layout „Vorschau unten".
+
 ## [0.3.0] - 2026-06-25
 
 ### Neu

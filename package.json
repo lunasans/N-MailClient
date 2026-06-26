@@ -1,6 +1,6 @@
 {
   "name": "n-mailclient",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "N-MailClient — desktop IMAP/SMTP client with calendar & contacts",
   "main": "./out/main/index.js",
   "author": "Neuhaus",
