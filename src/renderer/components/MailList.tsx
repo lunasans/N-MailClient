@@ -108,6 +108,7 @@ export default function MailList(): JSX.Element {
 function FolderMailList(): JSX.Element {
   const messages = useMailStore((s) => s.messages)
   const loading = useMailStore((s) => s.loadingMessages)
+  const mailLayout = useMailStore((s) => s.mailLayout)
   const hasMore = useMailStore((s) => s.hasMore)
   const loadingMore = useMailStore((s) => s.loadingMore)
   const loadMoreMessages = useMailStore((s) => s.loadMoreMessages)
@@ -206,7 +207,11 @@ function FolderMailList(): JSX.Element {
   const selectionCount = selectedUids.length
 
   return (
-    <div className="flex h-full min-h-0 flex-col border-r">
+    <div
+      className={`flex h-full min-h-0 flex-col ${
+        mailLayout === 'bottom' ? 'border-b-2 border-gray-300' : 'border-r'
+      }`}
+    >
       <div className="flex items-center justify-between border-b px-3 py-2">
         <span className="truncate text-sm font-medium">
           {activeFolder ?? 'Kein Ordner'}
@@ -561,6 +566,7 @@ interface UMenu {
 function UnifiedList(): JSX.Element {
   const items = useMailStore((s) => s.unifiedItems)
   const loading = useMailStore((s) => s.loadingMessages)
+  const mailLayout = useMailStore((s) => s.mailLayout)
   const accounts = useMailStore((s) => s.accounts)
   const selectedUid = useMailStore((s) => s.selectedUid)
   const previewCtx = useMailStore((s) => s.previewCtx)
@@ -593,7 +599,11 @@ function UnifiedList(): JSX.Element {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col border-r">
+    <div
+      className={`flex h-full min-h-0 flex-col ${
+        mailLayout === 'bottom' ? 'border-b-2 border-gray-300' : 'border-r'
+      }`}
+    >
       <div className="flex items-center justify-between border-b px-3 py-2">
         <span className="flex min-w-0 items-center gap-1.5 truncate text-sm font-medium">
           {activeLabel && (
