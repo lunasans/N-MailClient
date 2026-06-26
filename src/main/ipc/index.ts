@@ -152,8 +152,8 @@ export function registerIpc(): void {
   handle('folder:rename', (accountId: string, oldPath: string, newPath: string) =>
     renameFolder(accountId, oldPath, newPath)
   )
-  handle('mail:list', (accountId: string, folder: string, limit?: number) =>
-    listMessages(accountId, folder, limit)
+  handle('mail:list', (accountId: string, folder: string, limit?: number, offset?: number) =>
+    listMessages(accountId, folder, limit, offset)
   )
   handle('mail:get', (accountId: string, folder: string, uid: number) =>
     getMessage(accountId, folder, uid)

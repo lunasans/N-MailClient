@@ -108,6 +108,9 @@ export default function MailList(): JSX.Element {
 function FolderMailList(): JSX.Element {
   const messages = useMailStore((s) => s.messages)
   const loading = useMailStore((s) => s.loadingMessages)
+  const hasMore = useMailStore((s) => s.hasMore)
+  const loadingMore = useMailStore((s) => s.loadingMore)
+  const loadMoreMessages = useMailStore((s) => s.loadMoreMessages)
   const selectedUid = useMailStore((s) => s.selectedUid)
   const selectedUids = useMailStore((s) => s.selectedUids)
   const selectMessage = useMailStore((s) => s.selectMessage)
@@ -305,7 +308,14 @@ function FolderMailList(): JSX.Element {
           )}
         </div>
       )}
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div
+        className="min-h-0 flex-1 overflow-y-auto"
+        onScroll={(e) => {
+          if (!hasMore || loadingMore) return
+          const el = e.currentTarget
+          if (el.scrollHeight - el.scrollTop - el.clientHeight < 300) loadMoreMessages()
+        }}
+      >
         {loading && <div className="px-3 py-3 text-sm text-gray-400">Lade…</div>}
         {!loading && displayed.length === 0 && (
           <div className="px-3 py-3 text-sm text-gray-400">
@@ -368,6 +378,15 @@ function FolderMailList(): JSX.Element {
             </Fragment>
           )
         })}
+        {!loading && hasMore && (
+          <button
+            onClick={() => loadMoreMessages()}
+            disabled={loadingMore}
+            className="w-full py-2.5 text-center text-sm text-brand hover:bg-gray-50 disabled:opacity-50"
+          >
+            {loadingMore ? 'Lädt…' : 'Mehr laden'}
+          </button>
+        )}
       </div>
 
       {menu && (

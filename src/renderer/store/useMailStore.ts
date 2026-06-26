@@ -46,6 +46,9 @@ function isSameItem(a: UnifiedItem, b: UnifiedItem): boolean {
   return a.accountId === b.accountId && a.folder === b.folder && a.uid === b.uid
 }
 
+/** Page size for folder message loading / "load more". */
+const PAGE = 50
+
 /** A draft the Composer opens with (empty for a brand-new mail). */
 export interface ComposeDraft {
   from?: string
@@ -90,6 +93,10 @@ interface MailState {
   /** Active full-text search within the folder, or null. */
   searchQuery: string | null
   messages: MessageSummary[]
+  /** True if the open folder has older messages to page in. */
+  hasMore: boolean
+  /** A "load more" page request is in flight. */
+  loadingMore: boolean
   /** The message shown in the preview pane. */
   selectedUid: number | null
   /** Multi-selection (always includes selectedUid after a plain click). */
@@ -181,6 +188,7 @@ interface MailState {
   selectAll: () => void
   setDragging: (uids: number[]) => void
   refreshMessages: () => Promise<void>
+  loadMoreMessages: () => Promise<void>
   setMessagesSeen: (uids: number[], seen: boolean) => Promise<void>
   setFlagged: (uids: number[], flagged: boolean) => Promise<void>
   removeMessages: (uids: number[]) => Promise<void>
@@ -217,6 +225,8 @@ export const useMailStore = create<MailState>((set, get) => ({
   activeFolder: null,
   searchQuery: null,
   messages: [],
+  hasMore: false,
+  loadingMore: false,
   selectedUid: null,
   selectedUids: [],
   anchorUid: null,
@@ -459,6 +469,8 @@ export const useMailStore = create<MailState>((set, get) => ({
       activeAccountId: accountId,
       activeFolder: path,
       messages: [],
+      hasMore: false,
+      loadingMore: false,
       selectedUid: null,
       selectedUids: [],
       anchorUid: null,
@@ -486,10 +498,29 @@ export const useMailStore = create<MailState>((set, get) => ({
     try {
       const messages = searchQuery
         ? unwrap(await window.api.mail.search(activeAccountId, activeFolder, searchQuery))
-        : unwrap(await window.api.mail.list(activeAccountId, activeFolder, 50))
-      set({ messages, loadingMessages: false })
+        : unwrap(await window.api.mail.list(activeAccountId, activeFolder, PAGE))
+      set({ messages, loadingMessages: false, hasMore: !searchQuery && messages.length >= PAGE })
     } catch (e) {
       set({ loadingMessages: false, error: (e as Error).message })
+    }
+  },
+
+  loadMoreMessages: async () => {
+    const s = get()
+    if (s.loadingMore || !s.hasMore || s.searchQuery || s.unified || s.activeLabel) return
+    if (!s.activeAccountId || !s.activeFolder) return
+    set({ loadingMore: true })
+    try {
+      const older = unwrap(
+        await window.api.mail.list(s.activeAccountId, s.activeFolder, PAGE, s.messages.length)
+      )
+      set((st) => {
+        const seen = new Set(st.messages.map((m) => m.uid))
+        const merged = [...st.messages, ...older.filter((m) => !seen.has(m.uid))]
+        return { messages: merged, loadingMore: false, hasMore: older.length >= PAGE }
+      })
+    } catch (e) {
+      set({ loadingMore: false, error: (e as Error).message })
     }
   },
 

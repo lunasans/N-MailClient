@@ -112,7 +112,8 @@ function addr(value: unknown): string {
 export async function listMessages(
   accountId: string,
   folder: string,
-  limit = 50
+  limit = 50,
+  offset = 0
 ): Promise<MessageSummary[]> {
   return withClient(accountId, async (client) => {
     const lock = await client.getMailboxLock(folder)
@@ -120,8 +121,11 @@ export async function listMessages(
       const mailbox = client.mailbox
       const total = mailbox && typeof mailbox !== 'boolean' ? mailbox.exists : 0
       if (!total) return []
-      const start = Math.max(1, total - limit + 1)
-      const range = `${start}:*`
+      // Newest block is offset 0; larger offsets page into older messages.
+      const end = total - offset
+      if (end < 1) return []
+      const start = Math.max(1, end - limit + 1)
+      const range = `${start}:${end}`
       const out: MessageSummary[] = []
       for await (const msg of client.fetch(
         range,

@@ -64,8 +64,13 @@ const api = {
       ipcRenderer.invoke('folder:delete', accountId, path),
     renameFolder: (accountId: string, oldPath: string, newPath: string): Promise<IpcResult<void>> =>
       ipcRenderer.invoke('folder:rename', accountId, oldPath, newPath),
-    list: (accountId: string, folder: string, limit?: number): Promise<IpcResult<MessageSummary[]>> =>
-      ipcRenderer.invoke('mail:list', accountId, folder, limit),
+    list: (
+      accountId: string,
+      folder: string,
+      limit?: number,
+      offset?: number
+    ): Promise<IpcResult<MessageSummary[]>> =>
+      ipcRenderer.invoke('mail:list', accountId, folder, limit, offset),
     get: (accountId: string, folder: string, uid: number): Promise<IpcResult<MessageDetail>> =>
       ipcRenderer.invoke('mail:get', accountId, folder, uid),
     source: (accountId: string, folder: string, uid: number): Promise<IpcResult<string>> =>
