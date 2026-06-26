@@ -4,6 +4,23 @@ Alle nennenswerten Änderungen an N-MailClient werden hier dokumentiert.
 Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.3.0] - 2026-06-25
+
+### Neu
+
+- **Mailliste nach Datum gruppiert**: Abschnitte „Diese Woche / Letzte Woche /
+  Vor zwei Wochen / Älter" mit Sticky-Überschriften (Ordner- und Sammelposteingang).
+- **Mehr als 50 Mails laden**: Paginierung mit „Mehr laden"-Button und automatischem
+  Nachladen beim Scrollen.
+- **Empfänger-TLS-Anzeige**: beim Eingeben einer Adresse wird geprüft, ob der Mailserver
+  des Empfängers Transportverschlüsselung (STARTTLS) anbietet — Badge unter dem Feld.
+  Prüft nur die Transport-/Hop-Verschlüsselung, kein Ende-zu-Ende (dafür PGP).
+- **Bestätigung beim Löschen** von Mails (mit stärkerer Warnung beim endgültigen Löschen),
+  in den Einstellungen abschaltbar.
+- **Autostart**: „Beim Systemstart öffnen" in den Einstellungen.
+- **Backup/Export**: Konten, Etiketten, Kalender/Kontakte-Verbindung, PGP-Schlüssel und alle
+  Einstellungen in eine Datei exportieren und wieder importieren.
+
 ## [0.2.1] - 2026-06-25
 
 ### Behoben
