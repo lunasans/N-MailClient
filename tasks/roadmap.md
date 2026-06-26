@@ -79,7 +79,7 @@ Version 0.3.0
 
 - [x] Mailliste nach Datum gruppieren: Abschnitte „Diese Woche / Letzte Woche / Vor zwei Wochen / Älter" (Sticky-Überschriften), Einordnung anhand des Mail-Datums — in Ordner- und Sammelposteingang-Ansicht
 - [] Mehr als 50 Nachrichten laden: aktuell lädt der Server standardmäßig nur die letzten 50 (imapService listMessages limit=50) — „Mehr laden"-Button bzw. Nachladen beim Scrollen (Paginierung), ggf. Limit in den Einstellungen
-- [] Bestätigungsabfrage beim Löschen von Mails (aktuell keine Rückfrage) — insbesondere beim endgültigen Löschen (Papierkorb/\Deleted+Expunge); optional als Einstellung abschaltbar
+- [x] Bestätigungsabfrage beim Löschen von Mails — zentral im Store (Entf-Taste, Kontextmenü, Sammelposteingang), stärkere Warnung beim endgültigen Löschen (Papierkorb), abschaltbar über „Beim Löschen nachfragen" in den Einstellungen
 - [] Autostart beim Systemstart (Schalter in den Einstellungen, app.setLoginItemSettings; optional leise/ins Tray starten)
 - [x] Empfänger-TLS-Anzeige: beim Eingeben einer Adresse prüfen, ob der Mailserver des Empfängers Transportverschlüsselung anbietet (MX auflösen + STARTTLS-Probe auf Port 25), Badge unter dem Empfängerfeld, Ergebnis pro Domain gecacht. Hinweis: prüft nur die Transport-/Hop-Verschlüsselung zum Empfänger-MX, kein Ende-zu-Ende (dafür PGP); Port 25 ausgehend kann blockiert sein → „TLS unbekannt". Ausbaustufe 2 (offen): MTA-STS/DANE (TLS erzwungen?)
 - [] Backup/Export der App-Einstellungen

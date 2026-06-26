@@ -102,6 +102,9 @@ function GeneralPanel(): JSX.Element {
   const [requestDsn, setRequestDsn] = useState(
     () => localStorage.getItem('nmc.requestDsn') === '1'
   )
+  const [confirmDelete, setConfirmDelete] = useState(
+    () => localStorage.getItem('nmc.confirmDelete') !== '0'
+  )
 
   return (
     <div className="max-w-md space-y-4">
@@ -129,6 +132,18 @@ function GeneralPanel(): JSX.Element {
           }}
         />
         Zustellbestätigung anfordern (DSN) beim Senden
+      </label>
+
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={confirmDelete}
+          onChange={(e) => {
+            setConfirmDelete(e.target.checked)
+            localStorage.setItem('nmc.confirmDelete', e.target.checked ? '1' : '0')
+          }}
+        />
+        Beim Löschen von Mails nachfragen
       </label>
 
       <label className="block">

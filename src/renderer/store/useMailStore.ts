@@ -618,6 +618,8 @@ export const useMailStore = create<MailState>((set, get) => ({
   },
 
   deleteUnified: async (item) => {
+    const permanent = folderRoleOf(get, item.accountId, item.folder) === 'trash'
+    if (!confirmRemoval(1, permanent)) return
     await removeUnified(get, set, item, (a, f, u) => window.api.mail.delete(a, f, u))
   },
 
@@ -706,6 +708,9 @@ export const useMailStore = create<MailState>((set, get) => ({
   },
 
   removeMessages: async (uids) => {
+    const s = get()
+    const permanent = folderRoleOf(get, s.activeAccountId ?? '', s.activeFolder ?? '') === 'trash'
+    if (!confirmRemoval(uids.length, permanent)) return
     await applyRemoval(get, set, uids, (acc, folder) => window.api.mail.delete(acc, folder, uids))
   },
 
@@ -786,6 +791,21 @@ function finalizePendingNow(get: Getter, set: Setter): void {
     // Reflect \Answered after a reply, or refresh the Drafts list.
     if (data.req.answeredFrom || data.draftRef) get().refreshMessages()
   })()
+}
+
+/** Ask before deleting, unless disabled in settings. Stronger wording when permanent. */
+function confirmRemoval(count: number, permanent: boolean): boolean {
+  if (localStorage.getItem('nmc.confirmDelete') === '0') return true
+  const n = `${count} Nachricht${count === 1 ? '' : 'en'}`
+  const msg = permanent
+    ? `${n} endgültig löschen? Das lässt sich nicht rückgängig machen.`
+    : `${n} löschen (in den Papierkorb)?`
+  return window.confirm(msg)
+}
+
+/** Folder role for an account's folder path, if known. */
+function folderRoleOf(get: Getter, accountId: string, folder: string): string | undefined {
+  return (get().foldersByAccount[accountId] ?? []).find((f) => f.path === folder)?.role
 }
 
 /** Remove a single unified-inbox item (delete/spam/archive) and fix badges/preview. */
