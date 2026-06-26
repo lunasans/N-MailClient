@@ -219,6 +219,12 @@ const api = {
     setAutostart: (enabled: boolean): Promise<IpcResult<void>> =>
       ipcRenderer.invoke('app:setAutostart', enabled)
   },
+  settings: {
+    export: (prefs: Record<string, string>): Promise<IpcResult<SaveResult>> =>
+      ipcRenderer.invoke('settings:export', prefs),
+    import: (): Promise<IpcResult<{ canceled: boolean; prefs?: Record<string, string> }>> =>
+      ipcRenderer.invoke('settings:import')
+  },
   update: {
     check: (): Promise<IpcResult<void>> => ipcRenderer.invoke('update:check'),
     install: (): Promise<IpcResult<void>> => ipcRenderer.invoke('update:install'),

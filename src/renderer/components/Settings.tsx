@@ -210,6 +210,67 @@ function GeneralPanel(): JSX.Element {
           ))}
         </select>
       </label>
+
+      <BackupSection />
+    </div>
+  )
+}
+
+function BackupSection(): JSX.Element {
+  const [status, setStatus] = useState('')
+  const [error, setError] = useState('')
+
+  async function doExport(): Promise<void> {
+    setError('')
+    setStatus('')
+    const prefs: Record<string, string> = {}
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i)
+      if (k) prefs[k] = localStorage.getItem(k) ?? ''
+    }
+    const res = await window.api.settings.export(prefs)
+    if (!res.ok) setError(res.error)
+    else if (!res.data.canceled) setStatus('Sicherung gespeichert.')
+  }
+
+  async function doImport(): Promise<void> {
+    setError('')
+    setStatus('')
+    if (
+      !confirm(
+        'Aktuelle Konten und Einstellungen durch die Sicherung ersetzen? Die App wird danach neu geladen.'
+      )
+    )
+      return
+    const res = await window.api.settings.import()
+    if (!res.ok) {
+      setError(res.error)
+      return
+    }
+    if (res.data.canceled) return
+    localStorage.clear()
+    for (const [k, v] of Object.entries(res.data.prefs ?? {})) localStorage.setItem(k, v)
+    location.reload()
+  }
+
+  return (
+    <div className="rounded border p-3">
+      <span className="text-sm font-medium text-gray-700">Sicherung</span>
+      <p className="mt-0.5 text-xs text-gray-500">
+        Exportiert Konten, Etiketten, Kalender/Kontakte-Verbindung, PGP-Schlüssel und alle
+        Einstellungen in eine Datei. Passwörter sind gerätegebunden verschlüsselt — auf einem
+        anderen Gerät werden Konten importiert, Passwörter müssen aber neu eingegeben werden.
+      </p>
+      <div className="mt-2 flex gap-2">
+        <button onClick={doExport} className="rounded border px-4 py-2 text-sm hover:bg-gray-50">
+          Exportieren…
+        </button>
+        <button onClick={doImport} className="rounded border px-4 py-2 text-sm hover:bg-gray-50">
+          Importieren…
+        </button>
+      </div>
+      {error && <div className="mt-2 text-sm text-red-600">{error}</div>}
+      {status && !error && <div className="mt-2 text-sm text-green-700">{status}</div>}
     </div>
   )
 }

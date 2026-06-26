@@ -68,6 +68,7 @@ import {
 } from '../services/sieveService'
 import { checkForUpdates, getStatus, quitAndInstall } from '../services/updateService'
 import { checkRecipientTls } from '../services/mxTlsService'
+import { exportSettings, importSettings } from '../services/settingsService'
 import {
   exportPrivateKey,
   exportPublicKey,
@@ -242,6 +243,9 @@ export function registerIpc(): void {
   handle('app:setAutostart', (enabled: boolean) =>
     app.setLoginItemSettings({ openAtLogin: enabled })
   )
+
+  handle('settings:export', (prefs: Record<string, string>) => exportSettings(prefs))
+  handle('settings:import', () => importSettings())
 
   handle('update:check', () => checkForUpdates())
   handle('update:install', () => quitAndInstall())

@@ -82,7 +82,7 @@ Version 0.3.0
 - [x] Bestätigungsabfrage beim Löschen von Mails — zentral im Store (Entf-Taste, Kontextmenü, Sammelposteingang), stärkere Warnung beim endgültigen Löschen (Papierkorb), abschaltbar über „Beim Löschen nachfragen" in den Einstellungen
 - [x] Autostart beim Systemstart (Schalter „Beim Systemstart öffnen" in den Einstellungen, app.setLoginItemSettings/getLoginItemSettings)
 - [x] Empfänger-TLS-Anzeige: beim Eingeben einer Adresse prüfen, ob der Mailserver des Empfängers Transportverschlüsselung anbietet (MX auflösen + STARTTLS-Probe auf Port 25), Badge unter dem Empfängerfeld, Ergebnis pro Domain gecacht. Hinweis: prüft nur die Transport-/Hop-Verschlüsselung zum Empfänger-MX, kein Ende-zu-Ende (dafür PGP); Port 25 ausgehend kann blockiert sein → „TLS unbekannt". Ausbaustufe 2 (offen): MTA-STS/DANE (TLS erzwungen?)
-- [] Backup/Export der App-Einstellungen
+- [x] Backup/Export der App-Einstellungen — Export/Import in eine JSON-Datei (Konten, Etiketten, Kalender/Kontakte-Verbindung, PGP-Schlüssel + alle Renderer-Einstellungen); Hinweis: Passwörter sind safeStorage/DPAPI-gebunden (auf anderem Gerät neu eingeben)
 
 Version 1.0.0
 

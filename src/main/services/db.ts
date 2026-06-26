@@ -138,6 +138,32 @@ export function setPgpKeys(keys: StoredPgpKey[]): void {
   persist()
 }
 
+/** The persistent config for a settings backup (excludes the volatile folder cache). */
+export interface ExportableDb {
+  accounts: StoredAccount[]
+  labels: Label[]
+  calendar?: CalendarConfig & { secret: string }
+  pgpKeys: StoredPgpKey[]
+}
+
+export function exportData(): ExportableDb {
+  return {
+    accounts: data.accounts,
+    labels: data.labels ?? [],
+    calendar: data.calendar,
+    pgpKeys: data.pgpKeys ?? []
+  }
+}
+
+/** Replace the persistent config from a backup. Folder cache is left untouched. */
+export function importData(d: Partial<ExportableDb>): void {
+  if (d.accounts) data.accounts = d.accounts
+  if (d.labels) data.labels = d.labels
+  if ('calendar' in d) data.calendar = d.calendar
+  if (d.pgpKeys) data.pgpKeys = d.pgpKeys
+  persist()
+}
+
 export function getCalendar(): (CalendarConfig & { secret: string }) | undefined {
   return data.calendar
 }
