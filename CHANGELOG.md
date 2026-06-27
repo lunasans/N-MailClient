@@ -4,6 +4,31 @@ Alle nennenswerten Änderungen an N-MailClient werden hier dokumentiert.
 Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/),
 Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [0.5.0] - 2026-06-26
+
+### Neu
+
+- **Konversations-Ansicht**: gleiche Betreffe werden zu einem Eintrag zusammengefasst
+  (Anzahl-Badge), per Umschalter in der Mailliste.
+- **Rückgängig** beim Löschen/Archivieren/Verschieben (Toast „Rückgängig").
+- **Schnellaktionen** beim Überfahren einer Mail (Archivieren/Löschen).
+- **Termin-Einladungen** (.ics): Banner in der Mail mit „Zum Kalender hinzufügen".
+- **Abwesenheitsnotiz / Auto-Responder** über Sieve (`vacation`), zusammen mit dem
+  Regel-Baukasten; Regeln können jetzt auch **weiterleiten** oder **verwerfen**.
+- **Signatur pro Alias** (wechselt automatisch mit der Absenderauswahl).
+- **Geburtstage** aus Kontakten erscheinen im Kalender.
+- **vCard-Import/-Export** der Kontakte.
+- **Bilder-Whitelist**: externe Bilder vertrauenswürdiger Absender werden automatisch geladen.
+- **Tray-Icon**: Schließen minimiert in den Infobereich; Autostart startet still ins Tray.
+- **Ruhezeiten** für Benachrichtigungen + Option „nur Posteingang".
+- **HTML-Übersetzung** (Formatierung bleibt erhalten).
+
+### Verbessert
+
+- **PGP**: entschlüsselte Anhänge sind herunterladbar; abgetrennte (PGP/MIME-)Signaturen
+  werden geprüft.
+- **Empfänger-TLS**: erkennt per **MTA-STS**, ob Transportverschlüsselung erzwungen wird.
+
 ## [0.4.0] - 2026-06-26
 
 ### Neu
