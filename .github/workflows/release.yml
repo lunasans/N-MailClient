@@ -77,17 +77,11 @@ jobs:
       - name: App bauen
         run: npx electron-vite build
 
-      - name: Zertifikat einrichten
+      - name: Windows Installer bauen (unsigniert)
         env:
-          CSC_LINK_BASE64: ${{ secrets.CSC_LINK_BASE64 }}
-        run: |
-          $bytes = [Convert]::FromBase64String($env:CSC_LINK_BASE64)
-          [IO.File]::WriteAllBytes("nmailclient-cert.pfx", $bytes)
-
-      - name: Windows Installer bauen
-        env:
-          CSC_LINK: nmailclient-cert.pfx
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          # Kein Code-Signing: ein selbst-signiertes Zertifikat sammelt keine
+          # SmartScreen-Reputation und löst nur zusätzliche Warnungen aus.
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
         run: npx electron-builder --win --publish never
 
       - name: Artefakt hochladen
