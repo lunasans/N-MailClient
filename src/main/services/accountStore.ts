@@ -23,6 +23,7 @@ function toPublic(a: StoredAccount): Account {
     smtp: a.smtp,
     archive: a.archive, // ArchiveTarget never carries a password
     signature: a.signature,
+    aliasSignatures: a.aliasSignatures,
     folderOrder: a.folderOrder,
     color: a.color,
     aliases: a.aliases
@@ -56,6 +57,7 @@ export function updateSettings(id: string, settings: AccountSettings): Account |
   const patch: Partial<StoredAccount> = {
     name: settings.name,
     signature: settings.signature,
+    aliasSignatures: settings.aliasSignatures,
     user: settings.user,
     imap: settings.imap,
     smtp: settings.smtp,

@@ -9,3 +9,4 @@ release/
 *.pfx
 *.b64
 docs/RELEASE.md
+tools/

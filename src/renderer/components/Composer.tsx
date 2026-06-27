@@ -13,24 +13,28 @@ function formatSize(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 
-function buildInitialBody(draft: ComposeDraft, signature: string): string {
-  // An existing draft / undo-reopen already contains its full body verbatim.
-  if (draft.existingDraft || draft.raw) return draft.body ?? ''
-  const sig = signature ? `-- \n${signature}` : ''
-  if (draft.body) {
-    return `\n\n${sig ? sig + '\n\n' : ''}${draft.body}`
-  }
-  return sig ? `\n\n${sig}` : ''
-}
-
 function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
-/** HTML seed for the editor: explicit HTML if given, else the plain seed as HTML. */
+/** Signature as HTML, wrapped in a marker so it can be swapped per alias. */
+function signatureHtml(signature: string): string {
+  if (!signature) return ''
+  return escapeHtml(`-- \n${signature}`).replace(/\n/g, '<br>')
+}
+function signatureBlock(signature: string): string {
+  const inner = signatureHtml(signature)
+  return `<div data-nmc-sig>${inner ? '<br><br>' + inner : ''}</div>`
+}
+
+/** HTML seed for the editor: explicit HTML if given, else body + a marked signature block. */
 function buildInitialHtml(draft: ComposeDraft, signature: string): string {
   if (draft.bodyHtml) return draft.bodyHtml
-  return escapeHtml(buildInitialBody(draft, signature)).replace(/\n/g, '<br>')
+  if (draft.existingDraft || draft.raw) {
+    return escapeHtml(draft.body ?? '').replace(/\n/g, '<br>')
+  }
+  const body = draft.body ? escapeHtml(`\n\n${draft.body}`).replace(/\n/g, '<br>') : ''
+  return body + signatureBlock(signature)
 }
 
 export default function Composer(): JSX.Element {
@@ -40,13 +44,15 @@ export default function Composer(): JSX.Element {
   const draft = useMailStore((s) => s.compose) ?? {}
   const closeCompose = useMailStore((s) => s.closeCompose)
   const account = accounts.find((a) => a.id === accountId)
-  const signature = account?.signature ?? ''
   const mainFrom = account
     ? account.name
       ? `${account.name} <${account.email}>`
       : account.email
     : ''
   const senderOptions = account ? [mainFrom, ...(account.aliases ?? [])] : []
+  /** Signature for a given "From" value: alias-specific, else the account default. */
+  const sigFor = (addr: string): string =>
+    account?.aliasSignatures?.[addr] ?? account?.signature ?? ''
 
   const [from, setFrom] = useState(draft.from ?? mainFrom)
   const [to, setTo] = useState(draft.to ?? '')
@@ -63,7 +69,7 @@ export default function Composer(): JSX.Element {
 
   // Rich-text editor: uncontrolled DOM, read on demand via the ref.
   const editorRef = useRef<RichEditorHandle>(null)
-  const initialHtml = useRef(buildInitialHtml(draft, signature)).current
+  const initialHtml = useRef(buildInitialHtml(draft, sigFor(draft.from ?? mainFrom))).current
   const initialHtmlRef = useRef('')
   const editorHtml = (): string => editorRef.current?.getHTML() ?? ''
   const editorText = (): string => editorRef.current?.getText() ?? ''
@@ -281,7 +287,10 @@ export default function Composer(): JSX.Element {
               <select
                 className="flex-1 rounded border px-3 py-2 text-sm"
                 value={from}
-                onChange={(e) => setFrom(e.target.value)}
+                onChange={(e) => {
+                  setFrom(e.target.value)
+                  editorRef.current?.setSignature(signatureHtml(sigFor(e.target.value)))
+                }}
               >
                 {senderOptions.map((opt) => (
                   <option key={opt} value={opt}>

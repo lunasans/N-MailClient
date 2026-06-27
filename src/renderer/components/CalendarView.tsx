@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CalendarPlus, ChevronLeft, ChevronRight, Plus, RefreshCw, X } from 'lucide-react'
 import type { CalEvent, CalendarConfig } from '@shared/index'
 import { useMailStore } from '../store/useMailStore'
@@ -21,6 +21,23 @@ function sameDay(a: Date, b: Date): boolean {
 }
 function fmtTime(iso: string): string {
   return new Date(iso).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
+}
+
+/** Month/day from a vCard BDAY value (YYYY-MM-DD, --MM-DD, YYYYMMDD …). */
+function bdayMonthDay(b: string): { m: number; d: number } | null {
+  const digits = b.replace(/[^\d]/g, '')
+  let mm: number
+  let dd: number
+  if (digits.length >= 8) {
+    mm = +digits.slice(4, 6)
+    dd = +digits.slice(6, 8)
+  } else if (digits.length === 4) {
+    mm = +digits.slice(0, 2)
+    dd = +digits.slice(2, 4)
+  } else {
+    return null
+  }
+  return mm >= 1 && mm <= 12 && dd >= 1 && dd <= 31 ? { m: mm, d: dd } : null
 }
 
 interface LaidEvent {
@@ -100,6 +117,7 @@ export default function CalendarView(): JSX.Element {
   const [showSetup, setShowSetup] = useState(false)
   const newEventDraft = useMailStore((s) => s.newEventDraft)
   const openNewEvent = useMailStore((s) => s.openNewEvent)
+  const contacts = useMailStore((s) => s.contacts)
   const today = new Date()
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -127,6 +145,41 @@ export default function CalendarView(): JSX.Element {
     rangeEnd = addDays(ds, 1)
   }
   const rangeKey = rangeStart.toISOString() + rangeEnd.toISOString()
+
+  // Synthetic all-day birthday events from contacts within the visible range.
+  const birthdayEvents = useMemo<CalEvent[]>(() => {
+    const out: CalEvent[] = []
+    const y0 = rangeStart.getFullYear()
+    const y1 = rangeEnd.getFullYear()
+    for (const c of contacts) {
+      if (!c.birthday) continue
+      const md = bdayMonthDay(c.birthday)
+      if (!md) continue
+      for (let y = y0; y <= y1; y++) {
+        const d = new Date(y, md.m - 1, md.d)
+        if (d >= rangeStart && d < rangeEnd) {
+          out.push({
+            uid: `bday-${c.id}-${y}`,
+            summary: `${c.fullName} (Geburtstag)`,
+            start: d.toISOString(),
+            end: addDays(d, 1).toISOString(),
+            allDay: true,
+            location: '',
+            description: 'Geburtstag',
+            calendar: 'Geburtstage',
+            color: '#db2777',
+            href: '',
+            etag: '',
+            recurring: true
+          })
+        }
+      }
+    }
+    return out
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contacts, rangeKey])
+
+  const allEvents = useMemo(() => [...events, ...birthdayEvents], [events, birthdayEvents])
 
   useEffect(() => {
     window.api.calendar.get().then((res) => {
@@ -156,7 +209,7 @@ export default function CalendarView(): JSX.Element {
   }, [mode])
 
   function eventsForDay(day: Date): CalEvent[] {
-    return events.filter((e) => {
+    return allEvents.filter((e) => {
       const s = startOfDay(new Date(e.start))
       const last = startOfDay(new Date(new Date(e.end).getTime() - 1))
       const d = startOfDay(day)
@@ -452,25 +505,31 @@ export default function CalendarView(): JSX.Element {
               )}
             </div>
             <div className="mt-4 flex items-center gap-2">
-              {selected.recurring && (
-                <span className="text-xs text-gray-400">Wiederkehrender Termin</span>
+              {selected.description === 'Geburtstag' ? (
+                <span className="text-xs text-gray-400">Aus Kontakten</span>
+              ) : (
+                selected.recurring && (
+                  <span className="text-xs text-gray-400">Wiederkehrender Termin</span>
+                )
               )}
-              <button
-                onClick={async () => {
-                  if (!confirm('Diesen Termin löschen?')) return
-                  const res = await window.api.calendar.deleteEvent(selected.href, selected.etag)
-                  if (res.ok) {
-                    setSelected(null)
-                    loadEvents()
-                  } else {
-                    setError(res.error)
-                  }
-                }}
-                className="ml-auto rounded border px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"
-              >
-                Löschen
-              </button>
-              {!selected.recurring && (
+              {selected.href && (
+                <button
+                  onClick={async () => {
+                    if (!confirm('Diesen Termin löschen?')) return
+                    const res = await window.api.calendar.deleteEvent(selected.href, selected.etag)
+                    if (res.ok) {
+                      setSelected(null)
+                      loadEvents()
+                    } else {
+                      setError(res.error)
+                    }
+                  }}
+                  className="ml-auto rounded border px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"
+                >
+                  Löschen
+                </button>
+              )}
+              {selected.href && !selected.recurring && (
                 <button
                   onClick={() => {
                     setEditing(selected)

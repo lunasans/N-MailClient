@@ -45,6 +45,23 @@ export default function ContactsView(): JSX.Element {
             <Plus className="h-4 w-4" />
             Neuer Kontakt
           </button>
+          <button
+            onClick={() => window.api.contacts.export()}
+            className="rounded border px-2 py-1.5 text-sm hover:bg-gray-50"
+            title="Alle Kontakte als .vcf exportieren"
+          >
+            Export
+          </button>
+          <button
+            onClick={async () => {
+              const res = await window.api.contacts.import()
+              if (res.ok && res.data > 0) load()
+            }}
+            className="rounded border px-2 py-1.5 text-sm hover:bg-gray-50"
+            title="Kontakte aus einer .vcf-Datei importieren"
+          >
+            Import
+          </button>
           <button onClick={load} className="rounded border p-1.5 hover:bg-gray-50" title="Aktualisieren">
             <RefreshCw className="h-4 w-4" />
           </button>

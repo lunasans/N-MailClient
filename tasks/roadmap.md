@@ -89,6 +89,52 @@ Version 0.4.0
 - [x] Mail-Übersetzung (LibreTranslate, self-hosted): „Übersetzen"-Button in der Mailansicht, Quellsprache automatisch erkannt, Umschalter Original/Übersetzung; Server-URL + optionaler API-Key + Zielsprache in den Einstellungen (Key via safeStorage)
 - [x] Klare Trennlinie zwischen Mailliste und Vorschau im „unten"-Layout
 
+Version 0.5.0
+
+- [x] HTML-Mails übersetzen (LibreTranslate format=html, Markup bleibt erhalten)
+- [x] Tray-Icon + „leise ins Tray starten" (Schließen minimiert ins Tray, Beenden über Tray-Menü; Autostart startet still mit --hidden)
+- [x] Empfänger-TLS Ausbaustufe 2: MTA-STS auswerten (Badge „TLS erzwungen") — DANE/TLSA verschoben (braucht DNSSEC-Resolver)
+- [x] PGP-Lücken schließen: entschlüsselte Anhänge herunterladbar (Cache + pgp:-partId) + detached PGP/MIME-Signaturen verifizieren (best-effort)
+- [x] Sieve-Regel-Baukasten: weitere Aktionen (verschieben/verwerfen/weiterleiten) — UND/ODER-Mehrfachbedingungen nach 0.6 verschoben
+- [x] Konversations-/Thread-Ansicht (Umschalter; gleiche Betreffe zusammengefasst, Anzahl-Badge)
+- [] Listen-Virtualisierung für sehr große Ordner — auf 0.6 verschoben (Paginierung mildert das Problem; Virtualisierung kollidiert mit Datums-/Thread-Headern)
+- [x] Abwesenheitsnotiz / Auto-Responder über Sieve `vacation`  [Vorhandenes nutzen]
+- [x] Termin-Einladungen (.ics / iMIP): Banner in der Mail, „Zum Kalender hinzufügen" (öffnet Termin-Formular)  [Vorhandenes nutzen]
+- [x] Signatur pro Alias  [Produktivität]
+- [x] Rückgängig-Toast für Löschen/Archivieren/Verschieben  [Produktivität]
+- [] OAuth2 (Gmail/Microsoft 365) — auf 0.6 verschoben (braucht registrierte App-Client-IDs/Secrets + Redirect-Flow)  [Konten & Protokoll]
+- [] Offline-Modus / lokaler Cache — auf 0.6 verschoben (größerer Architektur-Umbau)  [Konten & Protokoll]
+- [x] vCard-Import/-Export (Kontaktgruppen/Verteiler nach 0.6 verschoben)  [Kontakte/Kalender]
+- [x] Geburtstage aus Kontakten im Kalender  [Kontakte/Kalender]
+- [x] Hover-Schnellaktionen in der Liste (Archivieren/Löschen beim Überfahren)  [Komfort]
+- [x] Benachrichtigungen nur Posteingang + „Ruhezeiten"  [Komfort]
+- [x] Bilder-Whitelist: externe Bilder vertrauenswürdiger Absender automatisch laden + „Absender vertrauen"  [Komfort]
+
+Version 0.6.0
+
+- [] SPF/DKIM/DMARC-Ergebnis anzeigen + Spoofing-Warnung (Authentication-Results parsen, Anzeigename≠Adresse)  [Vorhandenes nutzen]
+- [] Geplanter Versand (zu bestimmtem Zeitpunkt senden; baut auf Undo-Send/Scheduler auf)  [Vorhandenes nutzen]
+- [] Snooze / „später erinnern" (Mail verschwindet, kommt zur gewählten Zeit zurück)  [Produktivität]
+- [] Vorlagen / Textbausteine (Canned Responses)  [Produktivität]
+- [] Rechtschreibprüfung im Composer  [Konten & Protokoll]
+- [] Anpassbare Listendichte / Spalten  [Komfort]
+- [] Inbox-Kategorien / Tabs (Allgemein, Werbung, Newsletter, Soziales …) — automatische Einordnung anhand von Headern (List-Unsubscribe, Precedence: bulk, Auto-Submitted) + Absender-Heuristik; Tab-Leiste über der Liste, Kategorie pro Absender überschreibbar  [Produktivität]
+- [] OAuth2 (Gmail/Microsoft 365) für Konten (aus 0.5 verschoben)  [Konten & Protokoll]
+- [] Offline-Modus / lokaler Cache (aus 0.5 verschoben)  [Konten & Protokoll]
+- [] Listen-Virtualisierung für sehr große Ordner (aus 0.5 verschoben)
+- [] Sieve-Baukasten: Mehrfachbedingungen UND/ODER (aus 0.5 verschoben)
+- [] Kontaktgruppen/Verteiler aus vCards (aus 0.5 verschoben)  [Kontakte/Kalender]
+- [] Empfänger-TLS: DANE/TLSA (braucht DNSSEC-validierenden Resolver) (aus 0.5 verschoben)
+
+Version 0.7.0
+
+- [] Follow-up / Wiedervorlage-Markierung mit Erinnerung  [Produktivität]
+- [] Smart-/virtuelle Ordner (gespeicherte Suchen, z. B. „ungelesen + markiert")  [Produktivität]
+- [] Mailcow-Integration Phase 1 (Modus A: eigener API-Key) — siehe tasks/mailcow-konzept.md:
+      Mailcow-Verbindung pro Konto (Host + API-Key + Test, Key via safeStorage);
+      App-Passwörter verwalten; Alias-Verwaltung (auflisten/anlegen/Ziel ändern/löschen);
+      Wegwerf-/temporäre Aliase; Quarantäne ansehen & verwalten; Postfach-Kontingent (Quota) anzeigen
+
 Version 1.0.0
 
 - [] Mehrsprachigkeit (i18n) DE/EN

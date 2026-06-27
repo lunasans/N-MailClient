@@ -15,6 +15,8 @@ export interface RichEditorHandle {
   getHTML: () => string
   getText: () => string
   focus: () => void
+  /** Replace the marked signature block ([data-nmc-sig]) with new HTML. */
+  setSignature: (html: string) => void
 }
 
 interface Props {
@@ -41,7 +43,18 @@ const RichTextEditor = forwardRef<RichEditorHandle, Props>(({ initialHtml }, ref
   useImperativeHandle(ref, () => ({
     getHTML: () => elRef.current?.innerHTML ?? '',
     getText: () => elRef.current?.innerText ?? '',
-    focus: () => elRef.current?.focus()
+    focus: () => elRef.current?.focus(),
+    setSignature: (html: string) => {
+      const el = elRef.current
+      if (!el) return
+      let sig = el.querySelector('[data-nmc-sig]')
+      if (!sig) {
+        sig = document.createElement('div')
+        sig.setAttribute('data-nmc-sig', '')
+        el.appendChild(sig)
+      }
+      sig.innerHTML = html ? `<br><br>${html}` : ''
+    }
   }))
 
   function cmd(command: string, value?: string): void {

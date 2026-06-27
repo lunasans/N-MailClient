@@ -49,6 +49,9 @@ export default function AccountSettings({ account, onClose }: Props): JSX.Elemen
   const [aliasesText, setAliasesText] = useState((account.aliases ?? []).join('\n'))
   const [name, setName] = useState(account.name)
   const [signature, setSignature] = useState(account.signature ?? '')
+  const [aliasSigs, setAliasSigs] = useState<Record<string, string>>(
+    account.aliasSignatures ?? {}
+  )
   const [user, setUser] = useState(account.user)
   const [password, setPassword] = useState('')
   const [imap, setImap] = useState<ServerConfig>(account.imap)
@@ -111,6 +114,9 @@ export default function AccountSettings({ account, onClose }: Props): JSX.Elemen
     const res = await window.api.accounts.updateSettings(account.id, {
       name,
       signature,
+      aliasSignatures: Object.fromEntries(
+        Object.entries(aliasSigs).filter(([, v]) => v.trim())
+      ),
       user,
       imap,
       smtp,
@@ -186,6 +192,22 @@ export default function AccountSettings({ account, onClose }: Props): JSX.Elemen
             Im Composer als Absender wählbar. Versand läuft weiter über dieses Konto.
           </span>
         </label>
+
+        {aliasesText
+          .split('\n')
+          .map((a) => a.trim())
+          .filter(Boolean)
+          .map((alias) => (
+            <label key={alias} className="mb-3 block">
+              <span className="text-sm text-gray-600">Signatur für {alias}</span>
+              <textarea
+                className="mt-1 h-20 w-full resize-none rounded border px-3 py-2 font-mono text-sm"
+                value={aliasSigs[alias] ?? ''}
+                onChange={(e) => setAliasSigs((p) => ({ ...p, [alias]: e.target.value }))}
+                placeholder="Leer = Standard-Signatur dieses Kontos"
+              />
+            </label>
+          ))}
 
         <div className="my-4 border-t pt-4">
           <h3 className="mb-2 text-sm font-semibold text-gray-700">Server &amp; Zugang</h3>

@@ -5,6 +5,7 @@ import {
   Check,
   ChevronRight,
   Filter,
+  Layers,
   FolderInput,
   Mail,
   MailOpen,
@@ -86,6 +87,36 @@ function dateBucket(iso: string): string {
   return 'Älter'
 }
 
+/** Normalize a subject for threading (strip Re:/Fwd:/AW:/WG: prefixes). */
+function normSubject(subject: string): string {
+  return subject
+    .replace(/^(\s*(re|fwd|fw|aw|wg)\s*:\s*)+/i, '')
+    .trim()
+    .toLowerCase()
+}
+
+/** Collapse same-subject messages to the newest one, counting the thread size. */
+function collapseThreads(msgs: MessageSummary[]): {
+  view: MessageSummary[]
+  counts: Map<number, number>
+} {
+  const firstUid = new Map<string, number>()
+  const counts = new Map<number, number>()
+  const view: MessageSummary[] = []
+  for (const m of msgs) {
+    const k = normSubject(m.subject)
+    const existing = firstUid.get(k)
+    if (existing !== undefined) {
+      counts.set(existing, (counts.get(existing) ?? 1) + 1)
+    } else {
+      firstUid.set(k, m.uid)
+      counts.set(m.uid, 1)
+      view.push(m)
+    }
+  }
+  return { view, counts }
+}
+
 function DateHeader({ label }: { label: string }): JSX.Element {
   return (
     <div className="sticky top-0 z-10 border-b bg-gray-50 px-3 py-1 text-xs font-semibold text-gray-500">
@@ -125,9 +156,9 @@ function FolderMailList(): JSX.Element {
   const setMessagesSeen = useMailStore((s) => s.setMessagesSeen)
   const setFlagged = useMailStore((s) => s.setFlagged)
   const removeMessages = useMailStore((s) => s.removeMessages)
+  const archiveMessages = useMailStore((s) => s.archiveMessages)
   const spamMessages = useMailStore((s) => s.spamMessages)
   const notSpamMessages = useMailStore((s) => s.notSpamMessages)
-  const archiveMessages = useMailStore((s) => s.archiveMessages)
   const moveToFolder = useMailStore((s) => s.moveToFolder)
   const openCompose = useMailStore((s) => s.openCompose)
   const setError = useMailStore((s) => s.setError)
@@ -144,8 +175,15 @@ function FolderMailList(): JSX.Element {
   const [searchText, setSearchText] = useState('')
   const [showSearch, setShowSearch] = useState(false)
   const [onlyUnanswered, setOnlyUnanswered] = useState(false)
+  const [showThreads, setShowThreads] = useState(() => localStorage.getItem('nmc.threadView') === '1')
 
-  const displayed = onlyUnanswered ? messages.filter((m) => !m.answered) : messages
+  const baseList = onlyUnanswered ? messages.filter((m) => !m.answered) : messages
+  const threadCollapsed = useMemo(
+    () => (showThreads ? collapseThreads(baseList) : null),
+    [showThreads, baseList]
+  )
+  const displayed = threadCollapsed ? threadCollapsed.view : baseList
+  const threadCounts = threadCollapsed?.counts ?? null
 
   const accountFolders = foldersByAccount[activeAccountId ?? ''] ?? []
   const moveTargets = accountFolders.filter((f) => f.selectable && f.path !== activeFolder)
@@ -262,6 +300,20 @@ function FolderMailList(): JSX.Element {
             <Filter className="h-4 w-4" />
           </button>
           <button
+            onClick={() =>
+              setShowThreads((v) => {
+                localStorage.setItem('nmc.threadView', !v ? '1' : '0')
+                return !v
+              })
+            }
+            className={`rounded p-1.5 hover:bg-gray-100 ${
+              showThreads ? 'text-brand' : 'text-gray-500'
+            }`}
+            title="Konversationen zusammenfassen"
+          >
+            <Layers className="h-4 w-4" />
+          </button>
+          <button
             onClick={() => {
               setShowSearch((v) => !v)
               if (showSearch) clearSearch()
@@ -343,7 +395,7 @@ function FolderMailList(): JSX.Element {
               onDragStart={(e) => startDrag(e, m)}
               onClick={(e) => handleClick(e, m)}
               onContextMenu={(e) => openMenu(e, m)}
-              className={`flex w-full cursor-pointer select-none gap-2 border-b px-3 py-2 text-left hover:bg-blue-50 ${
+              className={`group flex w-full cursor-pointer select-none gap-2 border-b px-3 py-2 text-left hover:bg-blue-50 ${
                 inSelection ? 'bg-blue-100' : selectedUid === m.uid ? 'bg-blue-50' : ''
               }`}
             >
@@ -354,6 +406,28 @@ function FolderMailList(): JSX.Element {
                     {m.from || '(unbekannt)'}
                   </span>
                   <span className="flex shrink-0 items-center gap-1.5 text-xs text-gray-400">
+                    <span className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          archiveMessages([m.uid])
+                        }}
+                        title="Archivieren"
+                        className="rounded p-0.5 hover:bg-gray-200 hover:text-gray-700"
+                      >
+                        <Archive className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          removeMessages([m.uid])
+                        }}
+                        title="Löschen"
+                        className="rounded p-0.5 hover:bg-red-100 hover:text-red-600"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </span>
                     {formatDate(m.date)}
                     <button
                       onClick={(e) => {
@@ -369,8 +443,13 @@ function FolderMailList(): JSX.Element {
                     </button>
                   </span>
                 </div>
-                <div className={`truncate text-sm ${m.seen ? 'text-gray-600' : 'font-medium'}`}>
-                  {m.subject}
+                <div className={`flex items-center gap-1.5 text-sm ${m.seen ? 'text-gray-600' : 'font-medium'}`}>
+                  {threadCounts && (threadCounts.get(m.uid) ?? 1) > 1 && (
+                    <span className="shrink-0 rounded-full bg-gray-200 px-1.5 text-xs text-gray-600">
+                      {threadCounts.get(m.uid)}
+                    </span>
+                  )}
+                  <span className="truncate">{m.subject}</span>
                 </div>
                 <div className="flex items-center gap-1.5 text-xs text-gray-400">
                   {!m.seen && <span className="h-2 w-2 rounded-full bg-brand" />}

@@ -1,6 +1,8 @@
 import { randomUUID } from 'crypto'
+import { BrowserWindow, dialog } from 'electron'
+import { readFileSync, writeFileSync } from 'fs'
 import { DAVClient } from 'tsdav'
-import type { AddressBookInfo, Contact, ContactInput, ContactUpdate } from '../types'
+import type { AddressBookInfo, Contact, ContactInput, ContactUpdate, SaveResult } from '../types'
 import { decryptPassword, getCalendar } from './db'
 
 function clientFor(creds: { serverUrl: string; user: string; password: string }): DAVClient {
@@ -36,6 +38,7 @@ function parseVCard(data: string, href: string, etag: string): Contact {
   let org = ''
   let uid = ''
   let photo: string | undefined
+  let birthday: string | undefined
   for (const line of unfold(data)) {
     const idx = line.indexOf(':')
     if (idx < 0) continue
@@ -48,6 +51,7 @@ function parseVCard(data: string, href: string, etag: string): Contact {
     else if (name === 'ORG') org = val.replace(/;/g, ' ').trim()
     else if (name === 'N') nName = val.split(';').filter(Boolean).reverse().join(' ')
     else if (name === 'UID') uid = val
+    else if (name === 'BDAY' && val) birthday = val.trim()
     else if (name === 'PHOTO' && val && !photo) {
       if (val.startsWith('data:') || /^https?:/i.test(val)) {
         photo = val
@@ -65,6 +69,7 @@ function parseVCard(data: string, href: string, etag: string): Contact {
     emails: [...new Set(emails)],
     phones: [...new Set(phones)],
     photo,
+    birthday,
     href,
     etag
   }
@@ -104,6 +109,65 @@ export async function fetchContacts(): Promise<Contact[]> {
     }
   }
   return out.sort((a, b) => a.fullName.localeCompare(b.fullName, 'de'))
+}
+
+/** Export all contacts as a single .vcf file via a save dialog. */
+export async function exportContacts(): Promise<SaveResult> {
+  const contacts = await fetchContacts()
+  const vcf = contacts
+    .map((c) =>
+      buildVCard(c.id || `${randomUUID()}@nmc`, {
+        addressBookUrl: '',
+        fullName: c.fullName,
+        org: c.org,
+        emails: c.emails,
+        phones: c.phones
+      })
+    )
+    .join('\r\n')
+  const win = BrowserWindow.getFocusedWindow() ?? undefined
+  const stamp = new Date().toISOString().slice(0, 10)
+  const res = await dialog.showSaveDialog(win!, {
+    title: 'Kontakte exportieren',
+    defaultPath: `kontakte-${stamp}.vcf`,
+    filters: [{ name: 'vCard', extensions: ['vcf'] }]
+  })
+  if (res.canceled || !res.filePath) return { canceled: true }
+  writeFileSync(res.filePath, vcf, 'utf-8')
+  return { canceled: false, path: res.filePath }
+}
+
+/** Import contacts from a .vcf file into the first address book. Returns the count. */
+export async function importContacts(): Promise<number> {
+  const win = BrowserWindow.getFocusedWindow() ?? undefined
+  const res = await dialog.showOpenDialog(win!, {
+    title: 'Kontakte importieren',
+    filters: [{ name: 'vCard', extensions: ['vcf'] }],
+    properties: ['openFile']
+  })
+  if (res.canceled || !res.filePaths[0]) return 0
+  const text = readFileSync(res.filePaths[0], 'utf-8')
+  const cards = text
+    .split(/(?=BEGIN:VCARD)/i)
+    .map((s) => s.trim())
+    .filter((s) => /BEGIN:VCARD/i.test(s))
+  const books = await listAddressBooks()
+  if (!books.length) throw new Error('Kein Adressbuch verfügbar.')
+  const target = books[0].url
+  let count = 0
+  for (const card of cards) {
+    const parsed = parseVCard(card, '', '')
+    if (!parsed.fullName && parsed.emails.length === 0) continue
+    await createContact({
+      addressBookUrl: target,
+      fullName: parsed.fullName,
+      org: parsed.org,
+      emails: parsed.emails,
+      phones: parsed.phones
+    })
+    count++
+  }
+  return count
 }
 
 export async function listAddressBooks(): Promise<AddressBookInfo[]> {

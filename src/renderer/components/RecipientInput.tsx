@@ -162,10 +162,11 @@ export default function RecipientInput({
               )
             }
             if (r.status === 'supported') {
+              const enforced = r.mtaSts === 'enforce'
               return (
                 <span key={d} className="flex items-center gap-1 text-green-600" title={r.mx}>
                   <Lock className="h-3.5 w-3.5" />
-                  {d}: Transportverschlüsselung
+                  {d}: {enforced ? 'TLS erzwungen (MTA-STS)' : 'Transportverschlüsselung'}
                 </span>
               )
             }

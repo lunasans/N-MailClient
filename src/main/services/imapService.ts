@@ -242,6 +242,35 @@ function hasAttachments(structure: unknown): boolean {
   return false
 }
 
+function icsDateToISO(v: string): string {
+  const m = v.match(/(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})(Z)?)?/)
+  if (!m) return new Date().toISOString()
+  const [, y, mo, d, h, mi, s, z] = m
+  if (!h) return new Date(+y, +mo - 1, +d).toISOString()
+  if (z) return new Date(Date.UTC(+y, +mo - 1, +d, +h, +mi, +(s || 0))).toISOString()
+  return new Date(+y, +mo - 1, +d, +h, +mi, +(s || 0)).toISOString()
+}
+
+/** Parse a minimal calendar invitation from an iCalendar string. */
+function parseInvite(ics: string): import('../types').InviteInfo | null {
+  if (!/BEGIN:VEVENT/i.test(ics)) return null
+  const g = (k: string): string | undefined =>
+    ics.match(new RegExp('^' + k + '[^:\\r\\n]*:(.+)$', 'im'))?.[1]?.trim()
+  const dtstart = g('DTSTART')
+  if (!dtstart) return null
+  const dtend = g('DTEND')
+  const startLine = ics.match(/^DTSTART[^:\r\n]*:/im)?.[0] ?? ''
+  const allDay = /VALUE=DATE/i.test(startLine) || /^\d{8}$/.test(dtstart)
+  return {
+    summary: g('SUMMARY') ?? '(Termin)',
+    startISO: icsDateToISO(dtstart),
+    endISO: dtend ? icsDateToISO(dtend) : icsDateToISO(dtstart),
+    allDay,
+    location: g('LOCATION') ?? '',
+    description: g('DESCRIPTION') ?? ''
+  }
+}
+
 export async function getMessage(
   accountId: string,
   folder: string,
@@ -300,8 +329,18 @@ export async function getMessage(
               const inner = await simpleParser(Buffer.from(pgpRes.cleartext))
               detail.html = inner.html || null
               detail.text = inner.text ?? (inner.html ? null : pgpRes.cleartext)
-              // Inner (decrypted) attachments aren't fetchable via the IMAP part path.
-              detail.attachments = []
+              // Inner (decrypted) attachments: cache content + expose with a pgp: partId.
+              detail.attachments = (inner.attachments ?? []).map((a, i) => {
+                const partId = `pgp:${i}`
+                const filename = a.filename ?? `anhang-${i + 1}`
+                const contentType = a.contentType ?? 'application/octet-stream'
+                cachePgpAttachment(accountId, folder, uid, partId, {
+                  content: a.content as Buffer,
+                  contentType,
+                  filename
+                })
+                return { filename, contentType, size: a.size ?? a.content?.length ?? 0, partId }
+              })
             } else {
               detail.text = pgpRes.cleartext
               detail.html = null
@@ -319,6 +358,22 @@ export async function getMessage(
         if (delivery) detail.delivery = delivery
       } catch {
         /* ignore — not a parseable report */
+      }
+
+      // Calendar invitation (text/calendar part).
+      try {
+        const calAtt = (parsed.attachments ?? []).find((a) =>
+          /calendar|\.ics$/i.test(`${a.contentType ?? ''} ${a.filename ?? ''}`)
+        )
+        const icsText = calAtt
+          ? (calAtt.content as Buffer).toString('utf8')
+          : raw.toString('utf8').match(/BEGIN:VCALENDAR[\s\S]*?END:VCALENDAR/i)?.[0]
+        if (icsText) {
+          const invite = parseInvite(icsText)
+          if (invite) detail.invite = invite
+        }
+      } catch {
+        /* ignore — not a parseable invitation */
       }
 
       return detail
@@ -372,6 +427,25 @@ export async function getAllAttachments(
 }
 
 /** Download a single attachment's bytes by re-parsing the message. */
+// Cache of attachments extracted from decrypted PGP/MIME messages (their content
+// isn't fetchable via the normal IMAP part path). Keyed by account|folder|uid|partId.
+const pgpAttachmentCache = new Map<string, { content: Buffer; contentType: string; filename: string }>()
+
+function pgpAttKey(accountId: string, folder: string, uid: number, partId: string): string {
+  return `${accountId}|${folder}|${uid}|${partId}`
+}
+
+export function cachePgpAttachment(
+  accountId: string,
+  folder: string,
+  uid: number,
+  partId: string,
+  att: { content: Buffer; contentType: string; filename: string }
+): void {
+  if (pgpAttachmentCache.size > 200) pgpAttachmentCache.clear()
+  pgpAttachmentCache.set(pgpAttKey(accountId, folder, uid, partId), att)
+}
+
 export async function downloadAttachment(
   accountId: string,
   folder: string,
@@ -379,6 +453,11 @@ export async function downloadAttachment(
   partId: string,
   filename: string
 ): Promise<{ content: Buffer; contentType: string; filename: string }> {
+  if (partId.startsWith('pgp:')) {
+    const hit = pgpAttachmentCache.get(pgpAttKey(accountId, folder, uid, partId))
+    if (hit) return hit
+    throw new Error('Entschlüsselter Anhang nicht mehr im Cache — Mail erneut öffnen.')
+  }
   return withClient(accountId, async (client) => {
     const lock = await client.getMailboxLock(folder)
     try {

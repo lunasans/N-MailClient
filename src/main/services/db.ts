@@ -31,6 +31,8 @@ export interface StoredAccount {
   webdavSecret?: string
   /** Plain-text signature appended when composing. */
   signature?: string
+  /** Per-sender-address signatures (keyed by the "From" value). */
+  aliasSignatures?: Record<string, string>
   /** Custom folder order (full paths). */
   folderOrder?: string[]
   /** Hex color used to mark this account. */

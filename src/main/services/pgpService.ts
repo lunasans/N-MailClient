@@ -304,6 +304,37 @@ export async function processIncoming(
     }
   }
 
+  // PGP/MIME detached signature (multipart/signed).
+  const sigBlock = rawText.match(/-----BEGIN PGP SIGNATURE-----[\s\S]*?-----END PGP SIGNATURE-----/)
+  const signedCt = rawText.match(/content-type:\s*multipart\/signed[\s\S]*?boundary="?([^";\r\n]+)"?/i)
+  if (sigBlock && signedCt) {
+    try {
+      const boundary = signedCt[1].replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      const parts = rawText.split(new RegExp('--' + boundary))
+      const signedRaw = parts[1]?.replace(/^\r?\n/, '').replace(/\r?\n$/, '')
+      if (signedRaw) {
+        const pubs = await getPublicKeys()
+        let verified: boolean | null = null
+        let signer: string | undefined
+        if (pubs.length) {
+          const signature = await openpgp.readSignature({ armoredSignature: sigBlock[0] })
+          const message = await openpgp.createMessage({ text: signedRaw })
+          const result = await openpgp.verify({ message, signature, verificationKeys: pubs })
+          const sig = await summarize(result.signatures, pubs)
+          verified = sig.verified
+          signer = sig.signer
+        }
+        return {
+          info: { encrypted: false, signed: true, verified, signer },
+          cleartext: '',
+          isMime: false
+        }
+      }
+    } catch {
+      /* fall through */
+    }
+  }
+
   const clear = rawText.match(PGP_SIGNED)
   if (clear) {
     try {

@@ -33,6 +33,8 @@ export interface Account {
   archive?: ArchiveTarget
   /** Plain-text signature appended when composing from this account. */
   signature?: string
+  /** Per-sender-address signatures (keyed by the "From" value), override the default. */
+  aliasSignatures?: Record<string, string>
   /** Custom folder order (full paths); folders not listed sort after, alphabetically. */
   folderOrder?: string[]
   /** Hex color used to mark this account (e.g. in the unified inbox). */
@@ -45,6 +47,8 @@ export interface Account {
 export interface AccountSettings {
   name: string
   signature: string
+  /** Per-sender-address signatures (keyed by the "From" value). */
+  aliasSignatures?: Record<string, string>
   user: string
   imap: ServerConfig
   smtp: ServerConfig
@@ -163,6 +167,8 @@ export interface Contact {
   phones: string[]
   /** Avatar as a data URI or URL, if the vCard has a PHOTO. */
   photo?: string
+  /** Raw BDAY value from the vCard (e.g. "1990-05-21" or "--05-21"), if present. */
+  birthday?: string
   /** CardDAV object URL + etag (for editing/deleting). */
   href: string
   etag: string
@@ -240,6 +246,18 @@ export interface MessageDetail {
   pgp?: PgpInfo
   /** Delivery status, when the message is a DSN (delivery report). */
   delivery?: DeliveryInfo
+  /** Calendar invitation (iMIP), when the message carries a VEVENT. */
+  invite?: InviteInfo
+}
+
+/** A calendar invitation parsed from a message's text/calendar part. */
+export interface InviteInfo {
+  summary: string
+  startISO: string
+  endISO: string
+  allDay: boolean
+  location: string
+  description: string
 }
 
 export interface SendRequest {
@@ -347,6 +365,8 @@ export interface RecipientTls {
   status: 'supported' | 'unsupported' | 'no-mx' | 'unknown'
   /** The MX host that was probed. */
   mx?: string
+  /** MTA-STS policy mode, if published (enforce = TLS is required). */
+  mtaSts?: 'enforce' | 'testing' | 'none'
 }
 
 /** Delivery status parsed from an incoming DSN (multipart/report). */

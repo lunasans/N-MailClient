@@ -55,7 +55,9 @@ import {
 import {
   createContact,
   deleteContact,
+  exportContacts,
   fetchContacts,
+  importContacts,
   listAddressBooks,
   updateContact
 } from '../services/carddavService'
@@ -216,6 +218,8 @@ export function registerIpc(): void {
   handle('contacts:create', (input: ContactInput) => createContact(input))
   handle('contacts:update', (input: ContactUpdate) => updateContact(input))
   handle('contacts:delete', (href: string, etag: string) => deleteContact(href, etag))
+  handle('contacts:export', () => exportContacts())
+  handle('contacts:import', () => importContacts())
   handle('mail:move', (accountId: string, folder: string, uids: number[], target: string) =>
     moveMessages(accountId, folder, uids, target)
   )
@@ -248,7 +252,8 @@ export function registerIpc(): void {
 
   handle('app:getAutostart', () => app.getLoginItemSettings().openAtLogin)
   handle('app:setAutostart', (enabled: boolean) =>
-    app.setLoginItemSettings({ openAtLogin: enabled })
+    // Start silently into the tray at login.
+    app.setLoginItemSettings({ openAtLogin: enabled, openAsHidden: enabled, args: ['--hidden'] })
   )
 
   handle('settings:export', (prefs: Record<string, string>) => exportSettings(prefs))
@@ -260,7 +265,7 @@ export function registerIpc(): void {
     saveTranslateConfig(url, target, apiKey)
   )
   handle('translate:clear', () => clearTranslateConfig())
-  handle('translate:run', (text: string) => translate(text))
+  handle('translate:run', (text: string, isHtml?: boolean) => translate(text, isHtml))
 
   handle('update:check', () => checkForUpdates())
   handle('update:install', () => quitAndInstall())

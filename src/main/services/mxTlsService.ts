@@ -49,7 +49,25 @@ function probe(host: string, ehloName: string): Promise<boolean> {
   })
 }
 
-/** Check a recipient domain's MX for STARTTLS support (cached per domain). */
+/** Fetch the MTA-STS policy mode for a domain (enforce/testing/none). */
+async function fetchMtaSts(domain: string): Promise<'enforce' | 'testing' | 'none'> {
+  try {
+    const ctrl = new AbortController()
+    const t = setTimeout(() => ctrl.abort(), 5000)
+    const res = await fetch(`https://mta-sts.${domain}/.well-known/mta-sts.txt`, {
+      signal: ctrl.signal
+    })
+    clearTimeout(t)
+    if (!res.ok) return 'none'
+    const text = await res.text()
+    const m = text.match(/mode\s*:\s*(enforce|testing|none)/i)
+    return m ? (m[1].toLowerCase() as 'enforce' | 'testing' | 'none') : 'none'
+  } catch {
+    return 'none'
+  }
+}
+
+/** Check a recipient domain's MX for STARTTLS + MTA-STS (cached per domain). */
 export async function checkRecipientTls(domain: string): Promise<RecipientTls> {
   const key = domain.toLowerCase().trim()
   if (!key) return { domain, status: 'unknown' }
@@ -63,8 +81,13 @@ export async function checkRecipientTls(domain: string): Promise<RecipientTls> {
       value = { domain: key, status: 'no-mx' }
     } else {
       const host = mx.sort((a, b) => a.priority - b.priority)[0].exchange
-      const starttls = await probe(host, 'n-mailclient.local')
-      value = { domain: key, status: starttls ? 'supported' : 'unsupported', mx: host }
+      const [starttls, mtaSts] = await Promise.all([probe(host, 'n-mailclient.local'), fetchMtaSts(key)])
+      value = {
+        domain: key,
+        status: starttls ? 'supported' : 'unsupported',
+        mx: host,
+        mtaSts
+      }
     }
   } catch {
     // DNS failure, port 25 blocked, timeout, etc.

@@ -24,6 +24,33 @@ const logoUrl: string | null = (() => {
   return (Object.values(mods)[0] as string | undefined) ?? null
 })()
 
+/** True if the current time falls within the configured quiet hours. */
+function inQuietHours(): boolean {
+  const from = localStorage.getItem('nmc.quietFrom')
+  const to = localStorage.getItem('nmc.quietTo')
+  if (!from || !to) return false
+  const now = new Date()
+  const cur = now.getHours() * 60 + now.getMinutes()
+  const [fh, fm] = from.split(':').map(Number)
+  const [th, tm] = to.split(':').map(Number)
+  const f = fh * 60 + fm
+  const t = th * 60 + tm
+  if (f === t) return false
+  return f < t ? cur >= f && cur < t : cur >= f || cur < t
+}
+
+/** Whether a new-mail notification should be shown for this account/folder. */
+function notifyAllowed(accountId: string, folder: string): boolean {
+  if (inQuietHours()) return false
+  if (localStorage.getItem('nmc.notifyInboxOnly') === '1') {
+    const role = (useMailStore.getState().foldersByAccount[accountId] ?? []).find(
+      (f) => f.path === folder
+    )?.role
+    if (role !== 'inbox') return false
+  }
+  return true
+}
+
 export default function App(): JSX.Element {
   const accounts = useMailStore((s) => s.accounts)
   const activeAccountId = useMailStore((s) => s.activeAccountId)
@@ -52,7 +79,7 @@ export default function App(): JSX.Element {
     const unsub = window.api.events.onNewMail((p) => {
       const st = useMailStore.getState()
       st.onNewMail(p.accountId, p.folder, p.count)
-      if (st.notifyOn) {
+      if (st.notifyOn && notifyAllowed(p.accountId, p.folder)) {
         playChime()
         const acc = st.accounts.find((a) => a.id === p.accountId)
         const what = p.count === 1 ? 'Neue Nachricht' : `${p.count} neue Nachrichten`
@@ -271,6 +298,23 @@ export default function App(): JSX.Element {
       {compose && <Composer />}
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
       <UndoSendBanner />
+      <UndoToast />
+    </div>
+  )
+}
+
+function UndoToast(): JSX.Element | null {
+  const undoToast = useMailStore((s) => s.undoToast)
+  if (!undoToast) return null
+  return (
+    <div className="fixed bottom-4 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-lg bg-gray-900 px-4 py-2.5 text-sm text-white shadow-lg">
+      <span>{undoToast.label}</span>
+      <button
+        onClick={undoToast.onUndo}
+        className="font-medium text-blue-300 hover:text-blue-200"
+      >
+        Rückgängig
+      </button>
     </div>
   )
 }

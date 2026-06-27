@@ -117,6 +117,11 @@ function GeneralPanel(): JSX.Element {
     () => localStorage.getItem('nmc.confirmDelete') !== '0'
   )
   const [autostart, setAutostart] = useState(false)
+  const [notifyInboxOnly, setNotifyInboxOnly] = useState(
+    () => localStorage.getItem('nmc.notifyInboxOnly') === '1'
+  )
+  const [quietFrom, setQuietFrom] = useState(() => localStorage.getItem('nmc.quietFrom') ?? '')
+  const [quietTo, setQuietTo] = useState(() => localStorage.getItem('nmc.quietTo') ?? '')
 
   useEffect(() => {
     window.api.app.getAutostart().then((res) => res.ok && setAutostart(res.data))
@@ -132,6 +137,41 @@ function GeneralPanel(): JSX.Element {
         />
         Benachrichtigungston + Desktop-Benachrichtigung bei neuen Mails
       </label>
+
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={notifyInboxOnly}
+          onChange={(e) => {
+            setNotifyInboxOnly(e.target.checked)
+            localStorage.setItem('nmc.notifyInboxOnly', e.target.checked ? '1' : '0')
+          }}
+        />
+        Nur für den Posteingang benachrichtigen
+      </label>
+
+      <div className="flex items-center gap-2 text-sm">
+        <span className="text-gray-600">Ruhezeiten (keine Benachrichtigung):</span>
+        <input
+          type="time"
+          className="rounded border px-2 py-1"
+          value={quietFrom}
+          onChange={(e) => {
+            setQuietFrom(e.target.value)
+            localStorage.setItem('nmc.quietFrom', e.target.value)
+          }}
+        />
+        <span className="text-gray-400">bis</span>
+        <input
+          type="time"
+          className="rounded border px-2 py-1"
+          value={quietTo}
+          onChange={(e) => {
+            setQuietTo(e.target.value)
+            localStorage.setItem('nmc.quietTo', e.target.value)
+          }}
+        />
+      </div>
 
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" checked={darkMode} onChange={(e) => setDarkMode(e.target.checked)} />
@@ -1159,7 +1199,10 @@ interface SieveRule {
   field: 'from' | 'to' | 'cc' | 'subject'
   op: 'contains' | 'is' | 'matches'
   value: string
+  /** Action: move to folder, discard, or redirect (forward) to an address. */
+  action?: 'move' | 'discard' | 'redirect'
   folder: string
+  redirectTo?: string
   markRead: boolean
 }
 
@@ -1174,25 +1217,59 @@ const OP_LABELS: Record<SieveRule['op'], string> = {
   is: 'ist genau',
   matches: 'Muster (* ?)'
 }
-const RULES_SCRIPT = 'nmailclient-rules'
+const RULES_SCRIPT = 'nmailclient'
 
 function escSieve(s: string): string {
   return s.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
 }
 
-function buildSieveScript(rules: SieveRule[]): string {
-  const valid = rules.filter((r) => r.value.trim() && r.folder)
+interface VacationConfig {
+  enabled: boolean
+  days: number
+  subject: string
+  message: string
+}
+const DEFAULT_VACATION: VacationConfig = { enabled: false, days: 1, subject: 'Abwesend', message: '' }
+
+function ruleAction(r: SieveRule): string {
+  return r.action ?? 'move'
+}
+function ruleIsValid(r: SieveRule): boolean {
+  if (!r.value.trim()) return false
+  const a = ruleAction(r)
+  if (a === 'move') return !!r.folder
+  if (a === 'redirect') return !!r.redirectTo?.trim()
+  return true // discard
+}
+
+function buildSieveScript(rules: SieveRule[], vacation: VacationConfig): string {
+  const valid = rules.filter(ruleIsValid)
   const needFlags = valid.some((r) => r.markRead)
-  const reqs = ['fileinto', ...(needFlags ? ['imap4flags'] : [])]
+  const needFileinto = valid.some((r) => ruleAction(r) === 'move')
+  const useVacation = vacation.enabled && vacation.message.trim() !== ''
+  const reqs = [
+    ...(needFileinto ? ['fileinto'] : []),
+    ...(needFlags ? ['imap4flags'] : []),
+    ...(useVacation ? ['vacation'] : [])
+  ]
   const out = [
-    `require [${reqs.map((r) => `"${r}"`).join(', ')}];`,
-    '# N-MailClient Regeln — automatisch generiert, nicht von Hand bearbeiten',
+    reqs.length ? `require [${reqs.map((r) => `"${r}"`).join(', ')}];` : '',
+    '# N-MailClient — automatisch generiert, nicht von Hand bearbeiten',
     ''
   ]
+  if (useVacation) {
+    out.push(
+      `vacation :days ${Math.max(1, vacation.days)} :subject "${escSieve(vacation.subject.trim() || 'Abwesend')}" "${escSieve(vacation.message.trim())}";`,
+      ''
+    )
+  }
   for (const r of valid) {
+    const action = ruleAction(r)
     out.push(`if header :${r.op} "${r.field}" "${escSieve(r.value.trim())}" {`)
     if (r.markRead) out.push('  setflag "\\\\Seen";')
-    out.push(`  fileinto "${escSieve(r.folder)}";`)
+    if (action === 'move') out.push(`  fileinto "${escSieve(r.folder)}";`)
+    else if (action === 'redirect') out.push(`  redirect "${escSieve(r.redirectTo!.trim())}";`)
+    else out.push('  discard;')
     out.push('}')
   }
   return out.join('\n') + '\n'
@@ -1207,15 +1284,25 @@ function SieveRuleBuilder({ accountId }: { accountId: string }): JSX.Element {
   const [value, setValue] = useState('')
   const [folder, setFolder] = useState('')
   const [markRead, setMarkRead] = useState(false)
+  const [action, setAction] = useState<'move' | 'discard' | 'redirect'>('move')
+  const [redirectTo, setRedirectTo] = useState('')
+  const [vacation, setVacation] = useState<VacationConfig>(DEFAULT_VACATION)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
   const [err, setErr] = useState('')
 
   const storageKey = `nmc.sieveRules.${accountId}`
+  const vacationKey = `nmc.vacation.${accountId}`
   const folders = (foldersByAccount[accountId] ?? []).filter((f) => f.selectable)
 
   useEffect(() => {
     ensureFolders(accountId)
+    try {
+      const v = localStorage.getItem(`nmc.vacation.${accountId}`)
+      setVacation(v ? { ...DEFAULT_VACATION, ...(JSON.parse(v) as VacationConfig) } : DEFAULT_VACATION)
+    } catch {
+      setVacation(DEFAULT_VACATION)
+    }
     try {
       const raw = localStorage.getItem(`nmc.sieveRules.${accountId}`)
       setRules(raw ? (JSON.parse(raw) as SieveRule[]) : [])
@@ -1234,12 +1321,20 @@ function SieveRuleBuilder({ accountId }: { accountId: string }): JSX.Element {
   }
 
   function addRule(): void {
-    if (!value.trim() || !folder) return
-    persist([
-      ...rules,
-      { id: crypto.randomUUID(), field, op, value: value.trim(), folder, markRead }
-    ])
+    const candidate: SieveRule = {
+      id: crypto.randomUUID(),
+      field,
+      op,
+      value: value.trim(),
+      action,
+      folder,
+      redirectTo: redirectTo.trim() || undefined,
+      markRead
+    }
+    if (!ruleIsValid(candidate)) return
+    persist([...rules, candidate])
     setValue('')
+    setRedirectTo('')
     setMarkRead(false)
   }
 
@@ -1247,7 +1342,8 @@ function SieveRuleBuilder({ accountId }: { accountId: string }): JSX.Element {
     setBusy(true)
     setErr('')
     setMsg('')
-    const script = buildSieveScript(rules)
+    localStorage.setItem(vacationKey, JSON.stringify(vacation))
+    const script = buildSieveScript(rules, vacation)
     const put = await window.api.sieve.put(accountId, RULES_SCRIPT, script)
     if (!put.ok) {
       setBusy(false)
@@ -1260,7 +1356,7 @@ function SieveRuleBuilder({ accountId }: { accountId: string }): JSX.Element {
       setErr(act.error)
       return
     }
-    setMsg('Regeln gespeichert und aktiviert.')
+    setMsg('Regeln & Abwesenheitsnotiz gespeichert und aktiviert.')
   }
 
   return (
@@ -1282,8 +1378,18 @@ function SieveRuleBuilder({ accountId }: { accountId: string }): JSX.Element {
             <div key={r.id} className="flex items-center gap-2 px-3 py-1.5 text-sm">
               <span className="min-w-0 flex-1">
                 Wenn <strong>{FIELD_LABELS[r.field]}</strong> {OP_LABELS[r.op]}{' '}
-                <span className="font-mono">„{r.value}"</span> → verschiebe nach{' '}
-                <strong>{r.folder}</strong>
+                <span className="font-mono">„{r.value}"</span> →{' '}
+                {ruleAction(r) === 'discard' ? (
+                  <strong>verwerfen</strong>
+                ) : ruleAction(r) === 'redirect' ? (
+                  <>
+                    weiterleiten an <strong>{r.redirectTo}</strong>
+                  </>
+                ) : (
+                  <>
+                    verschiebe nach <strong>{r.folder}</strong>
+                  </>
+                )}
                 {r.markRead && ' (als gelesen)'}
               </span>
               <button
@@ -1331,28 +1437,91 @@ function SieveRuleBuilder({ accountId }: { accountId: string }): JSX.Element {
         <span className="text-gray-500">→</span>
         <select
           className="rounded border px-2 py-1.5"
-          value={folder}
-          onChange={(e) => setFolder(e.target.value)}
+          value={action}
+          onChange={(e) => setAction(e.target.value as 'move' | 'discard' | 'redirect')}
         >
-          <option value="">Ordner wählen…</option>
-          {folders.map((f) => (
-            <option key={f.path} value={f.path}>
-              {f.path}
-            </option>
-          ))}
+          <option value="move">verschieben nach</option>
+          <option value="redirect">weiterleiten an</option>
+          <option value="discard">verwerfen</option>
         </select>
+        {action === 'move' && (
+          <select
+            className="rounded border px-2 py-1.5"
+            value={folder}
+            onChange={(e) => setFolder(e.target.value)}
+          >
+            <option value="">Ordner wählen…</option>
+            {folders.map((f) => (
+              <option key={f.path} value={f.path}>
+                {f.path}
+              </option>
+            ))}
+          </select>
+        )}
+        {action === 'redirect' && (
+          <input
+            className="min-w-[160px] rounded border px-2 py-1.5"
+            placeholder="E-Mail-Adresse"
+            value={redirectTo}
+            onChange={(e) => setRedirectTo(e.target.value)}
+          />
+        )}
         <label className="flex items-center gap-1 text-gray-600">
           <input type="checkbox" checked={markRead} onChange={(e) => setMarkRead(e.target.checked)} />
           gelesen
         </label>
         <button
           onClick={addRule}
-          disabled={!value.trim() || !folder}
+          disabled={
+            !value.trim() ||
+            (action === 'move' && !folder) ||
+            (action === 'redirect' && !redirectTo.trim())
+          }
           className="flex items-center gap-1 rounded border px-2 py-1.5 hover:bg-gray-50 disabled:opacity-50"
         >
           <Plus className="h-4 w-4" />
           Regel
         </button>
+      </div>
+
+      <div className="mt-4 border-t pt-3">
+        <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+          <input
+            type="checkbox"
+            checked={vacation.enabled}
+            onChange={(e) => setVacation((v) => ({ ...v, enabled: e.target.checked }))}
+          />
+          Abwesenheitsnotiz (Auto-Responder)
+        </label>
+        {vacation.enabled && (
+          <div className="mt-2 space-y-2">
+            <div className="flex items-center gap-2 text-sm">
+              <input
+                className="flex-1 rounded border px-3 py-2"
+                placeholder="Betreff (z. B. Abwesend)"
+                value={vacation.subject}
+                onChange={(e) => setVacation((v) => ({ ...v, subject: e.target.value }))}
+              />
+              <label className="flex items-center gap-1 text-gray-600">
+                alle
+                <input
+                  type="number"
+                  min={1}
+                  className="w-16 rounded border px-2 py-2"
+                  value={vacation.days}
+                  onChange={(e) => setVacation((v) => ({ ...v, days: Number(e.target.value) || 1 }))}
+                />
+                Tage
+              </label>
+            </div>
+            <textarea
+              className="h-24 w-full rounded border px-3 py-2 text-sm"
+              placeholder="Antworttext, z. B. Ich bin bis … nicht erreichbar."
+              value={vacation.message}
+              onChange={(e) => setVacation((v) => ({ ...v, message: e.target.value }))}
+            />
+          </div>
+        )}
       </div>
 
       <div className="mt-3">
@@ -1361,7 +1530,7 @@ function SieveRuleBuilder({ accountId }: { accountId: string }): JSX.Element {
           disabled={busy}
           className="rounded bg-brand px-4 py-2 text-sm text-white hover:bg-brand-dark disabled:opacity-50"
         >
-          {busy ? 'Speichere…' : 'Regeln speichern & aktivieren'}
+          {busy ? 'Speichere…' : 'Regeln & Abwesenheit speichern'}
         </button>
       </div>
     </div>

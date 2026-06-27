@@ -97,6 +97,8 @@ interface MailState {
   hasMore: boolean
   /** A "load more" page request is in flight. */
   loadingMore: boolean
+  /** Pending undoable bulk action (delete/archive/move) shown as a toast. */
+  undoToast: { label: string; onUndo: () => void } | null
   /** The message shown in the preview pane. */
   selectedUid: number | null
   /** Multi-selection (always includes selectedUid after a plain click). */
@@ -227,6 +229,7 @@ export const useMailStore = create<MailState>((set, get) => ({
   messages: [],
   hasMore: false,
   loadingMore: false,
+  undoToast: null,
   selectedUid: null,
   selectedUids: [],
   anchorUid: null,
@@ -462,6 +465,7 @@ export const useMailStore = create<MailState>((set, get) => ({
   },
 
   selectFolder: async (accountId, path) => {
+    flushUndo() // commit any pending delete/move before leaving the folder
     set({
       unified: false,
       activeLabel: null,
@@ -742,7 +746,18 @@ export const useMailStore = create<MailState>((set, get) => ({
     const s = get()
     const permanent = folderRoleOf(get, s.activeAccountId ?? '', s.activeFolder ?? '') === 'trash'
     if (!confirmRemoval(uids.length, permanent)) return
-    await applyRemoval(get, set, uids, (acc, folder) => window.api.mail.delete(acc, folder, uids))
+    if (permanent) {
+      // Permanent deletes aren't recoverable — run immediately, no undo toast.
+      await applyRemoval(get, set, uids, (acc, folder) => window.api.mail.delete(acc, folder, uids))
+      return
+    }
+    scheduleUndoable(
+      get,
+      set,
+      uids,
+      uids.length === 1 ? 'Nachricht gelöscht' : `${uids.length} Nachrichten gelöscht`,
+      (acc, folder) => window.api.mail.delete(acc, folder, uids)
+    )
   },
 
   spamMessages: async (uids) => {
@@ -754,15 +769,22 @@ export const useMailStore = create<MailState>((set, get) => ({
   },
 
   archiveMessages: async (uids) => {
-    await applyRemoval(get, set, uids, (acc, folder) => window.api.mail.archive(acc, folder, uids))
+    scheduleUndoable(
+      get,
+      set,
+      uids,
+      uids.length === 1 ? 'Nachricht archiviert' : `${uids.length} Nachrichten archiviert`,
+      (acc, folder) => window.api.mail.archive(acc, folder, uids)
+    )
   },
 
   moveToFolder: async (uids, target) => {
     if (!target) return
-    await applyRemoval(
+    scheduleUndoable(
       get,
       set,
       uids,
+      uids.length === 1 ? 'Nachricht verschoben' : `${uids.length} Nachrichten verschoben`,
       (acc, folder) => window.api.mail.move(acc, folder, uids, target),
       target
     )
@@ -900,4 +922,86 @@ async function applyRemoval(
   } catch (e) {
     set({ error: (e as Error).message })
   }
+}
+
+// Deferred undoable action: optimistically drop rows, show a toast, and run the
+// real IMAP call after a delay (IMAP moves assign new UIDs, so this is more
+// reliable than reversing the operation).
+let undoTimer: ReturnType<typeof setTimeout> | null = null
+let undoCommit: (() => void) | null = null
+
+/** Commit a pending undoable action immediately (e.g. on folder change). */
+function flushUndo(): void {
+  if (undoCommit) {
+    const c = undoCommit
+    undoCommit = null
+    if (undoTimer) {
+      clearTimeout(undoTimer)
+      undoTimer = null
+    }
+    c()
+  }
+}
+
+function scheduleUndoable(
+  get: Getter,
+  set: Setter,
+  uids: number[],
+  label: string,
+  call: (accountId: string, folder: string) => Promise<IpcResult<void>>,
+  targetFolder?: string
+): void {
+  const { activeAccountId, activeFolder, messages } = get()
+  if (!activeAccountId || !activeFolder || uids.length === 0) return
+  flushUndo()
+  const acc = activeAccountId
+  const folder = activeFolder
+  const removed = new Set(uids)
+  const removedMsgs = messages.filter((m) => removed.has(m.uid))
+  const unseenMoved = removedMsgs.filter((m) => !m.seen).length
+
+  set((s) => {
+    let map = adjustUnseen(s.foldersByAccount, acc, folder, -unseenMoved)
+    if (targetFolder) map = adjustUnseen(map, acc, targetFolder, unseenMoved)
+    const clearedPreview = s.selectedUid !== null && removed.has(s.selectedUid)
+    return {
+      messages: s.messages.filter((m) => !removed.has(m.uid)),
+      selectedUids: s.selectedUids.filter((u) => !removed.has(u)),
+      selectedUid: clearedPreview ? null : s.selectedUid,
+      message: clearedPreview ? null : s.message,
+      foldersByAccount: map
+    }
+  })
+
+  const commit = (): void => {
+    undoCommit = null
+    undoTimer = null
+    set({ undoToast: null })
+    call(acc, folder)
+      .then((res) => {
+        if (!res.ok) set({ error: res.error })
+      })
+      .catch((e) => set({ error: (e as Error).message }))
+  }
+
+  const onUndo = (): void => {
+    if (undoTimer) {
+      clearTimeout(undoTimer)
+      undoTimer = null
+    }
+    undoCommit = null
+    // Not committing leaves the messages untouched on the server; restore the rows
+    // only if we're still viewing the same folder.
+    set((s) => {
+      if (s.activeAccountId !== acc || s.activeFolder !== folder) return { undoToast: null }
+      let map = adjustUnseen(s.foldersByAccount, acc, folder, unseenMoved)
+      if (targetFolder) map = adjustUnseen(map, acc, targetFolder, -unseenMoved)
+      const restored = [...s.messages, ...removedMsgs].sort((a, b) => (a.date < b.date ? 1 : -1))
+      return { messages: restored, foldersByAccount: map, undoToast: null }
+    })
+  }
+
+  undoCommit = commit
+  undoTimer = setTimeout(commit, 6000)
+  set({ undoToast: { label, onUndo } })
 }

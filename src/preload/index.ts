@@ -184,7 +184,9 @@ const api = {
     update: (input: ContactUpdate): Promise<IpcResult<void>> =>
       ipcRenderer.invoke('contacts:update', input),
     delete: (href: string, etag: string): Promise<IpcResult<void>> =>
-      ipcRenderer.invoke('contacts:delete', href, etag)
+      ipcRenderer.invoke('contacts:delete', href, etag),
+    export: (): Promise<IpcResult<SaveResult>> => ipcRenderer.invoke('contacts:export'),
+    import: (): Promise<IpcResult<number>> => ipcRenderer.invoke('contacts:import')
   },
   sieve: {
     list: (accountId: string): Promise<IpcResult<SieveScript[]>> =>
@@ -234,8 +236,8 @@ const api = {
     save: (url: string, target: string, apiKey: string): Promise<IpcResult<void>> =>
       ipcRenderer.invoke('translate:save', url, target, apiKey),
     clear: (): Promise<IpcResult<void>> => ipcRenderer.invoke('translate:clear'),
-    run: (text: string): Promise<IpcResult<TranslateResult>> =>
-      ipcRenderer.invoke('translate:run', text)
+    run: (text: string, isHtml?: boolean): Promise<IpcResult<TranslateResult>> =>
+      ipcRenderer.invoke('translate:run', text, isHtml)
   },
   update: {
     check: (): Promise<IpcResult<void>> => ipcRenderer.invoke('update:check'),

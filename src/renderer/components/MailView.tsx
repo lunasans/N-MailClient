@@ -98,6 +98,33 @@ function othersExcept(addresses: string[], ownEmail: string): string {
     .join(', ')
 }
 
+/** Trusted senders/domains whose external images load automatically. */
+function senderEmailOf(from: string): string {
+  const m = from.match(/<([^>]+)>/)
+  return (m ? m[1] : from).trim().toLowerCase()
+}
+function imageWhitelist(): string[] {
+  try {
+    return JSON.parse(localStorage.getItem('nmc.imageWhitelist') ?? '[]') as string[]
+  } catch {
+    return []
+  }
+}
+function isTrustedSender(from: string): boolean {
+  const email = senderEmailOf(from)
+  const domain = email.split('@')[1] ?? ''
+  const wl = imageWhitelist()
+  return wl.includes(email) || (domain !== '' && wl.includes(domain))
+}
+function trustSender(from: string): void {
+  const email = senderEmailOf(from)
+  const wl = imageWhitelist()
+  if (!wl.includes(email)) {
+    wl.push(email)
+    localStorage.setItem('nmc.imageWhitelist', JSON.stringify(wl))
+  }
+}
+
 export default function MailView(): JSX.Element {
   const message = useMailStore((s) => s.message)
   const loading = useMailStore((s) => s.loadingMessage)
@@ -105,9 +132,14 @@ export default function MailView(): JSX.Element {
   const accounts = useMailStore((s) => s.accounts)
   const openCompose = useMailStore((s) => s.openCompose)
   const openNewEvent = useMailStore((s) => s.openNewEvent)
+  const setView = useMailStore((s) => s.setView)
   const [showImages, setShowImages] = useState(false)
   const [source, setSource] = useState<string | null>(null)
-  const [translated, setTranslated] = useState<{ text: string; detected?: string } | null>(null)
+  const [translated, setTranslated] = useState<{
+    text: string
+    detected?: string
+    isHtml: boolean
+  } | null>(null)
   const [translating, setTranslating] = useState(false)
   const [translateError, setTranslateError] = useState<string | null>(null)
 
@@ -115,9 +147,9 @@ export default function MailView(): JSX.Element {
   const folder = previewCtx?.folder ?? null
   const ownEmail = accounts.find((a) => a.id === accountId)?.email ?? ''
 
-  // Re-block images / reset translation whenever a different message is opened.
+  // Re-block images (unless the sender is trusted) / reset translation on message change.
   useEffect(() => {
-    setShowImages(false)
+    setShowImages(message ? isTrustedSender(message.from) : false)
     setSource(null)
     setTranslated(null)
     setTranslateError(null)
@@ -125,13 +157,15 @@ export default function MailView(): JSX.Element {
 
   async function translateMessage(): Promise<void> {
     if (!message) return
-    const text = message.text ?? (message.html ? message.html.replace(/<[^>]+>/g, ' ') : '')
-    if (!text.trim()) return
+    // Prefer translating the HTML body (markup is preserved); else plain text.
+    const isHtml = !!message.html
+    const payload = message.html ?? message.text ?? ''
+    if (!payload.trim()) return
     setTranslating(true)
     setTranslateError(null)
-    const res = await window.api.translate.run(text)
+    const res = await window.api.translate.run(payload, isHtml)
     setTranslating(false)
-    if (res.ok) setTranslated(res.data)
+    if (res.ok) setTranslated({ ...res.data, isHtml })
     else setTranslateError(res.error)
   }
 
@@ -403,6 +437,34 @@ export default function MailView(): JSX.Element {
         </div>
       )}
 
+      {message.invite && (
+        <div className="flex flex-wrap items-center gap-3 border-b bg-indigo-50 px-6 py-2 text-sm text-indigo-800">
+          <CalendarPlus className="h-4 w-4 shrink-0" />
+          <span>
+            Termineinladung: <strong>{message.invite.summary}</strong>
+            {' — '}
+            {new Date(message.invite.startISO).toLocaleString('de-DE')}
+          </span>
+          <button
+            onClick={() => {
+              const inv = message.invite!
+              openNewEvent({
+                summary: inv.summary,
+                startISO: inv.startISO,
+                endISO: inv.endISO,
+                allDay: inv.allDay,
+                location: inv.location,
+                description: inv.description
+              })
+              setView('calendar')
+            }}
+            className="ml-auto rounded bg-indigo-600 px-3 py-1 text-white hover:bg-indigo-700"
+          >
+            Zum Kalender hinzufügen
+          </button>
+        </div>
+      )}
+
       {rendered && rendered.blocked > 0 && !showImages && (
         <div className="flex items-center justify-between gap-3 bg-amber-50 px-6 py-2 text-sm text-amber-800">
           <span className="flex items-center gap-2">
@@ -410,12 +472,24 @@ export default function MailView(): JSX.Element {
             {rendered.blocked} externe{rendered.blocked === 1 ? 's Bild' : ' Bilder'} blockiert
             (Schutz vor Tracking).
           </span>
-          <button
-            onClick={() => setShowImages(true)}
-            className="shrink-0 rounded bg-amber-600 px-3 py-1 text-white hover:bg-amber-700"
-          >
-            Bilder anzeigen
-          </button>
+          <span className="flex shrink-0 gap-2">
+            <button
+              onClick={() => setShowImages(true)}
+              className="rounded bg-amber-600 px-3 py-1 text-white hover:bg-amber-700"
+            >
+              Bilder anzeigen
+            </button>
+            <button
+              onClick={() => {
+                trustSender(message.from)
+                setShowImages(true)
+              }}
+              className="rounded border border-amber-400 px-3 py-1 hover:bg-amber-100"
+              title="Externe Bilder dieses Absenders künftig automatisch laden"
+            >
+              Absender vertrauen
+            </button>
+          </span>
         </div>
       )}
 
@@ -439,7 +513,16 @@ export default function MailView(): JSX.Element {
 
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
         {translated ? (
-          <pre className="whitespace-pre-wrap font-sans text-sm text-gray-800">{translated.text}</pre>
+          translated.isHtml ? (
+            <div
+              className="mail-body"
+              dangerouslySetInnerHTML={{ __html: sanitizeBody(translated.text, showImages).html }}
+            />
+          ) : (
+            <pre className="whitespace-pre-wrap font-sans text-sm text-gray-800">
+              {translated.text}
+            </pre>
+          )
         ) : rendered ? (
           <div className="mail-body" dangerouslySetInnerHTML={{ __html: rendered.html }} />
         ) : (

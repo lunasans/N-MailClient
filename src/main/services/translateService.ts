@@ -34,8 +34,8 @@ export function clearConfig(): void {
   clearTranslate()
 }
 
-/** Translate text to the configured target language (source auto-detected). */
-export async function translate(text: string): Promise<TranslateResult> {
+/** Translate text (or HTML) to the configured target language (source auto-detected). */
+export async function translate(text: string, isHtml = false): Promise<TranslateResult> {
   const c = getTranslate()
   if (!c) throw new Error('Kein Übersetzungsdienst konfiguriert.')
   const key = c.secret ? decryptPassword(c.secret) : ''
@@ -46,7 +46,7 @@ export async function translate(text: string): Promise<TranslateResult> {
       q: text,
       source: 'auto',
       target: c.target,
-      format: 'text',
+      format: isHtml ? 'html' : 'text',
       ...(key ? { api_key: key } : {})
     })
   })
