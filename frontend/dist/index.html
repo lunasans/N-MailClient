@@ -304,6 +304,9 @@ textarea.sc{flex:1;resize:none;border-radius:0;border:none;padding:.45rem;font-f
 .ctab{padding:.25rem .6rem;border-radius:12px;font-size:11px;white-space:nowrap;background:transparent;border:1px solid transparent;cursor:pointer;color:var(--subtle)}
 .ctab:hover{background:var(--hover)}
 .ctab.act{background:var(--sel);color:var(--accent)}
+/* drag & drop: Mail → Ordner */
+.fr.dnd-over,.ah.dnd-over{background:var(--sel);outline:1px dashed var(--accent);outline-offset:-2px}
+.mr[draggable="true"]{cursor:grab}
 </style>
 </head>
 <body class="dark">
@@ -1128,6 +1131,10 @@ function renderSb(){
         selectFld(a.id,f.name)
       }
       row.oncontextmenu=e=>{e.preventDefault();showFldCtx(e,a.id,f.name)}
+      // Drop-Ziel für Mail→Ordner
+      row.ondragover=e=>{if(dragMsgs){e.preventDefault();e.dataTransfer.dropEffect='move';row.classList.add('dnd-over')}}
+      row.ondragleave=()=>row.classList.remove('dnd-over')
+      row.ondrop=e=>{e.preventDefault();row.classList.remove('dnd-over');folderDrop(a.id,f.name)}
       tree.appendChild(row)
     })
   })
@@ -1310,7 +1317,7 @@ function renderMsgList(list){
     const aId=esc(accId||''),fd=esc(fld)
     const subjE=(m.subject||'').replace(/'/g,"\\'")
     const selKey=m.uid+'|'+(accId||curAcc)+'|'+fld,selCls=selectedUIDs.has(selKey)?' sel':''
-    html+=`<div class="mr${unread}${selCls}" data-uid="${m.uid}" data-acc="${aId}" data-fld="${fd}" onclick="msgClick(event,${m.uid},'${aId}','${fd}')" ondblclick="openMsgWin(${m.uid},'${aId}','${fd}','${subjE}')" oncontextmenu="showCtx(event,${m.uid},'${aId}','${fd}')">
+    html+=`<div class="mr${unread}${selCls}" draggable="true" data-uid="${m.uid}" data-acc="${aId}" data-fld="${fd}" onclick="msgClick(event,${m.uid},'${aId}','${fd}')" ondblclick="openMsgWin(${m.uid},'${aId}','${fd}','${subjE}')" oncontextmenu="showCtx(event,${m.uid},'${aId}','${fd}')" ondragstart="msgDragStart(event,${m.uid},'${aId}','${fd}')" ondragend="msgDragEnd()">
       ${avatar}
       <div style="flex:1;min-width:0;display:flex;align-items:center;gap:.35rem">
         ${accBadge}<span class="mf">${esc(m.from||'')}</span>
@@ -1325,6 +1332,39 @@ function renderMsgList(list){
     </div>`
   })
   el.innerHTML=html
+}
+
+// ── drag & drop: Mail(s) → Ordner ─────────────────────────────────────────────
+let dragMsgs=null
+function msgDragStart(e,uid,acc,fld){
+  const key=uid+'|'+acc+'|'+fld
+  // Ist die angefasste Zeile Teil der Mehrfachauswahl, alle markierten ziehen.
+  if(selectedUIDs.has(key)){
+    dragMsgs=[...selectedUIDs].map(k=>{const[u,a,f]=k.split('|');return{uid:+u,acc:a,fld:f}})
+  }else{
+    dragMsgs=[{uid,acc,fld}]
+  }
+  e.dataTransfer.effectAllowed='move'
+  try{e.dataTransfer.setData('text/plain',dragMsgs.length+' Mail(s)')}catch(_){}
+}
+function msgDragEnd(){dragMsgs=null;document.querySelectorAll('.dnd-over').forEach(r=>r.classList.remove('dnd-over'))}
+
+async function folderDrop(accId,folderName){
+  const items=dragMsgs;dragMsgs=null
+  if(!items||!items.length)return
+  const moved=[],skipped=[]
+  for(const m of items){
+    if(m.acc!==accId){skipped.push(m);continue} // IMAP-Move nur innerhalb eines Kontos
+    if(m.fld===folderName)continue
+    try{await api().Move(m.acc,m.fld,folderName,m.uid);moved.push(m)}catch(e){}
+  }
+  if(moved.length){
+    msgs=msgs.filter(x=>!moved.some(m=>m.uid===x.uid&&m.acc===(x.accountId||curAcc)))
+    clearSel();renderMsgList(msgs)
+    if(viewUID&&moved.some(m=>m.uid===viewUID)){$('readEmpty').style.display='flex';$('readContent').style.display='none'}
+    showUndo(moved.length+' verschoben.',async()=>{for(const m of moved){try{await api().Move(m.acc,folderName,m.fld,m.uid)}catch(e){}}refreshMsgs()})
+  }
+  if(skipped.length)alert('Verschieben über Kontogrenzen wird nicht unterstützt ('+skipped.length+' übersprungen).')
 }
 
 // ── multi-select ─────────────────────────────────────────────────────────────
