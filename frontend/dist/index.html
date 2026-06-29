@@ -1129,10 +1129,14 @@ function renderSb(){
       row.style.paddingLeft=(0.4+f.depth*0.8)+'rem'
       const cv=hasKids.has(f.name)?`<span style="font-size:9px;width:10px;flex-shrink:0">${collFld[key]?'&#x25B8;':'&#x25BE;'}</span>`:`<span style="width:10px;flex-shrink:0"></span>`
       row.innerHTML=`${cv}<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.label||f.name)}</span>${f.unseen?`<span class="fbadge">${f.unseen}</span>`:''}`
-      row.onclick=()=>{
-        if(hasKids.has(f.name)){collFld[key]=!collFld[key];renderSb();return}
-        selectFld(a.id,f.name)
+      // Einfachklick öffnet den Ordner; Pfeil ODER Doppelklick klappt auf/zu.
+      if(hasKids.has(f.name)){
+        const chev=row.firstElementChild
+        chev.style.cursor='pointer'
+        chev.onclick=e=>{e.stopPropagation();collFld[key]=!collFld[key];renderSb()}
+        row.ondblclick=()=>{collFld[key]=!collFld[key];renderSb()}
       }
+      row.onclick=()=>selectFld(a.id,f.name)
       row.oncontextmenu=e=>{e.preventDefault();showFldCtx(e,a.id,f.name)}
       // Drop-Ziel für Mail→Ordner
       row.ondragover=e=>{if(dragMsgs){e.preventDefault();e.dataTransfer.dropEffect='move';row.classList.add('dnd-over')}}
