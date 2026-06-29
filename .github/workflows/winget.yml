@@ -1,0 +1,26 @@
+name: Submit to winget
+
+# Reicht bei jedem veröffentlichten (stabilen) Release automatisch ein aktualisiertes
+# winget-Manifest als Pull Request bei microsoft/winget-pkgs ein.
+#
+# Voraussetzungen (einmalig):
+#  1. Das Paket muss in winget-pkgs schon existieren — die ERSTE Version einmalig
+#     manuell einreichen.
+#  2. Secret WINGET_TOKEN: ein klassischer GitHub-PAT mit Scope "public_repo"
+#     (forkt winget-pkgs und öffnet den PR).
+#  3. Der Release muss eine Installer-.exe als Asset enthalten (siehe release.yml).
+
+on:
+  release:
+    types: [released]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: winget-Manifest aktualisieren & einreichen
+        uses: vedantmgoyal9/winget-releaser@v2
+        with:
+          identifier: Lunasans.NMailClient
+          installers-regex: '-installer\.exe$'
+          token: ${{ secrets.WINGET_TOKEN }}

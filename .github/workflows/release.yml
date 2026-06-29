@@ -1,0 +1,45 @@
+name: Build & Release
+
+# Baut bei jedem Tag v* die Windows-App + NSIS-Installer mit Wails und
+# veröffentlicht sie als GitHub-Release.
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-windows:
+    name: Build Windows (Wails + NSIS)
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Go einrichten
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: NSIS installieren
+        run: choco install nsis -y --no-progress
+
+      - name: Wails CLI installieren
+        shell: pwsh
+        run: |
+          go install github.com/wailsapp/wails/v2/cmd/wails@latest
+          echo "$(go env GOPATH)\bin" >> $env:GITHUB_PATH
+
+      - name: App + Installer bauen
+        run: wails build -platform windows/amd64 -nsis
+
+      - name: Release erstellen und Assets hochladen
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            build/bin/*-installer.exe
+            build/bin/n-mailclient-go.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
