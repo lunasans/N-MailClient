@@ -1,0 +1,15 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "n-mailclient-go",
+  "outputfilename": "n-mailclient-go",
+  "frontend:install": "",
+  "frontend:build": "",
+  "frontend:dev:watcher": "",
+  "frontend:dev:serverUrl": "",
+  "author": {
+    "name": "Neuhaus"
+  },
+  "info": {
+    "productName": "N-MailClient (Go/Wails PoC)"
+  }
+}

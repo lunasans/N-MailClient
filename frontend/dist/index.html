@@ -1,0 +1,2738 @@
+﻿<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>N-MailClient</title>
+<style>
+:root{
+  --bg:#f3f3f3;--card:#fff;--panel:#ebebeb;--text:#1a1a1a;--subtle:#666;
+  --line:#ddd;--accent:#0067c0;--ctlbrd:#c8c8c8;--hover:#e8e8e8;--sel:#ddeeff;
+  --danger:#c42b1c;--success:#107c10;
+}
+body.dark{
+  --bg:#1c1c1c;--card:#2c2c2c;--panel:#252525;--text:#f0f0f0;--subtle:#aaa;
+  --line:#3a3a3a;--accent:#4fa3e0;--ctlbrd:#555;--hover:#333;--sel:#1a3a5c;
+  --danger:#ff6b6b;--success:#6bcb6b;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font:12px/1.4 "Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;background:var(--panel);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden;user-select:none}
+button{font:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,select,textarea{font:inherit;color:var(--text);background:var(--card);border:1px solid var(--ctlbrd);border-radius:4px;padding:.28rem .5rem;width:100%}
+input[type=checkbox],input[type=radio]{width:auto;padding:0;background:none;border:none;border-radius:0}
+input[type=color]{width:auto;padding:.1rem;border:1px solid var(--ctlbrd);border-radius:4px}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px}
+dialog{border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text);padding:1.2rem;min-width:360px;box-shadow:0 16px 48px rgba(0,0,0,.25);position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);margin:0}
+dialog::backdrop{background:rgba(0,0,0,.3)}
+hr{border:none;border-top:1px solid var(--line);margin:.3rem 0}
+
+/* titlebar */
+#tb{background:var(--panel);display:flex;align-items:flex-start;padding:.3rem 0 .3rem .6rem;-webkit-app-region:drag;--wails-draggable:drag;flex-shrink:0;border-bottom:1px solid var(--line)}
+#tb-title{font-size:11px;font-weight:600;letter-spacing:.05em;opacity:.45;pointer-events:none;white-space:nowrap;flex:1;line-height:1.8}
+#tb-right{flex:1;display:flex;align-items:flex-start;justify-content:flex-end;-webkit-app-region:no-drag;--wails-draggable:no-drag}
+#wbtn{display:flex}
+#wbtn button{width:46px;height:auto;padding:.28rem 0;font-size:11px;opacity:.7}
+#wbtn button:hover{background:var(--hover);opacity:1}
+#wClose:hover{background:var(--danger);color:#fff!important;opacity:1}
+
+/* nav — centered inside #tb via flex:1 on siblings */
+#nav{display:flex;align-items:center;gap:.15rem;padding:0 .25rem;-webkit-app-region:no-drag;--wails-draggable:no-drag}
+#nav-right{display:flex;gap:.25rem;padding-right:.35rem}
+.nvb{padding:.28rem .65rem;border-radius:5px;font-size:11.5px;font-weight:500}
+.nvb:hover{background:var(--hover)}
+.nvb.act{background:var(--sel);color:var(--accent)}
+#nav-right{margin-left:auto;display:flex;gap:.25rem}
+.ib{width:26px;height:26px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:13px}
+.ib:hover{background:var(--hover)}
+.ib.act{background:var(--sel);color:var(--accent)}
+
+/* views */
+.view{display:none;flex:1;overflow:hidden}
+.view.act{display:flex;flex-direction:column}
+
+/* 3-col layout */
+.cols{display:grid;grid-template-columns:200px 1fr 2fr;height:100%;overflow:hidden;background:var(--bg)}
+/* preview-below mode */
+.cols.split-v{grid-template-columns:200px 1fr;grid-template-rows:1fr 1fr}
+.cols.split-v #sidebar{grid-row:1/span 2}
+.cols.split-v #listPane{grid-column:2;grid-row:1;border-bottom:1px solid var(--line)}
+.cols.split-v #readPane{grid-column:2;grid-row:2}
+
+/* sidebar */
+#sidebar{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden}
+.sb-new{margin:.45rem .5rem .3rem;padding:.35rem;border-radius:6px;background:var(--accent);color:#fff;font-weight:600;font-size:12px;text-align:center;cursor:pointer;display:block}
+.sb-new:hover{opacity:.88}
+#acctree{flex:1;overflow-y:auto;padding:.2rem 0}
+.ah{display:flex;align-items:center;padding:.28rem .5rem;font-size:11px;font-weight:600;color:var(--subtle);letter-spacing:.05em;cursor:pointer;border-radius:4px;gap:.3rem;margin:0 .2rem;margin-top:.3rem}
+.ah:hover{background:var(--hover)}
+.ah .cv{font-size:9px;transition:transform .15s;flex-shrink:0}
+.ah.coll .cv{transform:rotate(-90deg)}
+.acc-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.fr{display:flex;align-items:center;padding:.22rem .4rem;border-radius:4px;cursor:pointer;gap:.3rem;font-size:11.5px;margin:0 .2rem}
+.fr:hover{background:var(--hover)}
+.fr.act{background:var(--sel);color:var(--accent)}
+.fbadge{margin-left:auto;background:var(--accent);color:#fff;border-radius:10px;padding:0 5px;font-size:10px;font-weight:700;min-width:16px;text-align:center}
+.sb-bot{display:flex;gap:.2rem;padding:.3rem .4rem;border-top:1px solid var(--line);flex-shrink:0}
+.sb-bot button{flex:1;padding:.22rem;border-radius:4px;font-size:11px;border:1px solid var(--ctlbrd);background:var(--card)}
+.sb-bot button:hover{background:var(--hover)}
+
+/* list pane */
+#listPane{display:flex;flex-direction:column;overflow:hidden;border-right:1px solid var(--line)}
+#listHead{display:flex;align-items:center;gap:.3rem;padding:.3rem .45rem;border-bottom:1px solid var(--line);flex-shrink:0}
+#listHead input{flex:1}
+#msgList{flex:1;overflow-y:auto}
+#loadMoreBar{padding:.5rem;text-align:center;border-top:1px solid var(--line);display:none}
+#loadMoreBar button{padding:.28rem 1rem;border-radius:5px;border:1px solid var(--ctlbrd);background:var(--card);font-size:12px}
+
+/* date group */
+.dgh{padding:.22rem .55rem;font-size:10.5px;font-weight:700;color:var(--subtle);background:var(--panel);border-bottom:1px solid var(--line);letter-spacing:.06em;position:sticky;top:0;z-index:2}
+
+/* message row */
+.mr{display:flex;align-items:center;padding:.28rem .45rem;gap:.35rem;border-bottom:1px solid var(--line);cursor:pointer;position:relative;min-height:42px}
+.mr:hover{background:var(--hover)}
+.mr.act{background:var(--sel)}
+.mr.sel{outline:2px solid var(--accent);outline-offset:-2px;background:color-mix(in srgb,var(--sel) 70%,transparent)}
+.mr.unread .mf{font-weight:700}
+.mr.unread .ms{font-weight:600}
+.udot{width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0}
+.mav{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0;position:relative}
+.mav .udot{position:absolute;top:0;right:0;width:7px;height:7px;border:1.5px solid var(--panel)}
+.mf{font-size:11.5px;flex:0 0 130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ms{flex:1;font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--subtle)}
+.md{font-size:10.5px;color:var(--subtle);flex-shrink:0;white-space:nowrap}
+.macc{font-size:9.5px;background:var(--panel);border:1px solid var(--ctlbrd);border-radius:3px;padding:0 3px;color:var(--subtle);flex-shrink:0}
+.tcount{background:var(--accent);color:#fff;border-radius:10px;padding:0 5px;font-size:10px;font-weight:700;flex-shrink:0}
+.hov-act{display:none;position:absolute;right:4px;top:50%;transform:translateY(-50%);gap:2px;background:var(--hover);border-radius:4px;padding:1px 2px}
+.mr:hover .hov-act{display:flex}
+.ha{width:22px;height:22px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:12px}
+.ha:hover{background:var(--sel)}
+
+/* read pane */
+#readPane{display:flex;flex-direction:column;overflow:hidden}
+#readActs{display:flex;align-items:center;gap:.15rem;padding:.3rem .55rem;border-bottom:1px solid var(--line);flex-shrink:0;flex-wrap:wrap}
+.ra{padding:.22rem .5rem;border-radius:5px;font-size:11.5px;white-space:nowrap}
+.ra:hover{background:var(--hover)}
+.ra.d:hover{background:rgba(196,43,28,.1);color:var(--danger)}
+#imgBnr{background:var(--panel);border-bottom:1px solid var(--line);padding:.28rem .55rem;align-items:center;gap:.5rem;font-size:11.5px;flex-shrink:0;display:none}
+#imgBnr button{padding:.18rem .45rem;border-radius:4px;border:1px solid var(--ctlbrd);font-size:11px}
+#readScroll{flex:1;overflow-y:auto;padding:.7rem .8rem}
+#readEmpty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--subtle);gap:.5rem;font-size:13px}
+#readContent{display:none}
+.rh-subj{font-size:15px;font-weight:600;margin-bottom:.4rem;line-height:1.3}
+.rh-meta{font-size:11px;color:var(--subtle);display:grid;grid-template-columns:auto 1fr;gap:.08rem .45rem;margin-bottom:.3rem}
+.rh-meta strong{color:var(--text)}
+.lc{display:inline-block;padding:.04rem .42rem;border-radius:10px;font-size:10.5px;font-weight:600;margin:.1rem .1rem 0;cursor:pointer}
+.lc .rx{opacity:.6;margin-left:2px;font-size:10px}
+.al{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.35rem}
+.ac{display:flex;align-items:center;gap:.3rem;padding:.18rem .45rem;border:1px solid var(--ctlbrd);border-radius:5px;font-size:11px;cursor:pointer;background:var(--card)}
+.ac:hover{background:var(--hover)}
+#readBody{font-size:12.5px;line-height:1.6;margin-top:.6rem}
+#readBody img{max-width:100%}
+#readBody img.bi{filter:grayscale(1) opacity(.3)}
+#readBody iframe{width:100%;border:none;min-height:200px}
+
+/* context menu */
+#ctx{position:fixed;background:var(--card);border:1px solid var(--ctlbrd);border-radius:8px;padding:.28rem;box-shadow:0 8px 32px rgba(0,0,0,.2);z-index:500;min-width:168px;display:none;max-height:calc(100vh - 16px);overflow-y:auto}
+.ci-move{max-height:168px;overflow-y:auto;border:1px solid var(--line);border-radius:5px;margin-top:.15rem}
+.ci{padding:.28rem .65rem;border-radius:4px;font-size:12px;cursor:pointer}
+.ci:hover{background:var(--hover)}
+.ci.d{color:var(--danger)}
+
+/* batch bar */
+#batchBar{position:fixed;bottom:1.4rem;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;border-radius:8px;padding:.45rem .9rem;box-shadow:0 8px 32px rgba(0,0,0,.3);z-index:601;align-items:center;gap:.55rem;white-space:nowrap;display:none;font-size:12px}
+#batchBar button{background:rgba(255,255,255,.18);border:none;color:#fff;border-radius:5px;padding:.18rem .55rem;cursor:pointer;font:inherit}
+#batchBar button:hover{background:rgba(255,255,255,.3)}
+#batchBar .bc{opacity:.8;font-size:11px}
+
+/* undo toast */
+#undo{position:fixed;bottom:1.4rem;left:50%;transform:translateX(-50%);background:var(--card);border:1px solid var(--ctlbrd);border-radius:8px;padding:.45rem .9rem;box-shadow:0 8px 32px rgba(0,0,0,.2);z-index:600;align-items:center;gap:.7rem;white-space:nowrap;display:none}
+#undo button{padding:.18rem .55rem;border-radius:5px;border:1px solid var(--accent);color:var(--accent);font-size:12px}
+
+/* new mail banner */
+#nmb{position:fixed;top:3rem;right:1rem;background:var(--card);border:1px solid var(--ctlbrd);border-radius:8px;padding:.45rem .75rem;box-shadow:0 8px 32px rgba(0,0,0,.2);z-index:600;max-width:280px;font-size:12px;display:none}
+#nmb strong{display:block}
+
+/* contacts */
+.ctg{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:.5rem;padding:.5rem;overflow-y:auto;flex:1}
+.ctc{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:.65rem;cursor:pointer}
+.ctc:hover{border-color:var(--accent)}
+.cav{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;margin-bottom:.35rem}
+.cn{font-weight:600;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ce{font-size:11px;color:var(--subtle);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* calendar */
+#calHead{display:flex;align-items:center;gap:.45rem;padding:.35rem .55rem;border-bottom:1px solid var(--line);flex-shrink:0}
+#calGrid{flex:1;overflow-y:auto;padding:.35rem}
+.cm{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.cdow{text-align:center;font-size:10.5px;font-weight:700;color:var(--subtle);padding:.18rem 0}
+.cc{min-height:68px;background:var(--card);border:1px solid var(--line);border-radius:4px;padding:.28rem;cursor:pointer;overflow:hidden}
+.cc:hover{border-color:var(--accent)}
+.cc.today{border:2px solid var(--accent)}
+.cc.om{opacity:.35}
+.cday{font-size:11px;font-weight:600;margin-bottom:.18rem}
+.cev{font-size:10px;background:var(--accent);color:#fff;border-radius:3px;padding:1px 3px;margin-bottom:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+.cbd{font-size:10px;background:#8040a0;color:#fff;border-radius:3px;padding:1px 3px;margin-bottom:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* week view */
+.wgrid{display:grid;grid-template-columns:40px repeat(7,1fr);border-left:1px solid var(--line);border-top:1px solid var(--line)}
+.whdr{text-align:center;font-size:10.5px;font-weight:700;padding:.22rem 0;background:var(--panel);border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+.whdr.today{color:var(--accent)}
+.whdr-t{font-size:10px;color:var(--subtle);border-right:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--panel)}
+.whour{height:44px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);font-size:10px;color:var(--subtle);padding:.1rem .2rem;vertical-align:top;position:relative}
+.wcell{height:44px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);position:relative;cursor:pointer}
+.wcell:hover{background:var(--hover)}
+.wev{position:absolute;left:2px;right:2px;background:var(--accent);color:#fff;border-radius:3px;padding:1px 3px;font-size:10px;overflow:hidden;cursor:pointer;z-index:2;white-space:nowrap;text-overflow:ellipsis}
+
+/* sieve */
+.sw{display:grid;grid-template-columns:175px 1fr;height:100%;overflow:hidden}
+.sl{border-right:1px solid var(--line);overflow-y:auto;padding:.28rem}
+.si{padding:.28rem .45rem;border-radius:4px;cursor:pointer;font-size:12px;display:flex;align-items:center;gap:.3rem}
+.si:hover{background:var(--hover)}
+.si.act{background:var(--sel)}
+.sad{width:7px;height:7px;border-radius:50%;background:var(--success);flex-shrink:0}
+.se{display:flex;flex-direction:column;overflow:hidden}
+.stb{display:flex;gap:.3rem;padding:.35rem;border-bottom:1px solid var(--line);align-items:center}
+.stb button{padding:.22rem .55rem;border-radius:5px;border:1px solid var(--ctlbrd);font-size:12px}
+textarea.sc{flex:1;resize:none;border-radius:0;border:none;padding:.45rem;font-family:monospace;font-size:12px;background:var(--bg);color:var(--text)}
+
+/* archive */
+.arl{flex:1;overflow-y:auto}
+.arr{display:flex;align-items:center;padding:.35rem .7rem;border-bottom:1px solid var(--line);gap:.45rem;font-size:12px}
+.arr:hover{background:var(--hover)}
+.arn{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* about */
+#view-about .ai{max-width:480px;margin:1.5rem auto;padding:.8rem}
+#view-about h2{margin-bottom:.4rem;font-size:18px}
+#view-about p{color:var(--subtle);font-size:12px;line-height:1.7;margin-bottom:.4rem}
+
+/* settings dialog tabs */
+#setDlg{width:78vw;max-width:900px;min-height:540px;padding:0}
+#setDlg[open]{display:flex;flex-direction:column}
+.set-hdr{display:flex;align-items:center;padding:.8rem 1rem .55rem;border-bottom:1px solid var(--line);flex-shrink:0}
+.set-hdr strong{font-size:13px}
+.stabs{display:flex;gap:0;border-bottom:1px solid var(--line);flex-shrink:0;padding:0 1rem}
+.stab{padding:.42rem .85rem;font-size:12px;font-weight:500;border-bottom:2px solid transparent;margin-bottom:-1px;border-radius:0;cursor:pointer;background:none;border-left:none;border-right:none;border-top:none;color:var(--subtle)}
+.stab:hover{color:var(--text)}
+.stab.act{color:var(--accent);border-bottom-color:var(--accent)}
+.stpn{display:none;flex:1;overflow-y:auto;padding:1rem}
+.stpn.act{display:block}
+.set-section{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--subtle);margin:.85rem 0 .4rem}
+.set-section:first-child{margin-top:0}
+.set-row{display:grid;grid-template-columns:170px 1fr;gap:.32rem .55rem;align-items:center;margin-bottom:.28rem}
+.set-row label{font-size:12px}
+/* account list in settings */
+.set-accs{display:grid;grid-template-columns:210px 1fr;gap:.6rem;height:100%}
+.set-acc-list{border:1px solid var(--line);border-radius:6px;overflow-y:auto}
+.set-acc-item{padding:.38rem .6rem;cursor:pointer;font-size:12px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:.4rem}
+.set-acc-item:hover{background:var(--hover)}
+.set-acc-item.act{background:var(--sel);color:var(--accent)}
+.set-acc-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+/* account section sub-nav */
+.sa-secnav{display:flex;flex-direction:column;gap:.15rem;margin-top:.55rem;border-top:1px solid var(--line);padding-top:.5rem}
+.sa-navbtn{text-align:left;padding:.4rem .55rem;border-radius:5px;font-size:12px;background:transparent;border:none;cursor:pointer;color:var(--text)}
+.sa-navbtn:hover{background:var(--hover)}
+.sa-navbtn.act{background:var(--sel);color:var(--accent)}
+/* label list */
+.lbl-row{display:flex;align-items:center;gap:.45rem;padding:.28rem 0;border-bottom:1px solid var(--line)}
+.lbl-badge{display:inline-block;padding:.13rem .55rem;border-radius:10px;font-size:11.5px;font-weight:600;color:#fff}
+
+/* compose */
+#composeDlg{min-width:560px;max-width:780px;width:58vw}
+.ctb{display:flex;gap:.18rem;padding:.22rem 0;border-bottom:1px solid var(--line);margin-bottom:.35rem;flex-wrap:wrap}
+.ctb button{padding:.13rem .38rem;border-radius:3px;font-size:11px;border:1px solid var(--ctlbrd)}
+.ctb button:hover{background:var(--hover)}
+#compBody{min-height:200px;border:1px solid var(--ctlbrd);border-radius:4px;padding:.38rem;outline:none;overflow-y:auto;max-height:280px;line-height:1.6;font-size:12.5px}
+#compBody blockquote{border-left:3px solid var(--ctlbrd);padding-left:.55rem;color:var(--subtle);margin:.25rem 0}
+#compBody a{color:var(--accent)}
+.ctb select{font:inherit;font-size:10.5px;padding:.1rem .2rem;border:1px solid var(--ctlbrd);border-radius:3px;background:var(--card);color:var(--text);cursor:pointer}
+.apc{display:flex;flex-wrap:wrap;gap:.28rem;padding:.18rem 0;min-height:18px}
+.apchip{display:flex;align-items:center;gap:.28rem;background:var(--panel);border:1px solid var(--ctlbrd);border-radius:5px;padding:.13rem .38rem;font-size:11px}
+
+/* autocomplete */
+#acDrop{position:fixed;background:var(--card);border:1px solid var(--ctlbrd);border-radius:6px;box-shadow:0 6px 20px rgba(0,0,0,.15);z-index:700;max-height:180px;overflow-y:auto;min-width:220px;display:none}
+.aci{padding:.28rem .55rem;cursor:pointer;font-size:12px}
+.aci:hover{background:var(--hover)}
+.aci em{font-style:normal;color:var(--subtle)}
+
+/* btns */
+.pri{background:var(--accent);color:#fff;border-radius:6px;padding:.32rem .75rem;font-weight:600}
+.pri:hover{opacity:.9}
+.gho{border-radius:6px;padding:.28rem .65rem;border:1px solid var(--ctlbrd)}
+.gho:hover{background:var(--hover)}
+
+/* TLS badge */
+.tls-ok{color:var(--success);font-size:11px;margin-left:.3rem}
+.tls-no{color:var(--danger);font-size:11px;margin-left:.3rem}
+
+/* ICS banner */
+#icsBnr{background:var(--panel);border-bottom:1px solid var(--line);padding:.28rem .55rem;align-items:center;gap:.5rem;font-size:11.5px;flex-shrink:0;display:none}
+#icsBnr button{padding:.18rem .45rem;border-radius:4px;border:1px solid var(--ctlbrd);font-size:11px}
+
+/* rule builder */
+.rb-row{display:flex;gap:.3rem;align-items:center;margin-bottom:.3rem}
+.rb-row select,.rb-row input{flex:1}
+.rb-row button{flex-shrink:0;width:22px;height:22px;border-radius:4px;border:1px solid var(--ctlbrd);display:flex;align-items:center;justify-content:center;font-size:14px}
+.rb-row button:hover{background:var(--hover)}
+
+/* drag drop zone */
+.dd-active{outline:2px dashed var(--accent);outline-offset:-2px;background:var(--sel)}
+
+/* print */
+@media print{body>*:not(#printView){display:none!important}#printView{display:block!important;padding:1rem}}
+#printView{display:none}
+
+/* custom dialogs (replace native confirm/alert/prompt) */
+.uidlg{background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:1.1rem 1.2rem;min-width:300px;max-width:460px;box-shadow:0 14px 44px rgba(0,0,0,.45);-webkit-app-region:no-drag;--wails-draggable:no-drag}
+.uidlg::backdrop{background:rgba(0,0,0,.45)}
+.uidlg-msg{font-size:13px;line-height:1.5;white-space:pre-wrap;margin-bottom:.95rem;word-break:break-word}
+.uidlg-in{width:100%;box-sizing:border-box;margin-bottom:.95rem;padding:.42rem .55rem;border:1px solid var(--ctlbrd);border-radius:6px;background:var(--bg);color:var(--text);font-size:13px;outline:none}
+.uidlg-in:focus{border-color:var(--accent)}
+.uidlg-btns{display:flex;justify-content:flex-end;gap:.5rem}
+.uidlg-btns button{padding:.42rem .95rem;border-radius:6px;font-size:12.5px;cursor:pointer;border:1px solid var(--line);background:transparent;color:var(--text)}
+.uidlg-btns button:hover{background:var(--hover)}
+.uidlg-ok{background:var(--accent)!important;color:#fff!important;border-color:var(--accent)!important}
+
+/* signature rich-text editor */
+.sig-wrap{border:1px solid var(--ctlbrd);border-radius:6px;overflow:hidden;background:var(--bg)}
+.sig-tb{display:flex;gap:.12rem;padding:.22rem .25rem;border-bottom:1px solid var(--line);background:var(--panel)}
+.sig-tb button{min-width:24px;height:22px;border-radius:4px;font-size:12px;line-height:1;background:transparent;border:1px solid transparent;cursor:pointer;color:var(--text)}
+.sig-tb button:hover{background:var(--hover)}
+.sig-ed{min-height:50px;max-height:140px;overflow:auto;padding:.4rem .55rem;font-size:13px;outline:none;color:var(--text)}
+.sig-ed:empty:before{content:attr(data-ph);color:var(--subtle);pointer-events:none}
+/* inbox category tabs */
+#catTabs{display:flex;gap:.15rem;padding:.25rem .4rem;border-bottom:1px solid var(--line);overflow-x:auto;flex-shrink:0}
+.ctab{padding:.25rem .6rem;border-radius:12px;font-size:11px;white-space:nowrap;background:transparent;border:1px solid transparent;cursor:pointer;color:var(--subtle)}
+.ctab:hover{background:var(--hover)}
+.ctab.act{background:var(--sel);color:var(--accent)}
+</style>
+</head>
+<body class="dark">
+
+<div id="tb">
+  <span id="tb-title">N-MailClient</span>
+  <nav id="nav">
+    <button class="nvb act" onclick="sw('mail')" id="nb-mail">E-Mail</button>
+    <button class="nvb" onclick="sw('contacts')" id="nb-contacts">Kontakte</button>
+    <button class="nvb" onclick="sw('calendar')" id="nb-calendar">Kalender</button>
+    <button class="nvb" onclick="sw('filter')" id="nb-filter">Filter</button>
+    <button class="nvb" onclick="sw('archive')" id="nb-archive">Archiv</button>
+    <button class="nvb" onclick="sw('about')" id="nb-about">Info</button>
+  </nav>
+  <div id="tb-right">
+    <div id="nav-right">
+      <button class="ib" onclick="openSettings()" title="Einstellungen">&#x2699;</button>
+      <button class="ib" onclick="toggleDark()" title="Dunkel/Hell">&#x25D1;</button>
+    </div>
+    <div id="wbtn">
+      <button onclick="window.runtime.WindowMinimise()">&#x2012;</button>
+      <button onclick="window.runtime.WindowToggleMaximise()">&#x2610;</button>
+      <button id="wClose" onclick="window.runtime?.WindowHide?window.runtime.WindowHide():window.runtime?.WindowClose?.()">&#x2715;</button>
+    </div>
+  </div>
+</div>
+
+<!-- E-MAIL -->
+<div id="view-mail" class="view act">
+  <div class="cols">
+    <div id="sidebar">
+      <button class="sb-new" onclick="openCompose()">+ Schreiben</button>
+      <div id="acctree"></div>
+      <div class="sb-bot">
+        <button onclick="newFolder()" title="Neuer Ordner">+ Ordner</button>
+      </div>
+    </div>
+    <div id="listPane">
+      <div id="listHead">
+        <input id="searchInp" placeholder="Suchen..." onkeydown="if(event.key==='Enter')doSearch()" oninput="schedSearch()">
+        <button class="ib" id="unansBtn" onclick="toggleUnanswered()" title="Nur unbeantwortete">&#x2709;</button>
+        <button class="ib" id="threadBtn" onclick="toggleThread()" title="Threads">&#x2261;</button>
+        <button class="ib" onclick="refreshMsgs()" title="Laden">&#x21BB;</button>
+      </div>
+      <div id="catTabs">
+        <button class="ctab act" data-cat="alle" onclick="setCat('alle')">Alle</button>
+        <button class="ctab" data-cat="allgemein" onclick="setCat('allgemein')">Allgemein</button>
+        <button class="ctab" data-cat="werbung" onclick="setCat('werbung')">Werbung</button>
+        <button class="ctab" data-cat="newsletter" onclick="setCat('newsletter')">Newsletter</button>
+        <button class="ctab" data-cat="soziales" onclick="setCat('soziales')">Soziales</button>
+      </div>
+      <div id="msgList"></div>
+      <div id="loadMoreBar"><button class="gho" onclick="loadMore()">Mehr laden...</button></div>
+    </div>
+    <div id="readPane">
+      <div id="readActs">
+        <button class="ra" onclick="replyMsg()">&#x21A9; Antworten</button>
+        <button class="ra" onclick="replyAllMsg()">Allen</button>
+        <button class="ra" onclick="forwardMsg()">&#x21AA; Weiterleiten</button>
+        <button class="ra" onclick="archiveMsg()">&#x1F4C2; Archiv</button>
+        <button class="ra" onclick="moveMsg()">Verschieben...</button>
+        <button class="ra" onclick="trashMsg()">Papierkorb</button>
+        <button class="ra d" onclick="deleteMsg()">&#x2715; Löschen</button>
+        <button class="ra" onclick="spamMsg()">Spam</button>
+        <button class="ra" id="hamBtn" onclick="hamMsg()" style="display:none">Kein Spam</button>
+        <button class="ra" onclick="printMsg()">Drucken</button>
+        <button class="ra" onclick="translateMsg()">Übersetzen</button>
+        <button class="ra" onclick="viewSrc()">Quelltext</button>
+        <button class="ra" onclick="pgpDecryptView()">PGP entschl.</button>
+        <button class="ra" onclick="addLblPrompt()">+ Etikett</button>
+      </div>
+      <div id="imgBnr">
+        <span style="flex:1">Externe Bilder blockiert.</span>
+        <button class="gho" onclick="showImgs()">Bilder anzeigen</button>
+        <button class="gho" onclick="trustSndr()">Absender vertrauen</button>
+      </div>
+      <div id="icsBnr">
+        <span style="flex:1">&#x1F4C5; Kalendereinladung erkannt.</span>
+        <button class="gho" onclick="addICSToCalendar()">Zum Kalender hinzufügen</button>
+      </div>
+      <div id="readScroll">
+        <div id="readEmpty"><div style="font-size:32px;opacity:.3">&#x2709;</div><div>Nachricht auswählen</div></div>
+        <div id="readContent">
+          <div id="readHead"></div>
+          <div id="readBody"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CONTACTS -->
+<div id="view-contacts" class="view">
+  <div style="display:flex;align-items:center;gap:.45rem;padding:.35rem .55rem;border-bottom:1px solid var(--line);flex-shrink:0">
+    <input id="ctInp" placeholder="Suchen..." oninput="renderCts()" style="max-width:220px">
+    <button class="pri" onclick="openCtDlg(null)">+ Kontakt</button>
+    <button class="gho" onclick="expVcf()">Export .vcf</button>
+    <input type="file" id="vcfIn" accept=".vcf" style="display:none" onchange="impVcf()">
+    <button class="gho" onclick="$('vcfIn').click()">Import .vcf</button>
+    <select id="ctAccSel" onchange="loadCts()" style="max-width:190px;margin-left:auto"></select>
+  </div>
+  <div class="ctg" id="ctGrid"></div>
+</div>
+
+<!-- CALENDAR -->
+<div id="view-calendar" class="view">
+  <div id="calHead">
+    <button class="gho" onclick="calNav(-1)">&#x276E;</button>
+    <span id="calTitle" style="font-weight:600;min-width:145px;text-align:center"></span>
+    <button class="gho" onclick="calNav(1)">&#x276F;</button>
+    <button class="gho" onclick="calToday()">Heute</button>
+    <button class="gho" id="calVBtn" onclick="cycleCalView()">Woche</button>
+    <button class="pri" onclick="openEvDlg(null)" style="margin-left:auto">+ Termin</button>
+    <select id="calAccSel" onchange="loadCal()" style="max-width:190px"></select>
+  </div>
+  <div id="calGrid"></div>
+</div>
+
+<!-- FILTER -->
+<div id="view-filter" class="view">
+  <div class="sw">
+    <div class="sl" id="sievePane">
+      <div style="padding:.28rem .35rem;display:flex;gap:.28rem">
+        <select id="svAccSel" style="flex:1;font-size:11px" onchange="loadSv()"></select>
+        <button class="gho" onclick="newSv()" style="flex-shrink:0;width:26px;font-size:14px;padding:.1rem">+</button>
+      </div>
+      <div id="svItems"></div>
+    </div>
+    <div class="se">
+      <div class="stb">
+        <span id="svName" style="font-size:12px;font-weight:600;flex:1">—</span>
+        <button id="rbToggle" onclick="toggleRB()" title="Regelassistent">&#x1F9F0;</button>
+        <button onclick="openVacDlg()" title="Abwesenheitsnotiz">&#x1F334;</button>
+        <button onclick="saveSv()">Speichern</button>
+        <button onclick="actSv()">Aktivieren</button>
+        <button onclick="delSv()" style="color:var(--danger)">Löschen</button>
+      </div>
+      <!-- Rule builder panel -->
+      <div id="ruleBuilder" style="display:none;padding:.5rem;overflow-y:auto;border-bottom:1px solid var(--line)">
+        <div style="font-size:11.5px;font-weight:600;margin-bottom:.35rem;color:var(--subtle)">WENN (eine der Bedingungen)</div>
+        <div id="rbConds"></div>
+        <button class="gho" onclick="addRBCond()" style="font-size:11px;padding:.18rem .45rem;margin-bottom:.5rem">+ Bedingung</button>
+        <div style="font-size:11.5px;font-weight:600;margin-bottom:.35rem;color:var(--subtle)">DANN</div>
+        <div id="rbActs"></div>
+        <button class="gho" onclick="addRBAct()" style="font-size:11px;padding:.18rem .45rem;margin-bottom:.5rem">+ Aktion</button>
+        <button class="pri" onclick="genSieve()" style="font-size:11.5px;padding:.3rem .7rem">Skript generieren</button>
+      </div>
+      <textarea class="sc" id="svCode" placeholder="Sieve-Skript..." style="flex:1"></textarea>
+    </div>
+  </div>
+</div>
+
+<!-- ARCHIVE -->
+<div id="view-archive" class="view">
+  <div style="display:flex;align-items:center;gap:.45rem;padding:.35rem .55rem;border-bottom:1px solid var(--line);flex-shrink:0">
+    <span style="font-weight:600;white-space:nowrap">Anhang-Archiv</span>
+    <input id="archSrch" placeholder="Suchen..." style="flex:1;font-size:12px" oninput="filterArch()">
+    <button class="gho" onclick="loadArch()">&#x21BB;</button>
+  </div>
+  <div class="arl" id="archList"></div>
+</div>
+
+<!-- ABOUT -->
+<div id="view-about" class="view">
+  <div class="ai">
+    <h2>N-MailClient</h2>
+    <p style="color:var(--accent);font-size:13px;margin-bottom:.7rem">Version 0.5.1 — Go + Wails v2</p>
+    <p>Datenschutzorientierter E-Mail-Client. IMAP/SMTP, CardDAV, CalDAV, ManageSieve.</p>
+    <hr style="margin:.8rem 0">
+    <p><strong>0.5.1</strong> — Benachrichtigungston (WAV), Archiv-Suche, CalDAV-Cache (5 min), konfigurierbare Sendeverzögerung, Ruhezeiten für Benachrichtigungen</p>
+    <p><strong>0.5.0</strong> — Thread-Ansicht, Übersetzung (LibreTranslate), Hover-Aktionen, Undo-Toast, Dateianhänge im Composer, Accounts-Sidebar, Paginierung, Datumsgruppen, Bildblockierung, Ordner-CRUD, Kontextmenü, Drucken, Systembenachrichtigungen, Geburtstage im Kalender, vCard-Import/Export</p>
+    <p><strong>0.4.0</strong> — Sieve-Filterverwaltung, Kontakte (CardDAV), Kalender (CalDAV), Anhang-Archiv</p>
+    <p><strong>0.3.0</strong> — Gemeinsamer Posteingang, Etiketten, Entwürfe, Quelltext</p>
+    <p><strong>0.1.0</strong> — IMAP/SMTP, Ordner, Suche, Anhänge, Dark Mode, Autodiscover</p>
+    <hr style="margin:.8rem 0">
+    <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap">
+      <button id="updBtn" class="gho" onclick="checkForUpdate()">Nach Updates suchen</button>
+      <a id="updLink" href="#" target="_blank" style="display:none;font-size:12px;color:var(--accent)">Download</a>
+    </div>
+    <p style="font-size:11px;color:var(--subtle);margin-top:.4rem">Aktuell installiert: v0.5.1</p>
+    <hr style="margin:.8rem 0">
+    <button class="gho" onclick="openSettings()">&#x2699; Einstellungen</button>
+  </div>
+</div>
+
+<!-- CONTEXT MENU -->
+<div id="ctx">
+  <div class="ci" onclick="ctxDo('read')">Als gelesen</div>
+  <div class="ci" onclick="ctxDo('unread')">Als ungelesen</div>
+  <hr>
+  <div class="ci" onclick="ctxDo('flag')">&#x2605; Markieren</div>
+  <div class="ci" onclick="ctxDo('unflag')">Markierung entfernen</div>
+  <hr>
+  <div class="ci" onclick="ctxDo('archive')">Archivieren</div>
+  <div class="ci" onclick="ctxDo('spam')">Als Spam</div>
+  <div class="ci" onclick="ctxDo('trash')">In Papierkorb</div>
+  <hr>
+  <div class="ci d" onclick="ctxDo('delete')">Löschen</div>
+</div>
+
+<!-- BATCH BAR -->
+<div id="batchBar">
+  <span id="batchCount" class="bc"></span>
+  <button onclick="batchRead(true)">Gelesen</button>
+  <button onclick="batchRead(false)">Ungelesen</button>
+  <button onclick="batchArchive()">Archivieren</button>
+  <button onclick="batchTrash()">Papierkorb</button>
+  <button onclick="batchDelete()">Löschen</button>
+  <button onclick="clearSel()" style="opacity:.7;font-size:13px;padding:.1rem .3rem">&#x2715;</button>
+</div>
+
+<!-- UNDO TOAST -->
+<div id="undo">
+  <span id="undoMsg"></span>
+  <button onclick="doUndo()">Rückgängig</button>
+  <button onclick="dimUndo()" style="opacity:.5;font-size:14px;padding:.1rem .3rem">&#x2715;</button>
+</div>
+
+<!-- NEW MAIL BANNER -->
+<div id="nmb">
+  <span style="float:right;cursor:pointer;opacity:.6" onclick="this.parentElement.style.display='none'">&#x2715;</span>
+  <strong id="nmbFrom"></strong>
+  <span id="nmbSubj" style="color:var(--subtle)"></span>
+</div>
+
+<!-- PRINT VIEW -->
+<div id="printView"></div>
+<div id="acDrop"></div>
+
+<!-- COMPOSE -->
+<dialog id="composeDlg">
+  <div style="display:flex;align-items:center;margin-bottom:.65rem">
+    <strong>Neue Nachricht</strong>
+    <button style="margin-left:auto;opacity:.6" onclick="closeComp()">&#x2715;</button>
+  </div>
+  <div style="display:grid;gap:.32rem;margin-bottom:.45rem">
+    <div style="display:flex;gap:.4rem;align-items:center">
+      <span style="width:52px;font-size:11.5px;text-align:right;color:var(--subtle);flex-shrink:0">Von:</span>
+      <select id="compFrom" style="flex:1"></select>
+    </div>
+    <div style="display:flex;gap:.4rem;align-items:center">
+      <span style="width:52px;font-size:11.5px;text-align:right;color:var(--subtle);flex-shrink:0">An:</span>
+      <input id="compTo" autocomplete="off" oninput="acIn(this)">
+    </div>
+    <div style="display:flex;gap:.4rem;align-items:center">
+      <span style="width:52px;font-size:11.5px;text-align:right;color:var(--subtle);flex-shrink:0">Cc:</span>
+      <input id="compCc" autocomplete="off" oninput="acIn(this)">
+    </div>
+    <div style="display:flex;gap:.4rem;align-items:center">
+      <span style="width:52px;font-size:11.5px;text-align:right;color:var(--subtle);flex-shrink:0">Betreff:</span>
+      <input id="compSubj" spellcheck="true">
+    </div>
+  </div>
+  <div class="ctb">
+    <button onmousedown="event.preventDefault();document.execCommand('bold')" title="Fett"><b>B</b></button>
+    <button onmousedown="event.preventDefault();document.execCommand('italic')" title="Kursiv"><i>I</i></button>
+    <button onmousedown="event.preventDefault();document.execCommand('underline')" title="Unterstrichen"><u>U</u></button>
+    <button onmousedown="event.preventDefault();document.execCommand('strikeThrough')" title="Durchgestrichen"><s>S</s></button>
+    <button onmousedown="event.preventDefault();document.execCommand('insertUnorderedList')" title="Aufzählung">&#x2022; Liste</button>
+    <button onmousedown="event.preventDefault();document.execCommand('insertOrderedList')" title="Nummerierte Liste">1. Liste</button>
+    <button onmousedown="event.preventDefault();document.execCommand('formatBlock',false,'blockquote')" title="Zitat">&#x275D;</button>
+    <button onmousedown="event.preventDefault();insLink()" title="Link">Link</button>
+    <select onchange="document.execCommand('fontSize',false,this.value);this.value=''" title="Schriftgröße">
+      <option value="">Schrift</option>
+      <option value="1">Klein</option>
+      <option value="3">Normal</option>
+      <option value="5">Groß</option>
+      <option value="7">Sehr groß</option>
+    </select>
+    <button onmousedown="event.preventDefault();document.execCommand('removeFormat')" title="Formatierung löschen">Aa</button>
+    <button onclick="pickAtt()" style="margin-left:auto" title="Datei anhängen">&#x1F4CE; Datei</button>
+  </div>
+  <div id="tlsBar" style="display:none;font-size:11px;padding:.18rem 0;min-height:18px"></div>
+  <div id="compBody" contenteditable="true" spellcheck="true"
+    ondragover="event.preventDefault();this.classList.add('dd-active')"
+    ondragleave="this.classList.remove('dd-active')"
+    ondrop="dropFiles(event)"></div>
+  <div class="apc" id="compAtts"></div>
+  <input type="file" id="fileInp" multiple style="display:none">
+  <div style="display:flex;align-items:center;gap:.9rem;margin-top:.5rem;font-size:11.5px">
+    <label style="display:flex;align-items:center;gap:.3rem"><input type="checkbox" id="compDSN"> Lesebestätigung</label>
+    <label style="display:flex;align-items:center;gap:.3rem"><input type="checkbox" id="compPGP"> PGP verschlüsseln</label>
+  </div>
+  <div style="display:flex;gap:.45rem;justify-content:flex-end;margin-top:.5rem">
+    <button class="gho" onclick="closeComp()">Abbrechen</button>
+    <button class="pri" onclick="sendComp()">&#x2709; Senden</button>
+  </div>
+</dialog>
+
+<!-- ACCOUNT DIALOG -->
+<dialog id="accDlg">
+  <div style="display:flex;align-items:center;margin-bottom:.65rem">
+    <strong id="accDlgT">Konto</strong>
+    <button style="margin-left:auto;opacity:.6" onclick="$('accDlg').close()">&#x2715;</button>
+  </div>
+  <div style="display:grid;gap:.32rem">
+    <input id="aN" placeholder="Anzeigename">
+    <input id="aE" placeholder="E-Mail-Adresse" onblur="probeAcc()">
+    <div id="aProbeStatus" style="display:none;font-size:11px;margin:-.1rem 0 .1rem"></div>
+    <input id="aU" placeholder="Benutzername">
+    <input id="aP" type="password" placeholder="Passwort">
+    <div style="display:grid;grid-template-columns:1fr 52px 1fr 52px;gap:.28rem">
+      <input id="aIH" placeholder="IMAP Host">
+      <input id="aIP" placeholder="993">
+      <input id="aSH" placeholder="SMTP Host">
+      <input id="aSP" placeholder="587">
+    </div>
+    <details id="aSigSec">
+      <summary style="font-size:11.5px;cursor:pointer;color:var(--subtle)">Signatur</summary>
+      <div class="sig-wrap" style="margin-top:.45rem">
+        <div class="sig-tb">
+          <button type="button" onmousedown="event.preventDefault()" onclick="sigCmd('aSigEd','bold')" title="Fett" style="font-weight:700">B</button>
+          <button type="button" onmousedown="event.preventDefault()" onclick="sigCmd('aSigEd','italic')" title="Kursiv" style="font-style:italic">I</button>
+          <button type="button" onmousedown="event.preventDefault()" onclick="sigCmd('aSigEd','underline')" title="Unterstrichen" style="text-decoration:underline">U</button>
+          <button type="button" onmousedown="event.preventDefault()" onclick="sigLink('aSigEd')" title="Link einfügen">&#x1F517;</button>
+          <button type="button" onmousedown="event.preventDefault()" onclick="sigCmd('aSigEd','removeFormat')" title="Formatierung entfernen">&#x2715;</button>
+        </div>
+        <div id="aSigEd" class="sig-ed" contenteditable="true" data-ph="Signatur (optional)"></div>
+      </div>
+    </details>
+    <details id="aAdvSec">
+      <summary style="font-size:11.5px;cursor:pointer;color:var(--subtle)">Erweitert</summary>
+      <div style="display:grid;gap:.28rem;margin-top:.45rem">
+        <input id="aSvH" placeholder="Sieve Host (leer = IMAP)">
+        <input id="aSvP" placeholder="Sieve Port (leer = 4190)" type="number">
+        <input id="aCdav" placeholder="CardDAV URL">
+        <input id="aCalv" placeholder="CalDAV URL">
+      </div>
+    </details>
+  </div>
+  <div style="display:flex;gap:.45rem;justify-content:flex-end;margin-top:.7rem">
+    <button id="accDel" onclick="delAcc()" style="color:var(--danger);margin-right:auto">Löschen</button>
+    <button class="gho" onclick="$('accDlg').close()">Abbrechen</button>
+    <button class="pri" onclick="saveAcc()">Speichern</button>
+  </div>
+</dialog>
+
+<!-- CONTACT DIALOG -->
+<dialog id="ctDlg">
+  <div style="display:flex;align-items:center;margin-bottom:.65rem">
+    <strong id="ctDlgT">Kontakt</strong>
+    <button style="margin-left:auto;opacity:.6" onclick="$('ctDlg').close()">&#x2715;</button>
+  </div>
+  <div style="display:grid;gap:.32rem">
+    <input id="ctN" placeholder="Name">
+    <input id="ctE" placeholder="E-Mail">
+    <input id="ctP" placeholder="Telefon">
+    <input id="ctB" type="date" placeholder="Geburtstag">
+    <textarea id="ctNo" placeholder="Notizen" rows="2" style="resize:none"></textarea>
+  </div>
+  <div style="display:flex;gap:.45rem;justify-content:flex-end;margin-top:.7rem">
+    <button id="ctDel" onclick="delCt()" style="color:var(--danger);margin-right:auto;display:none">Löschen</button>
+    <button class="gho" onclick="$('ctDlg').close()">Abbrechen</button>
+    <button class="pri" onclick="saveCt()">Speichern</button>
+  </div>
+</dialog>
+
+<!-- EVENT DIALOG -->
+<dialog id="evDlg">
+  <div style="display:flex;align-items:center;margin-bottom:.65rem">
+    <strong id="evDlgT">Termin</strong>
+    <button style="margin-left:auto;opacity:.6" onclick="$('evDlg').close()">&#x2715;</button>
+  </div>
+  <div style="display:grid;gap:.32rem">
+    <input id="evT" placeholder="Titel">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.35rem">
+      <input id="evS" type="datetime-local">
+      <input id="evE" type="datetime-local">
+    </div>
+    <label style="font-size:12px;display:flex;align-items:center;gap:.4rem">
+      <input type="checkbox" id="evAD" onchange="togAD()"> Ganztägig
+    </label>
+  </div>
+  <div style="display:flex;gap:.45rem;justify-content:flex-end;margin-top:.7rem">
+    <button id="evDel" onclick="delEv()" style="color:var(--danger);margin-right:auto;display:none">Löschen</button>
+    <button class="gho" onclick="$('evDlg').close()">Abbrechen</button>
+    <button class="pri" onclick="saveEv()">Speichern</button>
+  </div>
+</dialog>
+
+<!-- FOLDER DIALOG -->
+<dialog id="fldDlg">
+  <div style="display:flex;align-items:center;margin-bottom:.65rem">
+    <strong id="fldDlgT">Ordner</strong>
+    <button style="margin-left:auto;opacity:.6" onclick="$('fldDlg').close()">&#x2715;</button>
+  </div>
+  <input id="fldInp" placeholder="Ordnername">
+  <div style="display:flex;gap:.45rem;justify-content:flex-end;margin-top:.7rem">
+    <button class="gho" onclick="$('fldDlg').close()">Abbrechen</button>
+    <button class="pri" id="fldOkBtn" onclick="fldDlgOk()">Erstellen</button>
+  </div>
+</dialog>
+
+<!-- SOURCE DIALOG -->
+<dialog id="srcDlg" style="width:78vw;max-width:880px">
+  <div style="display:flex;align-items:center;margin-bottom:.65rem">
+    <strong>Quelltext</strong>
+    <button style="margin-left:auto;opacity:.6" onclick="$('srcDlg').close()">&#x2715;</button>
+  </div>
+  <textarea id="srcTxt" readonly style="width:100%;height:58vh;font-family:monospace;font-size:11px;resize:none"></textarea>
+</dialog>
+
+<!-- PDF PREVIEW DIALOG -->
+<dialog id="pdfDlg" style="width:82vw;max-width:960px;height:88vh;padding:0;border:none">
+  <div style="display:flex;flex-direction:column;height:100%;padding:.7rem">
+    <div style="display:flex;align-items:center;margin-bottom:.5rem;flex-shrink:0">
+      <strong id="pdfName">PDF</strong>
+      <button style="margin-left:auto;opacity:.6" onclick="$('pdfDlg').close();$('pdfFrame').src=''">&#x2715;</button>
+    </div>
+    <iframe id="pdfFrame" style="flex:1;border:none;border-radius:4px;width:100%"></iframe>
+  </div>
+</dialog>
+
+<!-- SETTINGS DIALOG -->
+<dialog id="setDlg">
+  <div class="set-hdr">
+    <strong>Einstellungen</strong>
+    <button style="margin-left:auto;opacity:.6" onclick="$('setDlg').close()">&#x2715;</button>
+  </div>
+  <div class="stabs">
+    <button class="stab act" onclick="setTab('allg')">Allgemein</button>
+    <button class="stab" onclick="setTab('konten')">Konten</button>
+    <button class="stab" onclick="setTab('etik')">Etiketten</button>
+    <button class="stab" onclick="setTab('ord')">Ordner</button>
+    <button class="stab" onclick="setTab('pgp')">PGP</button>
+  </div>
+
+  <!-- ALLGEMEIN -->
+  <div class="stpn act" id="stpn-allg">
+    <div class="set-section">Darstellung</div>
+    <label style="font-size:12px;display:flex;align-items:center;gap:.4rem;margin-bottom:.35rem">
+      <input type="checkbox" id="setDkM"> Dunkles Design
+    </label>
+
+    <div class="set-section">Verhalten</div>
+    <label style="font-size:12px;display:flex;align-items:center;gap:.4rem;margin-bottom:.28rem">
+      <input type="checkbox" id="setDC"> Löschbestätigung anzeigen
+    </label>
+    <label style="font-size:12px;display:flex;align-items:center;gap:.4rem;margin-bottom:.28rem">
+      <input type="checkbox" id="setAS"> Beim Systemstart öffnen
+    </label>
+    <label style="font-size:12px;display:flex;align-items:center;gap:.4rem;margin-bottom:.28rem">
+      <input type="checkbox" id="setLSP"> Vorschau unterhalb der Mailliste
+    </label>
+    <label style="font-size:12px;display:flex;align-items:center;gap:.4rem;margin-bottom:.28rem">
+      <input type="checkbox" id="setRem"> Termin-Erinnerungen (15 min vorher)
+    </label>
+
+    <div class="set-section">Benachrichtigungen</div>
+    <label style="font-size:12px;display:flex;align-items:center;gap:.4rem;margin-bottom:.28rem">
+      <input type="checkbox" id="setNI"> Nur Posteingang benachrichtigen
+    </label>
+    <label style="font-size:12px;display:flex;align-items:center;gap:.4rem;margin-bottom:.28rem">
+      <input type="checkbox" id="setBell"> Benachrichtigungston
+    </label>
+    <div class="set-row" style="margin-bottom:.28rem">
+      <label>Ruhezeiten</label>
+      <div style="display:flex;gap:.4rem;align-items:center">
+        <input type="time" id="setQS" style="width:auto;flex:none">
+        <span style="font-size:12px;color:var(--subtle)">bis</span>
+        <input type="time" id="setQE" style="width:auto;flex:none">
+        <span style="font-size:11px;color:var(--subtle)">(leer = deaktiviert)</span>
+      </div>
+    </div>
+
+    <div class="set-section">Senden</div>
+    <div class="set-row" style="margin-bottom:.28rem">
+      <label>Verzögerung</label>
+      <div style="display:flex;gap:.5rem;align-items:center">
+        <input type="range" id="setSD" min="0" max="30" style="flex:1" oninput="$('setSDV').textContent=this.value+'s'">
+        <span id="setSDV" style="font-size:12px;min-width:3ch;text-align:right">5s</span>
+      </div>
+    </div>
+
+    <div class="set-section">Übersetzung (LibreTranslate)</div>
+    <div class="set-row">
+      <label>Server-URL</label><input id="setTU" placeholder="http://localhost:5000">
+      <label>API-Key</label><input id="setTK" placeholder="(optional)">
+      <label>Zielsprache</label>
+      <select id="setTL">
+        <option value="de">Deutsch</option><option value="en">Englisch</option>
+        <option value="fr">Französisch</option><option value="es">Spanisch</option>
+        <option value="it">Italienisch</option><option value="nl">Niederländisch</option>
+        <option value="pl">Polnisch</option><option value="pt">Portugiesisch</option>
+      </select>
+    </div>
+
+    <div class="set-section">Verfassen</div>
+    <div class="set-row">
+      <label>Rechtschreibprüfung</label>
+      <select id="setSpell">
+        <option value="de">Deutsch</option>
+        <option value="en">Englisch</option>
+        <option value="auto">Automatisch (System)</option>
+        <option value="off">Aus</option>
+      </select>
+    </div>
+
+    <div class="set-section">Sicherheit</div>
+    <div class="set-row">
+      <label>DANE/TLSA-Resolver</label><input id="setDR" placeholder="leer = System-DNS (z. B. 9.9.9.9)">
+    </div>
+    <div style="font-size:10.5px;color:var(--subtle);margin:-.1rem 0 .3rem">Prüft im Composer, ob der Empfänger-Server per DANE abgesichert ist. „Gesichert" nur mit DNSSEC-validierendem Resolver (z. B. 9.9.9.9); dieser sieht dann die Empfänger-Domains.</div>
+
+    <div class="set-section">Datensicherung</div>
+    <div style="display:flex;gap:.4rem">
+      <button class="gho" onclick="expSettings()" style="flex:1;font-size:12px">Exportieren (.json)</button>
+      <input type="file" id="impFile" accept=".json" style="display:none" onchange="impSettings()">
+      <button class="gho" onclick="$('impFile').click()" style="flex:1;font-size:12px">Importieren (.json)</button>
+    </div>
+
+    <div style="display:flex;justify-content:flex-end;margin-top:1rem">
+      <button class="pri" onclick="saveSet()">Speichern</button>
+    </div>
+  </div>
+
+  <!-- KONTEN -->
+  <div class="stpn" id="stpn-konten">
+    <div class="set-accs">
+      <div>
+        <div id="setAccList" class="set-acc-list" style="max-height:220px"></div>
+        <button class="gho" onclick="setAccNew()" style="width:100%;margin-top:.4rem;font-size:12px">+ Konto hinzufügen</button>
+        <div id="setAccSecNav" class="sa-secnav" style="display:none">
+          <button class="sa-navbtn act" data-sec="konto" onclick="setAccSec('konto')">Konto &amp; Server</button>
+          <button class="sa-navbtn" data-sec="sig" onclick="setAccSec('sig')">Signatur</button>
+          <button class="sa-navbtn" data-sec="alias" onclick="setAccSec('alias')">Aliase</button>
+          <button class="sa-navbtn" data-sec="kk" onclick="setAccSec('kk')">Kalender &amp; Kontakte</button>
+          <button class="sa-navbtn" data-sec="adv" onclick="setAccSec('adv')">Erweitert</button>
+        </div>
+      </div>
+      <div id="setAccForm" style="display:none">
+        <div class="sa-sec" data-sec="konto">
+          <div style="display:grid;gap:.32rem">
+            <input id="saN" placeholder="Anzeigename">
+            <input id="saE" placeholder="E-Mail-Adresse" onblur="setProbeAcc()">
+            <div id="saProbeStatus" style="display:none;font-size:11px;margin:-.1rem 0 .1rem"></div>
+            <input id="saU" placeholder="Benutzername">
+            <input id="saP" type="password" placeholder="Passwort">
+            <div style="display:grid;grid-template-columns:1fr 56px 1fr 56px;gap:.28rem">
+              <input id="saIH" placeholder="IMAP Host">
+              <input id="saIP" placeholder="993" type="number">
+              <input id="saSH" placeholder="SMTP Host">
+              <input id="saSP" placeholder="587" type="number">
+            </div>
+          </div>
+        </div>
+        <div class="sa-sec" data-sec="sig" style="display:none">
+          <div class="sig-wrap">
+            <div class="sig-tb">
+              <button type="button" onmousedown="event.preventDefault()" onclick="sigCmd('saSigEd','bold')" title="Fett" style="font-weight:700">B</button>
+              <button type="button" onmousedown="event.preventDefault()" onclick="sigCmd('saSigEd','italic')" title="Kursiv" style="font-style:italic">I</button>
+              <button type="button" onmousedown="event.preventDefault()" onclick="sigCmd('saSigEd','underline')" title="Unterstrichen" style="text-decoration:underline">U</button>
+              <button type="button" onmousedown="event.preventDefault()" onclick="sigLink('saSigEd')" title="Link einfügen">&#x1F517;</button>
+              <button type="button" onmousedown="event.preventDefault()" onclick="sigCmd('saSigEd','removeFormat')" title="Formatierung entfernen">&#x2715;</button>
+            </div>
+            <div id="saSigEd" class="sig-ed" contenteditable="true" data-ph="Signatur (optional)"></div>
+          </div>
+        </div>
+        <div class="sa-sec" data-sec="alias" style="display:none">
+          <input id="saAliases" placeholder="Aliases (kommagetrennt: alias@example.com, alias2@...)">
+        </div>
+        <div class="sa-sec" data-sec="kk" style="display:none">
+          <div style="display:grid;gap:.28rem">
+            <label style="font-size:11.5px;color:var(--subtle)">CalDAV (Kalender)</label>
+            <input id="saCalv" placeholder="https://…/caldav/">
+            <label style="font-size:11.5px;color:var(--subtle);margin-top:.3rem">CardDAV (Kontakte)</label>
+            <input id="saCdav" placeholder="https://…/carddav/">
+          </div>
+        </div>
+        <div class="sa-sec" data-sec="adv" style="display:none">
+          <div style="display:grid;gap:.28rem">
+            <input id="saSvH" placeholder="Sieve Host (leer = IMAP)">
+            <input id="saSvP" placeholder="Sieve Port (leer = 4190)" type="number">
+            <input id="saWdav" placeholder="WebDAV Archiv-URL (optional)">
+          </div>
+        </div>
+        <div style="display:flex;gap:.4rem;margin-top:.65rem">
+          <button id="setAccDel" onclick="setDelAcc()" style="color:var(--danger);margin-right:auto">Löschen</button>
+          <button class="gho" onclick="setAccCancel()">Abbrechen</button>
+          <button class="pri" onclick="setAccSave()">Speichern</button>
+        </div>
+      </div>
+      <div id="setAccHint" style="color:var(--subtle);font-size:12px;display:flex;align-items:center;justify-content:center">
+        Konto auswählen oder neu anlegen
+      </div>
+    </div>
+  </div>
+
+  <!-- ETIKETTEN -->
+  <div class="stpn" id="stpn-etik">
+    <div style="display:flex;gap:.4rem;margin-bottom:.65rem;align-items:center">
+      <input id="lblNewName" placeholder="Etikett-Name (= IMAP-Keyword)" style="flex:1">
+      <input id="lblNewColor" type="color" value="#0067c0" style="width:36px;height:30px;padding:.1rem;border:1px solid var(--ctlbrd);border-radius:4px;cursor:pointer;background:none">
+      <button class="pri" onclick="addLabelDef()">Hinzufügen</button>
+    </div>
+    <div id="lblList"></div>
+    <p style="font-size:11px;color:var(--subtle);margin-top:.65rem">Etiketten sind IMAP-Keywords. Sie können beim Lesen einer Mail über „+ Etikett" oder das Kontextmenü gesetzt werden.</p>
+  </div>
+
+  <!-- ORDNER-REIHENFOLGE -->
+  <div class="stpn" id="stpn-ord">
+    <div class="set-section">Ordner-Reihenfolge</div>
+    <div style="font-size:12px;color:var(--subtle);margin-bottom:.7rem">Pfeile verschieben einen Ordner in der Sidebar-Reihenfolge (pro Konto).</div>
+    <select id="ordAccSel" style="font-size:12px;margin-bottom:.7rem" onchange="renderOrdList()"></select>
+    <div id="ordList" style="display:grid;gap:.28rem"></div>
+    <button class="gho" onclick="ordReset()" style="margin-top:.7rem;font-size:11.5px">Reihenfolge zurücksetzen</button>
+  </div>
+
+  <!-- PGP-SCHLÜSSEL -->
+  <div class="stpn" id="stpn-pgp">
+    <div class="set-section">PGP-Schlüssel</div>
+    <div style="font-size:12px;color:var(--subtle);margin-bottom:.7rem">Öffentliche Schlüssel zum Verschlüsseln, private zum Entschlüsseln empfangener Mails.</div>
+    <textarea id="pgpKeyIn" placeholder="ASCII-Armor hier einfügen (-----BEGIN PGP PUBLIC KEY BLOCK----- …)" style="width:100%;height:110px;font-family:monospace;font-size:11px;resize:vertical;margin-bottom:.4rem"></textarea>
+    <button class="pri" onclick="pgpImport()" style="margin-bottom:.9rem;font-size:12px">Schlüssel importieren</button>
+    <div id="pgpKeyList" style="display:grid;gap:.28rem"></div>
+  </div>
+
+</dialog>
+
+<!-- VACATION DIALOG -->
+<dialog id="vacDlg">
+  <div style="display:flex;align-items:center;margin-bottom:.65rem">
+    <strong>Abwesenheitsnotiz</strong>
+    <button style="margin-left:auto;opacity:.6" onclick="$('vacDlg').close()">&#x2715;</button>
+  </div>
+  <div style="display:grid;gap:.32rem">
+    <input id="vacSubj" placeholder="Betreff: Abwesenheitsnotiz" value="Ich bin derzeit nicht erreichbar">
+    <textarea id="vacBody" rows="4" style="resize:none">Vielen Dank für Ihre Nachricht.
+Ich bin vom [DATUM] bis [DATUM] abwesend und lese meine E-Mails in dieser Zeit nicht.
+Bei dringenden Anliegen wenden Sie sich bitte an [KONTAKT].
+Ich melde mich nach meiner Rückkehr bei Ihnen.</textarea>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.35rem">
+      <div><label style="font-size:11px;color:var(--subtle)">Nicht häufiger als alle</label><input id="vacDays" type="number" value="7" min="1" style="width:100%"> <span style="font-size:11px;color:var(--subtle)">Tage</span></div>
+      <div></div>
+    </div>
+  </div>
+  <div style="display:flex;gap:.45rem;justify-content:flex-end;margin-top:.7rem">
+    <button class="gho" onclick="$('vacDlg').close()">Abbrechen</button>
+    <button class="pri" onclick="genVacation()">Skript generieren</button>
+  </div>
+</dialog>
+
+<!-- MOVE DIALOG -->
+<dialog id="moveDlg">
+  <div style="display:flex;align-items:center;margin-bottom:.65rem">
+    <strong>In Ordner verschieben</strong>
+    <button style="margin-left:auto;opacity:.6" onclick="$('moveDlg').close()">&#x2715;</button>
+  </div>
+  <select id="moveFldSel" size="10" style="width:100%;margin-bottom:.6rem;font-size:12px"></select>
+  <div style="display:flex;gap:.45rem;justify-content:flex-end">
+    <button class="gho" onclick="$('moveDlg').close()">Abbrechen</button>
+    <button class="pri" onclick="doMoveMsg()">Verschieben</button>
+  </div>
+</dialog>
+
+<!-- DEL CONFIRM -->
+<dialog id="delConfDlg">
+  <p style="margin-bottom:1rem">Nachricht endgültig löschen?</p>
+  <div style="display:flex;gap:.45rem;justify-content:flex-end">
+    <button class="gho" id="delNo">Abbrechen</button>
+    <button class="pri" id="delYes" style="background:var(--danger)">Löschen</button>
+  </div>
+</dialog>
+
+<script>
+// ── helpers ──────────────────────────────────────────────────────────────────
+const api=()=>window.go.main.App
+const $=id=>document.getElementById(id)
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+
+// ── custom dialogs ───────────────────────────────────────────────────────────
+// In-App-Ersatz für die nativen confirm/alert/prompt (zeigen sonst "wails.localhost").
+function uiDialog(opt){
+  return new Promise(resolve=>{
+    const hasInput=!!opt.input
+    // Natives <dialog> mit showModal() → liegt im Top-Layer, also über anderen
+    // bereits geöffneten Dialogen (z. B. Einstellungen).
+    const dlg=document.createElement('dialog');dlg.className='uidlg'
+    const msg=document.createElement('div');msg.className='uidlg-msg';msg.textContent=String(opt.message)
+    dlg.appendChild(msg)
+    let inp=null
+    if(hasInput){inp=document.createElement('input');inp.className='uidlg-in';inp.type='text';inp.value=opt.defaultValue||'';dlg.appendChild(inp)}
+    const btns=document.createElement('div');btns.className='uidlg-btns'
+    let cancelBtn=null
+    if(opt.cancelText){cancelBtn=document.createElement('button');cancelBtn.textContent=opt.cancelText;btns.appendChild(cancelBtn)}
+    const okBtn=document.createElement('button');okBtn.className='uidlg-ok';okBtn.textContent=opt.okText||'OK';btns.appendChild(okBtn)
+    dlg.appendChild(btns);document.body.appendChild(dlg)
+    dlg.showModal()
+    ;(inp||okBtn).focus();if(inp)inp.select()
+    let settled=false
+    const done=v=>{if(settled)return;settled=true;dlg.close();dlg.remove();resolve(v)}
+    const onOk=()=>done(hasInput?inp.value:true)
+    const onCancel=()=>done(hasInput?null:false)
+    okBtn.onclick=onOk
+    if(cancelBtn)cancelBtn.onclick=onCancel
+    dlg.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();onOk()}})
+    dlg.addEventListener('cancel',e=>{e.preventDefault();onCancel()}) // Escape
+    dlg.addEventListener('mousedown',e=>{if(e.target===dlg)onCancel()}) // Klick auf Backdrop
+  })
+}
+function uiAlert(message){return uiDialog({message,okText:'OK'})}
+function uiConfirm(message){return uiDialog({message,okText:'OK',cancelText:'Abbrechen'})}
+function uiPrompt(message,defaultValue){return uiDialog({message,input:true,defaultValue,okText:'OK',cancelText:'Abbrechen'})}
+// alert() wird breit für Fehlermeldungen genutzt → transparent, nicht-blockierend ersetzen.
+window.alert=message=>{uiAlert(message)}
+
+// ── state ────────────────────────────────────────────────────────────────────
+let accounts=[],acFolders={},collAcc={},collFld={},ctsList=[]
+let curAcc=null,curFld=null,msgs=[],msgOff=0,hasMore=false,threadMode=false
+let viewUID=0,viewAcc=null,viewFld=null,viewFrom=''
+let ctxUID=0,ctxAcc=null,ctxFld=null
+let undoPend=null,undoTm=null
+let calY=new Date().getFullYear(),calM=new Date().getMonth(),calView='month',calEvs=[],calAcc=null
+let svAcc=null,svCur=null
+let fldMode='create',fldAcc=null,fldCurName=null
+let editAcc=null,editCt=null,editEv=null
+let compAtts=[],draftTm=null
+
+// ── dark mode ────────────────────────────────────────────────────────────────
+function toggleDark(){document.body.classList.toggle('dark');localStorage.setItem('dark',document.body.classList.contains('dark'))}
+if(localStorage.getItem('dark')==='false')document.body.classList.remove('dark')
+
+// ── navigation ───────────────────────────────────────────────────────────────
+let ctlLoaded=false,calLoaded=false,flLoaded=false,arLoaded=false
+function sw(name){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('act'))
+  document.querySelectorAll('.nvb').forEach(b=>b.classList.remove('act'))
+  $('view-'+name).classList.add('act')
+  $('nb-'+name).classList.add('act')
+  if(name==='contacts'&&!ctlLoaded){ctlLoaded=true;loadCts()}
+  if(name==='calendar'&&!calLoaded){calLoaded=true;loadCal()}
+  if(name==='filter'&&!flLoaded){flLoaded=true;initSv()}
+  if(name==='archive'&&!arLoaded){arLoaded=true;loadArch()}
+}
+
+// ── init ─────────────────────────────────────────────────────────────────────
+async function init(){
+  const wm=await api().GetWindowMode()
+  if(wm.mode==='mail'){initMailWindow(wm);return}
+
+  accounts=await api().ListAccounts()
+  if(!accounts.length){openAccDlg(null);return}
+  await loadAllFolders()
+  renderSb()
+  selectFld(accounts[0].id,'INBOX')
+  // Populate account selectors for other views
+  const opts=accounts.map(a=>`<option value="${a.id}">${esc(a.email)}</option>`).join('')
+  $('ctAccSel').innerHTML=opts
+  $('calAccSel').innerHTML=opts
+  $('svAccSel').innerHTML=opts
+  calAcc=accounts[0].id
+  applySplitV()
+  setInterval(checkReminders,60000)
+  // Wails events
+  if(window.runtime?.EventsOn){
+    window.runtime.EventsOn('new-mail',d=>{
+      $('nmbFrom').textContent=d.from||''
+      $('nmbSubj').textContent=d.subject||''
+      $('nmb').style.display='block'
+      setTimeout(()=>$('nmb').style.display='none',8000)
+      if(localStorage.getItem('notifBell')==='1')playNotifBeep()
+    })
+  }
+}
+
+async function loadAllFolders(){
+  await Promise.all(accounts.map(async a=>{
+    try{acFolders[a.id]=await api().Folders(a.id)}catch(e){acFolders[a.id]=[]}
+  }))
+}
+
+// ── sidebar ──────────────────────────────────────────────────────────────────
+const ACCOLORS=['#0067c0','#c42b1c','#107c10','#8764b8','#d08040','#038387','#bf4070']
+const PRIO=['inbox','sent','drafts','trash','junk','spam','archive']
+
+function prioScore(n){const lbl=(n||'').toLowerCase().replace(/.*[./]/,'');for(let i=0;i<PRIO.length;i++)if(lbl===PRIO[i])return i;return PRIO.length}
+function sortFldsBase(fs){
+  // Build parent→children map for hierarchical ordering
+  const byParent=new Map(),roots=[]
+  fs.forEach(f=>{
+    if(f.depth===0){roots.push(f)}
+    else{const d=f.delimiter||'/';const idx=f.name.lastIndexOf(d);const p=idx>=0?f.name.substring(0,idx):'';if(!byParent.has(p))byParent.set(p,[]);byParent.get(p).push(f)}
+  })
+  const cmp=(a,b)=>{const pa=prioScore(a.name),pb=prioScore(b.name);return pa!==pb?pa-pb:a.name.localeCompare(b.name)}
+  roots.sort(cmp)
+  const out=[]
+  function walk(items){items.forEach(f=>{out.push(f);const ch=byParent.get(f.name);if(ch){ch.sort(cmp);walk(ch)}})}
+  walk(roots)
+  return out
+}
+
+function renderSb(){
+  const tree=$('acctree');tree.innerHTML=''
+  if(accounts.length>1){
+    const r=ce('div','fr'+(curAcc===null?' act':''))
+    r.innerHTML=`<span style="font-size:13px">&#x1F4EC;</span><span>Alle Konten</span>`
+    r.onclick=()=>{curAcc=null;curFld=null;loadUnified()}
+    tree.appendChild(r)
+  }
+  accounts.forEach((a,i)=>{
+    const color=a.color||ACCOLORS[i%ACCOLORS.length]
+    const hdr=ce('div','ah'+(collAcc[a.id]?' coll':''))
+    hdr.innerHTML=`<span class="acc-dot" style="background:${color}"></span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.email||a.name)}</span><span class="cv">&#x25BE;</span>`
+    hdr.onclick=()=>{collAcc[a.id]=!collAcc[a.id];renderSb()}
+    hdr.ondblclick=e=>{e.stopPropagation();openAccDlg(a)}
+    tree.appendChild(hdr)
+    if(collAcc[a.id])return
+    const sorted=sortFlds(acFolders[a.id]||[],a.id)
+    const hasKids=new Set()
+    sorted.forEach(f=>{if(f.depth>0){const p=f.name.substring(0,f.name.lastIndexOf(f.delimiter||'/'));hasKids.add(p)}})
+    sorted.forEach(f=>{
+      const key=a.id+':'+f.name
+      if(collFld[key]===undefined&&hasKids.has(f.name))collFld[key]=true
+      if(isAncColl(a.id,f,sorted))return
+      const row=ce('div','fr'+(curAcc===a.id&&curFld===f.name?' act':''))
+      row.style.paddingLeft=(0.4+f.depth*0.8)+'rem'
+      const cv=hasKids.has(f.name)?`<span style="font-size:9px;width:10px;flex-shrink:0">${collFld[key]?'&#x25B8;':'&#x25BE;'}</span>`:`<span style="width:10px;flex-shrink:0"></span>`
+      row.innerHTML=`${cv}<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.label||f.name)}</span>${f.unseen?`<span class="fbadge">${f.unseen}</span>`:''}`
+      row.onclick=()=>{
+        if(hasKids.has(f.name)){collFld[key]=!collFld[key];renderSb();return}
+        selectFld(a.id,f.name)
+      }
+      row.oncontextmenu=e=>{e.preventDefault();showFldCtx(e,a.id,f.name)}
+      tree.appendChild(row)
+    })
+  })
+}
+
+function isAncColl(accId,f,all){
+  if(!f.delimiter||f.depth===0)return false
+  const parts=f.name.split(f.delimiter)
+  for(let d=1;d<parts.length;d++){
+    const anc=parts.slice(0,d).join(f.delimiter)
+    if(collFld[accId+':'+anc])return true
+  }
+  return false
+}
+
+function ce(tag,cls){const el=document.createElement(tag);if(cls)el.className=cls;return el}
+
+function findFld(accId,type){
+  const fs=acFolders[accId]||[]
+  const map={trash:['trash','papierkorb','deleted','deleted messages'],archive:['archive','archiv'],spam:['spam','junk'],sent:['sent','gesendet','sent items'],drafts:['draft','drafts','entwurf','entwürfe']}
+  for(const t of(map[type]||[type])){const f=fs.find(f=>{const l=f.name.toLowerCase();return l===t||l.endsWith('/'+t)||l.endsWith('.'+t)});if(f)return f.name}
+  return null
+}
+
+// folder context
+let fldCtxAcc=null,fldCtxName=null
+function showFldCtx(e,accId,name){
+  fldCtxAcc=accId;fldCtxName=name
+  const m=$('ctx')
+  m.innerHTML=`<div class="ci" onclick="renameFldDlg()">Ordner umbenennen</div><div class="ci d" onclick="delFldConf()">Ordner löschen</div>`
+  m.style.left=e.clientX+'px';m.style.top=e.clientY+'px';m.style.display='block'
+}
+function renameFldDlg(){hideCtx();$('fldDlgT').textContent='Ordner umbenennen';$('fldInp').value=fldCtxName;$('fldOkBtn').textContent='Umbenennen';fldMode='rename';fldAcc=fldCtxAcc;$('fldDlg').showModal()}
+async function delFldConf(){hideCtx();if(!await uiConfirm(`Ordner "${fldCtxName}" löschen?`))return;try{await api().DeleteFolder(fldCtxAcc,fldCtxName);await reloadFlds(fldCtxAcc);renderSb()}catch(e){alert(e)}}
+
+function newFolder(){
+  const accId=curAcc&&curAcc!=='all'?curAcc:accounts[0]?.id;if(!accId)return
+  $('fldDlgT').textContent='Neuer Ordner'
+  $('fldInp').value=curFld&&curAcc===accId?curFld+'/':''
+  $('fldOkBtn').textContent='Erstellen'
+  fldMode='create';fldAcc=accId;$('fldDlg').showModal()
+}
+async function fldDlgOk(){
+  const name=$('fldInp').value.trim();if(!name)return
+  try{
+    if(fldMode==='create')await api().CreateFolder(fldAcc,name)
+    else await api().RenameFolder(fldAcc,fldCtxName,name)
+    $('fldDlg').close();await reloadFlds(fldAcc);renderSb()
+  }catch(e){alert(e)}
+}
+async function reloadFlds(accId){try{acFolders[accId]=await api().Folders(accId)}catch(e){}}
+
+// ── select folder / load ─────────────────────────────────────────────────────
+function selectFld(accId,folder){
+  curAcc=accId;curFld=folder;msgOff=0;msgs=[];renderSb();$('searchInp').value='';
+  const isSpam=/spam|junk/i.test(folder||'')
+  if($('hamBtn'))$('hamBtn').style.display=isSpam?'':'none'
+  loadMsgs()
+}
+
+async function loadMsgs(){
+  if(!curAcc||!curFld)return
+  // Sofort aus dem Offline-Cache zeichnen (nur erste Seite), dann live aktualisieren.
+  let hadCache=false
+  if(msgOff===0){
+    try{
+      const cached=await api().CachedMessages(curAcc,curFld)
+      if(cached&&cached.length){msgs=cached;hadCache=true;renderMsgList(msgs)}
+    }catch(e){}
+  }
+  try{
+    const page=await api().MessagesPage(curAcc,curFld,msgOff)
+    msgs=msgOff===0?page:[...msgs,...page]
+    hasMore=page.length>=50
+    $('loadMoreBar').style.display=hasMore?'block':'none'
+    renderMsgList(msgs)
+  }catch(e){
+    console.error(e)
+    if(msgOff===0&&hadCache){
+      // Offline: zwischengespeicherte Ansicht behalten, Hinweis einblenden.
+      $('msgList').insertAdjacentHTML('afterbegin','<div style="padding:.3rem .6rem;background:var(--panel);color:var(--subtle);font-size:11px">&#x26A0; Offline – zwischengespeicherte Ansicht</div>')
+    }else{
+      $('msgList').innerHTML='<div style="padding:1rem;color:var(--danger);font-size:12px;white-space:pre-wrap">Fehler beim Laden:\n'+esc(''+e)+'</div>'
+    }
+  }
+}
+
+async function loadUnified(){
+  renderSb()
+  try{msgs=await api().UnifiedInbox();hasMore=false;$('loadMoreBar').style.display='none';renderMsgList(msgs)}catch(e){console.error(e);$('msgList').innerHTML='<div style="padding:1rem;color:var(--danger);font-size:12px;white-space:pre-wrap">Fehler beim Laden:\n'+esc(''+e)+'</div>'}
+}
+
+function loadMore(){msgOff+=50;loadMsgs()}
+function refreshMsgs(){msgOff=0;msgs=[];if(!curAcc&&!curFld)loadUnified();else loadMsgs()}
+
+async function doSearch(){
+  const q=$('searchInp').value.trim()
+  if(!q){refreshMsgs();return}
+  if(!curAcc||!curFld)return
+  try{msgs=await api().Search(curAcc,curFld,q);hasMore=false;$('loadMoreBar').style.display='none';renderMsgList(msgs)}catch(e){alert(e)}
+}
+
+let searchTm=null
+function schedSearch(){
+  clearTimeout(searchTm)
+  const q=$('searchInp').value.trim()
+  if(!q){refreshMsgs();return}
+  searchTm=setTimeout(doSearch,450)
+}
+
+// ── thread mode ──────────────────────────────────────────────────────────────
+function toggleThread(){threadMode=!threadMode;$('threadBtn').classList.toggle('act',threadMode);renderMsgList(msgs)}
+function normSubj(s){return(s||'').replace(/^(re|fwd?|aw|wg):\s*/gi,'').trim().toLowerCase()}
+function grpThreads(list){
+  const m={}
+  list.forEach(msg=>{const k=normSubj(msg.subject);(m[k]=m[k]||[]).push(msg)})
+  return Object.values(m).map(ms=>({...ms[0],_tc:ms.length}))
+}
+
+// ── date groups ──────────────────────────────────────────────────────────────
+function dateBkt(ds){
+  const d=new Date(ds),now=new Date();now.setHours(0,0,0,0)
+  const diff=Math.floor((now-new Date(d.getFullYear(),d.getMonth(),d.getDate()))/86400000)
+  if(diff<1)return'Heute';if(diff<2)return'Gestern';if(diff<7)return'Diese Woche'
+  if(diff<14)return'Letzte Woche';if(diff<31)return'Diesen Monat';return'Älter'
+}
+
+// ── render msg list ──────────────────────────────────────────────────────────
+const LCOLS=['#0067c0','#c42b1c','#107c10','#8764b8','#d08040','#038387','#bf4070']
+function lcol(l){let h=0;for(const c of l)h=(h*31+c.charCodeAt(0))&0xfffffff;return LCOLS[h%LCOLS.length]}
+function senderColor(name){return lcol(name||'?')}
+function senderIni(from){const n=(from||'').replace(/<[^>]+>/g,'').trim()||from||'?';return n.split(/\s+/).map(w=>w[0]).join('').toUpperCase().substring(0,2)||'?'}
+
+function fmtDate(ds){
+  const d=new Date(ds),now=new Date()
+  if(d.toDateString()===now.toDateString())return d.toLocaleTimeString('de',{hour:'2-digit',minute:'2-digit'})
+  return d.toLocaleDateString('de',{day:'2-digit',month:'2-digit'})
+}
+
+// ── Inbox-Kategorien ──────────────────────────────────────────────────────────
+let curCat='alle'
+function catOverrides(){try{return JSON.parse(localStorage.getItem('catOverrides')||'{}')}catch(e){return {}}}
+function msgCategory(m){
+  const ov=catOverrides()[exEmail(m.from||'').toLowerCase()]
+  return ov||m.category||'allgemein'
+}
+function setCat(c){
+  curCat=c
+  document.querySelectorAll('#catTabs .ctab').forEach(b=>b.classList.toggle('act',b.dataset.cat===c))
+  renderMsgList(msgs)
+}
+function setSenderCat(from,cat){
+  const ov=catOverrides(),k=exEmail(from||'').toLowerCase();if(!k)return
+  if(cat==='auto')delete ov[k];else ov[k]=cat
+  localStorage.setItem('catOverrides',JSON.stringify(ov))
+  renderMsgList(msgs)
+}
+
+function renderMsgList(list){
+  const el=$('msgList')
+  list=list||[]
+  const src=(curCat==='alle')?list:list.filter(m=>msgCategory(m)===curCat)
+  if(!src.length){el.innerHTML='<div style="padding:1rem;text-align:center;color:var(--subtle)">Keine Nachrichten</div>';return}
+  const disp=threadMode?grpThreads(src):src
+  let html='',lastBkt=''
+  disp.forEach(m=>{
+    const bkt=dateBkt(m.date)
+    if(bkt!==lastBkt){html+=`<div class="dgh">${bkt}</div>`;lastBkt=bkt}
+    const accId=m.accountId||curAcc
+    const fld=m.accountEmail?'INBOX':(curFld||'INBOX')
+    const unread=!m.seen?' unread':''
+    const accBadge=m.accountEmail?`<span class="macc">${esc((m.accountEmail||'').split('@')[0])}</span>`:''
+    const ini=senderIni(m.from)
+    const col=senderColor(m.from)
+    const dot=!m.seen?'<span class="udot"></span>':''
+    const avatar=`<div class="mav" style="background:${col}">${ini}${dot}</div>`
+    const tc=m._tc>1?`<span class="tcount">${m._tc}</span>`:''
+    const att=m.hasAttachments?`<span style="font-size:11px;color:var(--subtle)">&#x1F4CE;</span>`:''
+    const flg=m.flagged?`<span style="color:#f0a000;font-size:11px">&#x2605;</span>`:''
+    const aId=esc(accId||''),fd=esc(fld)
+    const subjE=(m.subject||'').replace(/'/g,"\\'")
+    const selKey=m.uid+'|'+(accId||curAcc)+'|'+fld,selCls=selectedUIDs.has(selKey)?' sel':''
+    html+=`<div class="mr${unread}${selCls}" data-uid="${m.uid}" data-acc="${aId}" data-fld="${fd}" onclick="msgClick(event,${m.uid},'${aId}','${fd}')" ondblclick="openMsgWin(${m.uid},'${aId}','${fd}','${subjE}')" oncontextmenu="showCtx(event,${m.uid},'${aId}','${fd}')">
+      ${avatar}
+      <div style="flex:1;min-width:0;display:flex;align-items:center;gap:.35rem">
+        ${accBadge}<span class="mf">${esc(m.from||'')}</span>
+        <span class="ms">${esc(m.subject||'(kein Betreff)')}</span>
+        ${att}${flg}${tc}
+      </div>
+      <span class="md">${fmtDate(m.date)}</span>
+      <div class="hov-act">
+        <button class="ha" title="Archivieren" onclick="event.stopPropagation();qArch(${m.uid},'${aId}','${fd}')">&#x1F4C2;</button>
+        <button class="ha" title="Papierkorb" onclick="event.stopPropagation();qTrash(${m.uid},'${aId}','${fd}')">&#x1F5D1;</button>
+      </div>
+    </div>`
+  })
+  el.innerHTML=html
+}
+
+// ── multi-select ─────────────────────────────────────────────────────────────
+let selectedUIDs=new Set()
+
+function msgClick(e,uid,acc,fld){
+  if(e.ctrlKey||e.metaKey){e.preventDefault();toggleSel(uid,acc,fld)}
+  else{clearSel();openMsg(uid,acc,fld)}
+}
+
+function toggleSel(uid,acc,fld){
+  const k=uid+'|'+acc+'|'+fld
+  if(selectedUIDs.has(k))selectedUIDs.delete(k);else selectedUIDs.add(k)
+  updateBatchBar();renderSelHighlight()
+}
+
+function clearSel(){selectedUIDs.clear();updateBatchBar();renderSelHighlight()}
+
+function updateBatchBar(){
+  const n=selectedUIDs.size
+  $('batchBar').style.display=n?'flex':'none'
+  if(n)$('batchCount').textContent=n+' ausgewählt'
+}
+
+function renderSelHighlight(){
+  document.querySelectorAll('.mr').forEach(r=>{
+    r.classList.toggle('sel',selectedUIDs.has(r.dataset.uid+'|'+r.dataset.acc+'|'+r.dataset.fld))
+  })
+}
+
+async function batchArchive(){
+  if(!selectedUIDs.size)return
+  const keys=[...selectedUIDs]
+  for(const k of keys){const[uid,acc,fld]=k.split('|');const dest=findFld(acc,'archive');if(!dest)continue;try{await api().Move(acc,fld,dest,parseInt(uid))}catch(e){}}
+  msgs=msgs.filter(m=>!selectedUIDs.has(m.uid+'|'+(m.accountId||curAcc)+'|'+(curFld||'INBOX')))
+  clearSel();renderMsgList(msgs);showUndo('Archiviert.',async()=>{refreshMsgs()})
+}
+
+async function batchTrash(){
+  if(!selectedUIDs.size)return
+  const keys=[...selectedUIDs]
+  for(const k of keys){const[uid,acc,fld]=k.split('|');const dest=findFld(acc,'trash');if(!dest)continue;try{await api().Move(acc,fld,dest,parseInt(uid))}catch(e){}}
+  msgs=msgs.filter(m=>!selectedUIDs.has(m.uid+'|'+(m.accountId||curAcc)+'|'+(curFld||'INBOX')))
+  clearSel();renderMsgList(msgs);showUndo('In Papierkorb.',async()=>{refreshMsgs()})
+}
+
+async function batchDelete(){
+  if(!selectedUIDs.size)return
+  if(!await confDel())return
+  for(const k of[...selectedUIDs]){const[uid,acc,fld]=k.split('|');try{await api().Delete(acc,fld,parseInt(uid))}catch(e){}}
+  msgs=msgs.filter(m=>!selectedUIDs.has(m.uid+'|'+(m.accountId||curAcc)+'|'+(curFld||'INBOX')))
+  clearSel();renderMsgList(msgs)
+}
+
+async function batchRead(seen){
+  if(!selectedUIDs.size)return
+  for(const k of[...selectedUIDs]){const[uid,acc,fld]=k.split('|');try{await api().SetSeen(acc,fld,parseInt(uid),seen)}catch(e){}}
+  msgs.forEach(m=>{if(selectedUIDs.has(m.uid+'|'+(m.accountId||curAcc)+'|'+(curFld||'INBOX')))m.seen=seen})
+  clearSel();renderMsgList(msgs)
+}
+
+// ── open message ─────────────────────────────────────────────────────────────
+async function openMsg(uid,accId,folder){
+  viewUID=uid;viewAcc=accId;viewFld=folder
+  document.querySelectorAll('.mr').forEach(r=>r.classList.remove('act'))
+  const row=document.querySelector(`.mr[data-uid="${uid}"]`)
+  if(row){row.classList.remove('unread');row.classList.add('act')}
+  $('readEmpty').style.display='none';$('readContent').style.display='block'
+  $('readHead').innerHTML='<span style="color:var(--subtle)">Lade...</span>'
+  $('readBody').innerHTML='';$('imgBnr').style.display='none'
+  try{
+    const d=await api().Message(accId,folder,uid)
+    renderRH(d);renderRB(d)
+    // update unseen badge
+    const fs=acFolders[accId]
+    if(fs){const f=fs.find(f=>f.name===folder);if(f&&f.unseen>0){f.unseen--;renderSb()}}
+  }catch(e){$('readHead').textContent='Fehler: '+e}
+}
+
+function renderRH(d){
+  viewFrom=exEmail(d.from||'')
+  const lbls=(d.labels||[]).map(l=>`<span class="lc" style="background:${labelColor(l)};color:#fff">${esc(l)}<span class="rx" onclick="rmLbl('${esc(l)}')">&#x2715;</span></span>`).join('')
+  $('readHead').innerHTML=`
+    <div class="rh-subj">${esc(d.subject||'(kein Betreff)')}</div>
+    <div class="rh-meta">
+      <strong>Von:</strong><span>${esc(d.from||'')}</span>
+      <strong>An:</strong><span>${esc(d.to||'')}</span>
+      ${d.cc?`<strong>Cc:</strong><span>${esc(d.cc)}</span>`:''}
+      <strong>Datum:</strong><span>${new Date(d.date).toLocaleString('de')}</span>
+    </div>
+    ${renderAuth(d)}
+    <div style="margin-top:.35rem">${lbls}<button class="lc" style="background:var(--panel);border:1px dashed var(--ctlbrd);font-size:10.5px" onclick="addLblPrompt()">+ Etikett</button></div>
+    ${renderAtts(d.attachments||[])}`
+}
+
+// SPF/DKIM/DMARC-Badge.
+function authBadge(label,val){
+  if(!val)return ''
+  const ok=val==='pass'
+  const bad=val==='fail'||val==='softfail'||val==='permerror'
+  const col=ok?'var(--success)':(bad?'var(--danger)':'var(--subtle)')
+  return `<span title="${label}: ${esc(val)}" style="font-size:10px;padding:.08rem .4rem;border-radius:8px;border:1px solid ${col};color:${col}">${label} ${esc(val)}</span>`
+}
+
+// Authentifizierungs-Badges + Spoofing-Warnung für die Leseansicht.
+function renderAuth(d){
+  const a=d.auth||{}
+  const badges=[authBadge('SPF',a.spf),authBadge('DKIM',a.dkim),authBadge('DMARC',a.dmarc)].filter(Boolean).join(' ')
+  let warn=''
+  const dispM=(d.fromName||'').match(/[^\s<>,"]+@[^\s<>,"]+\.[^\s<>,"]+/)
+  const dispAddr=dispM?dispM[0].toLowerCase():''
+  const realAddr=(d.fromAddr||'').toLowerCase()
+  if(dispAddr&&realAddr&&dispAddr!==realAddr){
+    warn=`Der angezeigte Absender „${esc(dispAddr)}" weicht von der tatsächlichen Adresse „${esc(realAddr)}" ab.`
+  }else if(a.dmarc==='fail'||a.spf==='fail'||a.dkim==='fail'){
+    warn='E-Mail-Authentifizierung fehlgeschlagen – diese Nachricht könnte gefälscht sein.'
+  }
+  let html=''
+  if(badges)html+=`<div style="margin-top:.35rem;display:flex;gap:.3rem;flex-wrap:wrap;align-items:center">${badges}</div>`
+  if(warn)html+=`<div style="margin-top:.35rem;padding:.4rem .55rem;border-radius:6px;background:var(--danger);color:#fff;font-size:11.5px">&#x26A0; ${warn}</div>`
+  return html
+}
+
+function renderAtts(atts){
+  checkICS(atts)
+  if(!atts.length)return ''
+  return `<div class="al">${atts.map(a=>{
+    const isPdf=(a.filename||'').toLowerCase().endsWith('.pdf')
+    return `<div class="ac">
+    <span>&#x1F4CE;</span><span>${esc(a.filename)}</span>
+    ${isPdf?`<button class="gho" style="padding:.12rem .38rem;font-size:10.5px" onclick="previewPDF(${a.index})">Vorschau</button>`:''}
+    <button class="gho" style="padding:.12rem .38rem;font-size:10.5px" onclick="saveAtt(${a.index})">Speichern</button>
+    <button class="gho" style="padding:.12rem .38rem;font-size:10.5px" onclick="archAtt(${a.index})">Archiv</button>
+  </div>`}).join('')}</div>`
+}
+
+function renderRB(d){
+  const body=$('readBody')
+  if(d.html){
+    const iframe=document.createElement('iframe')
+    iframe.style.cssText='width:100%;border:none'
+    // allow-same-origin (ohne allow-scripts) erlaubt das Höhen-Resize und
+    // "Bilder anzeigen", verhindert aber jegliche Skriptausführung aus der Mail.
+    iframe.sandbox='allow-same-origin'
+    iframe.srcdoc=blockImgs(d.html)
+    body.innerHTML='';body.appendChild(iframe)
+    iframe.onload=()=>{try{iframe.style.height=iframe.contentDocument.body.scrollHeight+40+'px'}catch(e){}}
+    checkExtImgs(d.html)
+  }else{
+    body.innerHTML=`<pre style="white-space:pre-wrap;font-family:inherit">${esc(d.text||'(leer)')}</pre>`
+  }
+}
+
+// sanitizeHTML entfernt Skripte und Event-Handler aus fremdem HTML, bevor es
+// (z. B. als Antwort-Zitat) ins editierbare Hauptdokument übernommen wird.
+function sanitizeHTML(html){
+  const doc=new DOMParser().parseFromString(html,'text/html')
+  doc.querySelectorAll('script,style,iframe,object,embed,link,meta,base,form,svg').forEach(e=>e.remove())
+  doc.querySelectorAll('*').forEach(el=>{
+    ;[...el.attributes].forEach(at=>{
+      const n=at.name.toLowerCase()
+      const v=at.value.toLowerCase().replace(/[\s\x00-\x1f]/g,'')
+      if(n.startsWith('on')||((n==='href'||n==='src'||n==='xlink:href'||n==='action')&&(v.startsWith('javascript:')||v.startsWith('data:text/html'))))el.removeAttribute(at.name)
+    })
+  })
+  return doc.body.innerHTML
+}
+
+function blockImgs(html){
+  return html.replace(/<img([^>]*?)\ssrc=["'](https?:\/\/[^"']+)["']/gi,
+    `<img$1 class="bi" data-src="$2" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1' height='1'/%3E"`)
+}
+
+function checkExtImgs(html){
+  if(!/src=["']https?:\/\//i.test(html))return
+  const trusted=JSON.parse(localStorage.getItem('trustedSndr')||'[]')
+  if(trusted.includes(viewFrom)){showImgs();return}
+  $('imgBnr').style.display='flex'
+}
+
+function showImgs(){
+  const f=$('readBody').querySelector('iframe')
+  if(f?.contentDocument)f.contentDocument.querySelectorAll('img.bi').forEach(img=>{img.src=img.dataset.src;img.classList.remove('bi')})
+  $('imgBnr').style.display='none'
+}
+function trustSndr(){
+  const t=JSON.parse(localStorage.getItem('trustedSndr')||'[]')
+  if(!t.includes(viewFrom))t.push(viewFrom)
+  localStorage.setItem('trustedSndr',JSON.stringify(t));showImgs()
+}
+function exEmail(a){const m=a.match(/<([^>]+)>/);return m?m[1]:a.trim()}
+
+// ── labels ───────────────────────────────────────────────────────────────────
+async function rmLbl(lbl){if(!viewUID)return;try{await api().SetLabel(viewAcc,viewFld,viewUID,lbl,false);const d=await api().Message(viewAcc,viewFld,viewUID);renderRH(d)}catch(e){alert(e)}}
+async function addLblPrompt(){const l=await uiPrompt('Etikett:');if(!l)return;try{await api().SetLabel(viewAcc,viewFld,viewUID,l,true);const d=await api().Message(viewAcc,viewFld,viewUID);renderRH(d)}catch(e){alert(e)}}
+
+// ── actions ───────────────────────────────────────────────────────────────────
+async function archiveMsg(){
+  if(!viewUID)return;const dest=findFld(viewAcc,'archive');if(!dest){alert('Kein Archiv-Ordner');return}
+  const[uid,acc,fld]=[viewUID,viewAcc,viewFld]
+  await api().Move(acc,fld,dest,uid);rmFromList(uid)
+  showUndo('Archiviert.',async()=>{await api().Move(acc,dest,fld,uid);refreshMsgs()})
+}
+async function trashMsg(){
+  if(!viewUID)return;const dest=findFld(viewAcc,'trash');if(!dest){alert('Kein Papierkorb-Ordner');return}
+  const[uid,acc,fld]=[viewUID,viewAcc,viewFld]
+  await api().Move(acc,fld,dest,uid);rmFromList(uid)
+  showUndo('In Papierkorb.',async()=>{await api().Move(acc,dest,fld,uid);refreshMsgs()})
+}
+async function spamMsg(){
+  if(!viewUID)return;const dest=findFld(viewAcc,'spam');if(!dest){alert('Kein Spam-Ordner');return}
+  const[uid,acc,fld]=[viewUID,viewAcc,viewFld]
+  await api().Move(acc,fld,dest,uid);rmFromList(uid)
+  showUndo('Als Spam.',async()=>{await api().Move(acc,dest,fld,uid);refreshMsgs()})
+}
+async function hamMsg(){
+  if(!viewUID)return
+  const dest='INBOX'
+  const[uid,acc,fld]=[viewUID,viewAcc,viewFld]
+  try{await api().Move(acc,fld,dest,uid);rmFromList(uid);showUndo('Kein Spam.',async()=>{await api().Move(acc,dest,fld,uid);refreshMsgs()})}catch(e){alert(e)}
+}
+function moveMsg(){
+  if(!viewUID)return
+  const flds=acFolders[viewAcc]||[]
+  $('moveFldSel').innerHTML=flds.map(f=>`<option value="${esc(f.name)}">${esc(f.name)}</option>`).join('')
+  $('moveDlg').showModal()
+}
+async function doMoveMsg(){
+  const dest=$('moveFldSel').value;if(!dest)return
+  const[uid,acc,fld]=[viewUID,viewAcc,viewFld]
+  try{await api().Move(acc,fld,dest,uid);rmFromList(uid);$('moveDlg').close();showUndo('Verschoben nach '+dest+'.',async()=>{await api().Move(acc,dest,fld,uid);refreshMsgs()})}catch(e){alert(e)}
+}
+async function deleteMsg(){
+  if(!viewUID)return;if(!await confDel())return
+  const[uid,acc,fld]=[viewUID,viewAcc,viewFld]
+  await api().Delete(acc,fld,uid);rmFromList(uid)
+}
+function rmFromList(uid){msgs=msgs.filter(m=>m.uid!==uid);renderMsgList(msgs);$('readEmpty').style.display='flex';$('readContent').style.display='none'}
+
+function confDel(){
+  if(localStorage.getItem('delConf')!=='1')return Promise.resolve(true)
+  return new Promise(r=>{$('delConfDlg').showModal();$('delYes').onclick=()=>{$('delConfDlg').close();r(true)};$('delNo').onclick=()=>{$('delConfDlg').close();r(false)}})
+}
+
+async function qArch(uid,acc,fld){
+  const dest=findFld(acc,'archive');if(!dest)return
+  await api().Move(acc,fld,dest,uid)
+  if(viewUID===uid){$('readEmpty').style.display='flex';$('readContent').style.display='none'}
+  msgs=msgs.filter(m=>m.uid!==uid);renderMsgList(msgs)
+  showUndo('Archiviert.',async()=>{await api().Move(acc,dest,fld,uid);refreshMsgs()})
+}
+async function qTrash(uid,acc,fld){
+  const dest=findFld(acc,'trash');if(!dest)return
+  await api().Move(acc,fld,dest,uid)
+  if(viewUID===uid){$('readEmpty').style.display='flex';$('readContent').style.display='none'}
+  msgs=msgs.filter(m=>m.uid!==uid);renderMsgList(msgs)
+  showUndo('In Papierkorb.',async()=>{await api().Move(acc,dest,fld,uid);refreshMsgs()})
+}
+
+function printMsg(){$('printView').innerHTML=$('readHead').innerHTML+'<hr style="margin:1rem 0">'+($('readBody').innerHTML||'');window.print()}
+
+async function translateMsg(){
+  const b=$('readBody'),f=b.querySelector('iframe')
+  const text=f?f.contentDocument?.body?.innerText||'':b.innerText
+  if(!text){alert('Kein Text');return}
+  const url=localStorage.getItem('transURL')||'http://localhost:5000'
+  const key=localStorage.getItem('transKey')||''
+  const lang=localStorage.getItem('transLang')||'de'
+  try{const t=await api().Translate(text,lang,url,key);b.innerHTML=`<pre style="white-space:pre-wrap;font-family:inherit">${esc(t)}</pre>`;$('imgBnr').style.display='none'}
+  catch(e){alert('Übersetzung fehlgeschlagen: '+e)}
+}
+
+async function viewSrc(){if(!viewUID)return;try{$('srcTxt').value=await api().MessageSource(viewAcc,viewFld,viewUID);$('srcDlg').showModal()}catch(e){alert(e)}}
+
+async function saveAtt(idx){try{await api().SaveAttachment(viewAcc,viewFld,viewUID,idx)}catch(e){alert(e)}}
+async function archAtt(idx){try{await api().ArchiveSave(viewAcc,viewFld,viewUID,idx);alert('Im Archiv gespeichert.')}catch(e){alert(e)}}
+async function previewPDF(idx){
+  try{
+    const r=await api().GetAttachmentData(viewAcc,viewFld,viewUID,idx)
+    $('pdfName').textContent=r.name||'PDF'
+    $('pdfFrame').src='data:application/pdf;base64,'+r.data
+    $('pdfDlg').showModal()
+  }catch(e){alert('PDF-Vorschau fehlgeschlagen: '+e)}
+}
+async function pgpDecryptView(){
+  const pass=await uiPrompt('PGP-Passphrase (leer wenn kein Passwort):','')
+  if(pass===null)return
+  const body=$('readBody').innerText||''
+  try{
+    const plain=await api().PGPDecryptBody(body,pass)
+    $('readBody').innerHTML='<pre style="white-space:pre-wrap;font-size:12.5px">'+esc(plain)+'</pre>'
+  }catch(e){alert('Entschlüsselung fehlgeschlagen: '+e)}
+}
+
+async function replyMsg(){if(!viewUID)return;try{const d=await api().Message(viewAcc,viewFld,viewUID);openComp(d,'reply')}catch(e){alert(e)}}
+async function replyAllMsg(){if(!viewUID)return;try{const d=await api().Message(viewAcc,viewFld,viewUID);openComp(d,'replyAll')}catch(e){alert(e)}}
+async function forwardMsg(){if(!viewUID)return;try{const d=await api().Message(viewAcc,viewFld,viewUID);openComp(d,'forward')}catch(e){alert(e)}}
+
+// ── context menu ─────────────────────────────────────────────────────────────
+let ctxFrom=''
+function showCtx(e,uid,acc,fld){
+  e.preventDefault();ctxUID=uid;ctxAcc=acc;ctxFld=fld
+  ctxFrom=(msgs.find(x=>x.uid===uid)||{}).from||''
+  const m=$('ctx')
+  const flds=acFolders[acc]||[]
+  const moveSub=flds.map(f=>`<div class="ci" style="padding-left:1.1rem" onclick="ctxMoveTo('${esc(f.name)}')">${esc(f.label||f.name)}</div>`).join('')
+  const cats=[['allgemein','Allgemein'],['werbung','Werbung'],['newsletter','Newsletter'],['soziales','Soziales'],['auto','Automatisch']]
+  const catSub=cats.map(([v,l])=>`<div class="ci" style="padding-left:1.1rem" onclick="ctxSetCat('${v}')">${l}</div>`).join('')
+  m.innerHTML=`<div class="ci" onclick="ctxDo('read')">Als gelesen</div><div class="ci" onclick="ctxDo('unread')">Als ungelesen</div><hr><div class="ci" onclick="ctxDo('flag')">&#x2605; Markieren</div><div class="ci" onclick="ctxDo('unflag')">Markierung entfernen</div><hr><div class="ci" onclick="ctxDo('archive')">Archivieren</div><div class="ci" onclick="ctxDo('spam')">Als Spam</div><div class="ci" onclick="ctxDo('trash')">In Papierkorb</div><hr><div class="ci" style="color:var(--subtle);font-size:10.5px;cursor:default">Kategorie für Absender</div>${catSub}<hr><div class="ci d" onclick="ctxDo('delete')">Löschen</div><hr><div class="ci" style="color:var(--subtle);font-size:10.5px;cursor:default">Verschieben nach…</div><div class="ci-move">${moveSub}</div>`
+  // Erst sichtbar machen (display:block), dann an den Viewport-Rand klemmen.
+  m.style.left='0px';m.style.top='0px';m.style.display='block'
+  const w=m.offsetWidth,h=m.offsetHeight
+  let x=e.clientX,y=e.clientY
+  if(x+w>window.innerWidth-8)x=Math.max(8,window.innerWidth-w-8)
+  if(y+h>window.innerHeight-8)y=Math.max(8,window.innerHeight-h-8)
+  m.style.left=x+'px';m.style.top=y+'px'
+}
+function ctxSetCat(cat){hideCtx();setSenderCat(ctxFrom,cat)}
+function hideCtx(){$('ctx').style.display='none'}
+async function ctxMoveTo(dest){
+  hideCtx();const[uid,acc,fld]=[ctxUID,ctxAcc,ctxFld]
+  try{await api().Move(acc,fld,dest,uid);msgs=msgs.filter(m=>m.uid!==uid);renderMsgList(msgs);if(viewUID===uid){$('readEmpty').style.display='flex';$('readContent').style.display='none'};showUndo('Verschoben.',async()=>{await api().Move(acc,dest,fld,uid);refreshMsgs()})}catch(e){alert(e)}
+}
+document.addEventListener('click',hideCtx)
+
+async function ctxDo(action){
+  hideCtx();const[uid,acc,fld]=[ctxUID,ctxAcc,ctxFld]
+  try{
+    if(action==='read')await api().SetSeen(acc,fld,uid,true)
+    else if(action==='unread')await api().SetSeen(acc,fld,uid,false)
+    else if(action==='flag')await api().SetFlagged(acc,fld,uid,true)
+    else if(action==='unflag')await api().SetFlagged(acc,fld,uid,false)
+    else if(action==='archive'){const d=findFld(acc,'archive');if(!d){alert('Kein Archiv');return};await api().Move(acc,fld,d,uid);msgs=msgs.filter(m=>m.uid!==uid);renderMsgList(msgs);showUndo('Archiviert.',async()=>{await api().Move(acc,d,fld,uid);refreshMsgs()})}
+    else if(action==='spam'){const d=findFld(acc,'spam');if(!d){alert('Kein Spam');return};await api().Move(acc,fld,d,uid);msgs=msgs.filter(m=>m.uid!==uid);renderMsgList(msgs);showUndo('Als Spam.',async()=>{await api().Move(acc,d,fld,uid);refreshMsgs()})}
+    else if(action==='trash'){const d=findFld(acc,'trash');if(!d){alert('Kein Papierkorb');return};await api().Move(acc,fld,d,uid);msgs=msgs.filter(m=>m.uid!==uid);renderMsgList(msgs);showUndo('In Papierkorb.',async()=>{await api().Move(acc,d,fld,uid);refreshMsgs()})}
+    else if(action==='move'){viewUID=ctxUID;viewAcc=ctxAcc;viewFld=ctxFld;moveMsg();return}
+    else if(action==='delete'){if(!await confDel())return;await api().Delete(acc,fld,uid);msgs=msgs.filter(m=>m.uid!==uid);renderMsgList(msgs)}
+    const row=document.querySelector(`.mr[data-uid="${uid}"]`)
+    if(row&&action==='read')row.classList.remove('unread')
+    if(row&&action==='unread')row.classList.add('unread')
+  }catch(e){alert(e)}
+}
+
+// ── undo toast ────────────────────────────────────────────────────────────────
+function showUndo(label,fn){
+  clearTimeout(undoTm);undoPend=fn;$('undoMsg').textContent=label
+  $('undo').style.display='flex'
+  undoTm=setTimeout(()=>{$('undo').style.display='none';undoPend=null},5000)
+}
+async function doUndo(){clearTimeout(undoTm);if(undoPend)try{await undoPend()}catch(e){console.error(e)};undoPend=null;$('undo').style.display='none'}
+function dimUndo(){clearTimeout(undoTm);$('undo').style.display='none';undoPend=null}
+
+// ── compose ──────────────────────────────────────────────────────────────────
+let compDlgRef=null,compDlgRefs=[],compBodyEdited=false
+// Wendet die in den Einstellungen gewählte Rechtschreib-Sprache auf die
+// Composer-Felder an (WebView2/Chromium-Rechtschreibprüfung).
+function applySpellcheck(){
+  const lang=localStorage.getItem('spellLang')||'de' // de|en|auto|off
+  const on=lang!=='off'
+  ;['compBody','compSubj'].forEach(id=>{
+    const el=$(id);if(!el)return
+    el.spellcheck=on
+    if(!on||lang==='auto')el.removeAttribute('lang');else el.setAttribute('lang',lang)
+  })
+}
+
+function openCompose(orig,mode){
+  applySpellcheck()
+  compAtts=[];renderAttPicks()
+  const sel=$('compFrom')
+  sel.innerHTML=accounts.flatMap(a=>{
+    const aliases=JSON.parse(localStorage.getItem('acc-aliases-'+a.id)||'[]')
+    const main=`<option value="${a.id}">${esc(a.name||a.email)} &lt;${esc(a.email)}&gt;</option>`
+    const aliasOpts=aliases.map(al=>`<option value="${a.id}|${esc(al)}">${esc(a.name||a.email)} &lt;${esc(al)}&gt;</option>`)
+    return[main,...aliasOpts]
+  }).join('')
+  if(curAcc&&curAcc!=='all')sel.value=curAcc
+  $('compTo').value='';$('compCc').value='';$('compSubj').value='';$('compBody').innerHTML=''
+  compDlgRef='';compDlgRefs=[]
+  const sig=accounts.find(a=>a.id===sel.value)?.signature||''
+  if(orig&&mode){
+    const date=new Date(orig.date).toLocaleString('de')
+    const fromEmail=exEmail(orig.from||'')
+    const quot=`<br><br><div style="border-left:3px solid var(--ctlbrd);padding-left:.5rem;color:var(--subtle)">Am ${date} schrieb ${esc(orig.from||'')}:<br>${orig.html?sanitizeHTML(orig.html):esc(orig.text||'')}</div>`
+    if(mode==='reply'){$('compTo').value=fromEmail;$('compSubj').value='Re: '+(orig.subject||'').replace(/^re:\s*/i,'');$('compBody').innerHTML=quot;compDlgRef=orig.messageId||'';compDlgRefs=[...(orig.references||[]),orig.messageId||''].filter(Boolean)}
+    else if(mode==='replyAll'){$('compTo').value=[fromEmail,...(orig.to||'').split(',').map(e=>exEmail(e.trim())).filter(e=>e&&!accounts.some(a=>a.email===e))].join(', ');$('compCc').value=orig.cc||'';$('compSubj').value='Re: '+(orig.subject||'').replace(/^re:\s*/i,'');$('compBody').innerHTML=quot;compDlgRef=orig.messageId||'';compDlgRefs=[...(orig.references||[]),orig.messageId||''].filter(Boolean)}
+    else if(mode==='forward'){$('compSubj').value='Fwd: '+(orig.subject||'');$('compBody').innerHTML=quot}
+  }else{
+    if(sig)$('compBody').innerHTML=`<br><br>${sigHTML(sig)}`
+  }
+  compBodyEdited=false
+  $('compBody').oninput=()=>{compBodyEdited=true}
+  $('compFrom').onchange=function(){
+    if(compBodyEdited)return
+    const raw=this.value
+    const accId=raw.includes('|')?raw.split('|')[0]:raw
+    const acc=accounts.find(a=>a.id===accId)
+    const sig=acc?.signature||''
+    $('compBody').innerHTML=sig?`<br><br>${sigHTML(sig)}`:''
+  }
+  draftTm=setInterval(()=>autoDraft(),10000)
+  $('composeDlg').showModal()
+}
+function closeComp(){clearInterval(draftTm);draftTm=null;compBodyEdited=false;$('composeDlg').close()}
+function buildReq(){
+  const raw=$('compFrom').value
+  const hasAlias=raw.includes('|')
+  const accId=hasAlias?raw.split('|')[0]:raw
+  const fromOverride=hasAlias?raw.split('|').slice(1).join('|'):''
+  const acc=accounts.find(a=>a.id===accId)
+  const from=fromOverride||(acc?acc.name?`${acc.name} <${acc.email}>`:acc.email:'')
+  return{accountId:accId,from,to:$('compTo').value,cc:$('compCc').value,bcc:'',subject:$('compSubj').value,text:$('compBody').innerText||'',html:$('compBody').innerHTML,inReplyTo:compDlgRef||'',references:compDlgRefs||[],attachments:[]}
+}
+async function autoDraft(){
+  const accId=$('compFrom').value;const df=findFld(accId,'drafts')||'Drafts'
+  try{await api().SaveDraft(buildReq(),df)}catch(e){}
+}
+async function sendComp(){
+  const req=buildReq()
+  const atts=[]
+  for(const it of compAtts){const d=await rdB64(it.file);atts.push({filename:it.name,mimeType:it.file.type||'application/octet-stream',data:d})}
+  req.attachments=atts
+  req.requestDSN=!!$('compDSN').checked
+  // PGP encryption: encrypt the body text before sending
+  if($('compPGP').checked){
+    const toEmail=(req.to||'').match(/[^\s<>,";]+@[^\s<>,";]+\.[^\s<>,";]+/)?.[0]||''
+    try{
+      req.text=await api().PGPEncryptBody(toEmail,req.text)
+      req.html=''
+    }catch(e){if(!await uiConfirm('PGP-Verschlüsselung fehlgeschlagen: '+e+'\n\nUnverschlüsselt senden?'))return}
+  }
+  // Save draft so message survives if send is cancelled
+  const dfFld=findFld(req.accountId,'drafts')||'Drafts'
+  try{await api().SaveDraft(req,dfFld)}catch(e){}
+  closeComp()
+  // Delayed send with undo (delay configurable in settings)
+  let secs=Math.max(0,parseInt(localStorage.getItem('sendDelay')||'5'))
+  clearTimeout(undoTm);undoPend=null
+  if(secs===0){try{await api().Send(req)}catch(e){alert('Fehler beim Senden: '+e)};return}
+  $('undoMsg').textContent=`Senden in ${secs}s...`
+  $('undo').style.display='flex'
+  const cntdwn=setInterval(()=>{secs--;if(secs>0)$('undoMsg').textContent=`Senden in ${secs}s...`},1000)
+  undoPend=()=>{clearInterval(cntdwn);clearTimeout(undoTm);$('undoMsg').textContent='Senden abgebrochen';undoPend=null;setTimeout(dimUndo,2000)}
+  undoTm=setTimeout(async()=>{
+    clearInterval(cntdwn);undoPend=null;dimUndo()
+    try{await api().Send(req)}catch(e){alert('Fehler beim Senden: '+e)}
+  },secs*1000)
+}
+function rdB64(f){return new Promise((r,j)=>{const rd=new FileReader();rd.onload=()=>r(rd.result.split(',')[1]);rd.onerror=j;rd.readAsDataURL(f)})}
+function pickAtt(){const i=$('fileInp');i.value='';i.onchange=()=>{for(const f of i.files)compAtts.push({file:f,name:f.name});renderAttPicks()};i.click()}
+function rmAtt(i){compAtts.splice(i,1);renderAttPicks()}
+function renderAttPicks(){$('compAtts').innerHTML=compAtts.map((a,i)=>`<div class="apchip"><span>${esc(a.name)}</span><span style="cursor:pointer;opacity:.7;font-size:10px" onclick="rmAtt(${i})">&#x2715;</span></div>`).join('')}
+
+// ── autocomplete ─────────────────────────────────────────────────────────────
+let acTarget=null
+function acIn(inp){
+  const v=inp.value,lc=v.lastIndexOf(','),term=(lc>=0?v.substring(lc+1):v).trim().toLowerCase()
+  if(term.length<2){$('acDrop').style.display='none';return}
+  const m=ctsList.filter(c=>(c.email||'').toLowerCase().includes(term)||(c.name||'').toLowerCase().includes(term)).slice(0,8)
+  if(!m.length){$('acDrop').style.display='none';return}
+  acTarget=inp
+  const r=inp.getBoundingClientRect()
+  const d=$('acDrop')
+  d.style.left=r.left+'px';d.style.top=(r.bottom+2)+'px';d.style.width=r.width+'px'
+  d.innerHTML=m.map(c=>`<div class="aci" onclick="acPick('${esc(c.email)}')">${esc(c.name)} <em>&lt;${esc(c.email)}&gt;</em></div>`).join('')
+  d.style.display='block'
+}
+function acPick(email){if(!acTarget)return;const v=acTarget.value,lc=v.lastIndexOf(',');acTarget.value=(lc>=0?v.substring(0,lc+1)+' ':'')+email+', ';$('acDrop').style.display='none'}
+document.addEventListener('click',e=>{if(!$('acDrop').contains(e.target))$('acDrop').style.display='none'})
+
+// ── account dialog ────────────────────────────────────────────────────────────
+function openAccDlg(acc){
+  editAcc=acc||null;$('accDlgT').textContent=acc?'Konto bearbeiten':'Konto hinzufügen'
+  $('aN').value=acc?.name||'';$('aE').value=acc?.email||'';$('aU').value=acc?.user||''
+  $('aP').value='';$('aIH').value=acc?.imapHost||'';$('aIP').value=acc?.imapPort||''
+  $('aSH').value=acc?.smtpHost||'';$('aSP').value=acc?.smtpPort||''
+  $('aSigEd').innerHTML=sigHTML(acc?.signature||'')
+  // Signatur & Erweitert erst bei bestehenden Konten anbieten (nicht beim Anlegen).
+  $('aSigSec').open=false;$('aSigSec').style.display=acc?'block':'none'
+  $('aAdvSec').open=false;$('aAdvSec').style.display=acc?'block':'none'
+  $('aSvH').value=acc?.sieveHost||'';$('aSvP').value=acc?.sievePort||''
+  $('aCdav').value=acc?.cardDavUrl||'';$('aCalv').value=acc?.calDavUrl||''
+  $('accDel').style.display=acc?'inline-block':'none'
+  $('aProbeStatus').style.display='none'
+  $('accDlg').showModal()
+}
+// Shared autodiscover runner with status feedback.
+async function runProbe(eId,ihId,ipId,shId,spId,uId,stId){
+  const email=$(eId).value.trim()
+  const st=$(stId)
+  const show=(color,text)=>{if(st){st.style.display='block';st.style.color=color;st.textContent=text}}
+  if(!email.includes('@')){if(st)st.style.display='none';return}
+  show('var(--subtle)','Suche Servereinstellungen…')
+  try{
+    const r=await api().Probe(email)
+    if(r.imapHost){$(ihId).value=r.imapHost;$(ipId).value=r.imapPort}
+    if(r.smtpHost){$(shId).value=r.smtpHost;$(spId).value=r.smtpPort}
+    if(!$(uId).value)$(uId).value=email
+    if(r.source==='autoconfig'||r.source==='srv'){
+      show('var(--success)','✓ Automatisch konfiguriert ('+(r.source==='srv'?'DNS-SRV':'Autoconfig')+')')
+    }else{
+      show('var(--subtle)','Vorschlag aus Domainnamen – bitte Hosts/Ports prüfen.')
+    }
+  }catch(e){show('var(--danger)','Autodiscover fehlgeschlagen – bitte manuell eintragen.')}
+}
+async function probeAcc(){return runProbe('aE','aIH','aIP','aSH','aSP','aU','aProbeStatus')}
+async function saveAcc(){
+  const data={id:editAcc?.id||'',name:$('aN').value,email:$('aE').value,user:$('aU').value,password:$('aP').value,imapHost:$('aIH').value,imapPort:parseInt($('aIP').value)||993,smtpHost:$('aSH').value,smtpPort:parseInt($('aSP').value)||587,signature:sigClean($('aSigEd').innerHTML),sieveHost:$('aSvH').value,sievePort:parseInt($('aSvP').value)||0,cardDavUrl:$('aCdav').value,calDavUrl:$('aCalv').value}
+  try{if(editAcc)await api().UpdateAccount(data);else await api().AddAccount(data);$('accDlg').close();accounts=await api().ListAccounts();await loadAllFolders();renderSb()}catch(e){alert(e)}
+}
+async function delAcc(){if(!editAcc||!await uiConfirm('Konto löschen?'))return;try{await api().RemoveAccount(editAcc.id);$('accDlg').close();accounts=await api().ListAccounts();await loadAllFolders();renderSb()}catch(e){alert(e)}}
+
+// ── settings (centralized) ───────────────────────────────────────────────────
+let setEditAcc=null
+
+function openSettings(tab){
+  // Allgemein
+  $('setDkM').checked=document.body.classList.contains('dark')
+  $('setDC').checked=localStorage.getItem('delConf')==='1'
+  $('setLSP').checked=localStorage.getItem('splitV')==='1'
+  $('setRem').checked=localStorage.getItem('reminders')==='1'
+  $('setNI').checked=localStorage.getItem('notifInbox')==='1'
+  $('setBell').checked=localStorage.getItem('notifBell')==='1'
+  $('setQS').value=localStorage.getItem('quietStart')||''
+  $('setQE').value=localStorage.getItem('quietEnd')||''
+  const _sd=parseInt(localStorage.getItem('sendDelay')||'5');$('setSD').value=_sd;$('setSDV').textContent=_sd+'s'
+  $('setTU').value=localStorage.getItem('transURL')||''
+  $('setTK').value=localStorage.getItem('transKey')||''
+  $('setTL').value=localStorage.getItem('transLang')||'de'
+  $('setDR').value=localStorage.getItem('daneResolver')||''
+  $('setSpell').value=localStorage.getItem('spellLang')||'de'
+  initAutostart()
+  // Konten tab
+  renderSetAccList()
+  // Etiketten
+  renderLabelList()
+  setTab(tab||'allg')
+  $('setDlg').showModal()
+}
+
+function setTab(name){
+  document.querySelectorAll('.stab').forEach(b=>b.classList.remove('act'))
+  document.querySelectorAll('.stpn').forEach(p=>p.classList.remove('act'))
+  document.querySelector(`.stab[onclick="setTab('${name}')"]`)?.classList.add('act')
+  $('stpn-'+name)?.classList.add('act')
+  if(name==='pgp')renderPGPList()
+  if(name==='ord')initOrdTab()
+}
+
+function saveSet(){
+  if($('setDkM').checked!==document.body.classList.contains('dark'))toggleDark()
+  localStorage.setItem('delConf',$('setDC').checked?'1':'0')
+  localStorage.setItem('splitV',$('setLSP').checked?'1':'0')
+  localStorage.setItem('reminders',$('setRem').checked?'1':'0')
+  localStorage.setItem('notifInbox',$('setNI').checked?'1':'0')
+  localStorage.setItem('notifBell',$('setBell').checked?'1':'0')
+  localStorage.setItem('quietStart',$('setQS').value)
+  localStorage.setItem('quietEnd',$('setQE').value)
+  localStorage.setItem('sendDelay',$('setSD').value)
+  api().SetNotifPrefs($('setNI').checked,$('setQS').value,$('setQE').value).catch(()=>{})
+  localStorage.setItem('transURL',$('setTU').value)
+  localStorage.setItem('transKey',$('setTK').value)
+  localStorage.setItem('transLang',$('setTL').value)
+  localStorage.setItem('daneResolver',$('setDR').value.trim())
+  localStorage.setItem('spellLang',$('setSpell').value)
+  saveAutostart($('setAS').checked)
+  applySplitV()
+  $('setDlg').close()
+}
+
+// ── Konten-Tab ───────────────────────────────────────────────────────────────
+function renderSetAccList(){
+  const list=$('setAccList')
+  list.innerHTML=accounts.map((a,i)=>{
+    const col=a.color||ACCOLORS[i%ACCOLORS.length]
+    return`<div class="set-acc-item${setEditAcc?.id===a.id?' act':''}" onclick="setAccEdit(${i})">
+      <span class="set-acc-dot" style="background:${col}"></span>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.name||a.email)}</span>
+      <span style="font-size:10.5px;color:var(--subtle)">${esc((a.email||'').split('@')[1]||'')}</span>
+    </div>`
+  }).join('')
+}
+
+function setAccEdit(idx){
+  const a=accounts[idx];setEditAcc=a
+  $('saN').value=a.name||'';$('saE').value=a.email||'';$('saU').value=a.user||''
+  $('saP').value='';$('saIH').value=a.imapHost||'';$('saIP').value=a.imapPort||''
+  $('saSH').value=a.smtpHost||'';$('saSP').value=a.smtpPort||''
+  $('saSigEd').innerHTML=sigHTML(a.signature||'')
+  $('saAliases').value=JSON.parse(localStorage.getItem('acc-aliases-'+a.id)||'[]').join(', ')
+  $('saSvH').value=a.sieveHost||'';$('saSvP').value=a.sievePort||''
+  $('saCdav').value=a.cardDavUrl||'';$('saCalv').value=a.calDavUrl||'';$('saWdav').value=a.webDavUrl||''
+  $('setAccDel').style.display='inline-block'
+  $('saProbeStatus').style.display='none'
+  $('setAccForm').style.display='block';$('setAccHint').style.display='none'
+  // Sub-Navigation einblenden, mit Abschnitt "Konto & Server" starten.
+  $('setAccSecNav').style.display='flex';setAccSec('konto')
+  renderSetAccList()
+}
+
+// Wechselt den sichtbaren Abschnitt im Konto-Formular.
+function setAccSec(name){
+  document.querySelectorAll('#setAccForm .sa-sec').forEach(s=>{s.style.display=s.dataset.sec===name?'block':'none'})
+  document.querySelectorAll('#setAccSecNav .sa-navbtn').forEach(b=>b.classList.toggle('act',b.dataset.sec===name))
+}
+
+function setAccNew(){
+  setEditAcc=null
+  $('saN').value='';$('saE').value='';$('saU').value='';$('saP').value=''
+  $('saIH').value='';$('saIP').value='993';$('saSH').value='';$('saSP').value='587'
+  $('saSigEd').innerHTML='';$('saAliases').value=''
+  $('saSvH').value='';$('saSvP').value='';$('saCdav').value='';$('saCalv').value='';$('saWdav').value=''
+  $('setAccDel').style.display='none'
+  $('saProbeStatus').style.display='none'
+  $('setAccForm').style.display='block';$('setAccHint').style.display='none'
+  // Beim Anlegen nur die Grunddaten zeigen, keine Sub-Navigation.
+  $('setAccSecNav').style.display='none';setAccSec('konto')
+}
+
+function setAccCancel(){
+  setEditAcc=null
+  $('setAccForm').style.display='none';$('setAccHint').style.display='flex'
+  $('setAccSecNav').style.display='none'
+  renderSetAccList()
+}
+
+async function setProbeAcc(){return runProbe('saE','saIH','saIP','saSH','saSP','saU','saProbeStatus')}
+
+async function setAccSave(){
+  const data={id:setEditAcc?.id||'',name:$('saN').value,email:$('saE').value,user:$('saU').value,
+    password:$('saP').value,imapHost:$('saIH').value,imapPort:parseInt($('saIP').value)||993,
+    smtpHost:$('saSH').value,smtpPort:parseInt($('saSP').value)||587,signature:sigClean($('saSigEd').innerHTML),
+    sieveHost:$('saSvH').value,sievePort:parseInt($('saSvP').value)||0,
+    cardDavUrl:$('saCdav').value,calDavUrl:$('saCalv').value,webDavUrl:$('saWdav').value}
+  try{
+    if(setEditAcc)await api().UpdateAccount(data)
+    else await api().AddAccount(data)
+    accounts=await api().ListAccounts();await loadAllFolders();renderSb()
+    // Save aliases in localStorage
+    const savedAcc=accounts.find(a=>a.email===data.email)
+    if(savedAcc){
+      const als=$('saAliases').value.split(',').map(s=>s.trim()).filter(Boolean)
+      localStorage.setItem('acc-aliases-'+savedAcc.id,JSON.stringify(als))
+    }
+    // Refresh selectors in other views
+    const opts=accounts.map(a=>`<option value="${a.id}">${esc(a.email)}</option>`).join('')
+    $('ctAccSel').innerHTML=opts;$('calAccSel').innerHTML=opts;$('svAccSel').innerHTML=opts
+    setAccCancel();renderSetAccList()
+  }catch(e){alert(e)}
+}
+
+async function setDelAcc(){
+  if(!setEditAcc||!await uiConfirm(`Konto "${setEditAcc.email}" löschen?`))return
+  try{await api().RemoveAccount(setEditAcc.id);accounts=await api().ListAccounts()
+    await loadAllFolders();renderSb();setAccCancel();renderSetAccList()
+  }catch(e){alert(e)}
+}
+
+// ── Etiketten-Tab ────────────────────────────────────────────────────────────
+function getLabelDefs(){return JSON.parse(localStorage.getItem('labelDefs')||'[]')}
+function saveLabelDefs(defs){localStorage.setItem('labelDefs',JSON.stringify(defs))}
+
+function renderLabelList(){
+  const defs=getLabelDefs()
+  $('lblList').innerHTML=defs.length?defs.map((l,i)=>`
+    <div class="lbl-row">
+      <span class="lbl-badge" style="background:${l.color}">${esc(l.name)}</span>
+      <span style="flex:1;font-size:11.5px;color:var(--subtle)">${esc(l.name)}</span>
+      <input type="color" value="${l.color}" style="width:30px;height:24px;padding:.05rem;border:1px solid var(--ctlbrd);border-radius:3px;cursor:pointer;background:none" onchange="updateLabelColor(${i},this.value)">
+      <button onclick="deleteLabelDef(${i})" style="color:var(--danger);font-size:13px;padding:.1rem .3rem;border:none;background:none;cursor:pointer">&#x2715;</button>
+    </div>`).join(''):`<p style="color:var(--subtle);font-size:12px">Noch keine Etiketten definiert.</p>`
+}
+
+function addLabelDef(){
+  const name=$('lblNewName').value.trim()
+  if(!name)return
+  const color=$('lblNewColor').value
+  const defs=getLabelDefs()
+  if(defs.find(l=>l.name===name)){alert('Etikett existiert bereits.');return}
+  defs.push({name,color});saveLabelDefs(defs);renderLabelList()
+  $('lblNewName').value=''
+}
+
+function deleteLabelDef(i){
+  const defs=getLabelDefs();defs.splice(i,1);saveLabelDefs(defs);renderLabelList()
+}
+
+function updateLabelColor(i,color){
+  const defs=getLabelDefs();defs[i].color=color;saveLabelDefs(defs);renderLabelList()
+}
+
+// Etikett-Farbe aus Definition holen (Fallback: Hash-Farbe)
+function labelColor(name){
+  const def=getLabelDefs().find(l=>l.name===name)
+  return def?def.color:lcol(name)
+}
+
+
+// ── contacts ─────────────────────────────────────────────────────────────────
+async function loadCts(){
+  const accId=$('ctAccSel').value||accounts[0]?.id;if(!accId)return
+  try{ctsList=await api().ContactList(accId);renderCts()}catch(e){ctsList=[];renderCts()}
+}
+function renderCts(){
+  const q=($('ctInp').value||'').toLowerCase()
+  const list=ctsList.filter(c=>!q||(c.name||'').toLowerCase().includes(q)||(c.email||'').toLowerCase().includes(q))
+  const COLS=['#0067c0','#c42b1c','#107c10','#8764b8','#d08040']
+  $('ctGrid').innerHTML=list.map((c,i)=>{
+    const ini=(c.name||c.email||'?').split(' ').map(w=>w[0]).join('').toUpperCase().substring(0,2)
+    return`<div class="ctc" onclick="openCtDlg(${ctsList.indexOf(c)})">
+      <div class="cav" style="background:${COLS[i%COLS.length]}">${ini}</div>
+      <div class="cn">${esc(c.name||'')}</div>
+      <div class="ce">${esc(c.email||'')}</div>
+      ${c.phone?`<div class="ce">&#x1F4DE; ${esc(c.phone)}</div>`:''}
+      ${c.birthday?`<div class="ce">&#x1F382; ${c.birthday}</div>`:''}
+    </div>`
+  }).join('')
+}
+function openCtDlg(idx){
+  const c=idx===null?null:ctsList[idx];editCt=c||null
+  $('ctDlgT').textContent=c?'Kontakt bearbeiten':'Neuer Kontakt'
+  $('ctN').value=c?.name||'';$('ctE').value=c?.email||''
+  $('ctP').value=c?.phone||'';$('ctB').value=c?.birthday||'';$('ctNo').value=c?.notes||''
+  $('ctDel').style.display=c?'inline-block':'none';$('ctDlg').showModal()
+}
+async function saveCt(){
+  const accId=$('ctAccSel').value||accounts[0]?.id
+  const c={uid:editCt?.uid||'',href:editCt?.href||'',etag:editCt?.etag||'',name:$('ctN').value,email:$('ctE').value,phone:$('ctP').value,birthday:$('ctB').value,notes:$('ctNo').value}
+  try{await api().ContactSave(accId,c);$('ctDlg').close();await loadCts()}catch(e){alert(e)}
+}
+async function delCt(){
+  if(!editCt||!await uiConfirm('Kontakt löschen?'))return
+  const accId=$('ctAccSel').value||accounts[0]?.id
+  try{await api().ContactDelete(accId,editCt.href,editCt.etag);$('ctDlg').close();await loadCts()}catch(e){alert(e)}
+}
+async function expVcf(){
+  const data=ctsList.map(c=>`BEGIN:VCARD\r\nVERSION:3.0\r\nFN:${c.name||''}\r\nEMAIL:${c.email||''}\r\n${c.phone?'TEL:'+c.phone+'\r\n':''}${c.birthday?'BDAY:'+c.birthday.replace(/-/g,'')+'\r\n':''}END:VCARD\r\n`).join('\r\n')
+  const a=document.createElement('a');a.href='data:text/vcard;charset=utf-8,'+encodeURIComponent(data);a.download='kontakte.vcf';a.click()
+}
+async function impVcf(){
+  const file=$('vcfIn').files[0];if(!file)return
+  const text=await file.text();const blocks=text.split(/(?=BEGIN:VCARD)/i).filter(b=>b.trim())
+  const accId=$('ctAccSel').value||accounts[0]?.id
+  for(const block of blocks){
+    const fn=(block.match(/^FN:(.+)$/m)||[])[1]?.trim()||''
+    const email=(block.match(/^EMAIL[^:]*:(.+)$/m)||[])[1]?.trim()||''
+    const tel=(block.match(/^TEL[^:]*:(.+)$/m)||[])[1]?.trim()||''
+    const bday=(block.match(/^BDAY:(.+)$/m)||[])[1]?.trim()||''
+    if(fn||email)try{await api().ContactSave(accId,{uid:'',href:'',etag:'',name:fn,email,phone:tel,birthday:bday?bday.replace(/(\d{4})(\d{2})(\d{2})/,'$1-$2-$3'):'',notes:''})}catch(e){}
+  }
+  await loadCts()
+}
+
+// ── calendar ─────────────────────────────────────────────────────────────────
+async function loadCal(){
+  calAcc=$('calAccSel').value||accounts[0]?.id;if(!calAcc)return
+  try{calEvs=await api().CalendarList(calAcc)}catch(e){calEvs=[]}
+  renderCal()
+}
+function calNav(d){calM+=d;if(calM<0){calM=11;calY--}if(calM>11){calM=0;calY++};renderCal()}
+function calToday(){calY=new Date().getFullYear();calM=new Date().getMonth();renderCal()}
+function renderCal(){
+  if(calView==='week'){renderCalWeek();return}
+  $('calTitle').textContent=new Date(calY,calM).toLocaleDateString('de',{month:'long',year:'numeric'})
+  calView==='month'?renderCalMon():renderCalList()
+}
+function renderCalMon(){
+  const today=new Date();today.setHours(0,0,0,0)
+  const fd=(new Date(calY,calM,1).getDay()||7)
+  const dim=new Date(calY,calM+1,0).getDate()
+  const bdayEvs=getBdays(calY,calM)
+  let h='<div class="cm">'+['Mo','Di','Mi','Do','Fr','Sa','So'].map(d=>`<div class="cdow">${d}</div>`).join('')
+  for(let i=1;i<fd;i++)h+=`<div class="cc om"></div>`
+  for(let d=1;d<=dim;d++){
+    const dt=new Date(calY,calM,d);dt.setHours(0,0,0,0)
+    const isT=dt.getTime()===today.getTime()
+    const dEvs=calEvs.filter(e=>{const s=new Date(e.start);return s.getFullYear()===calY&&s.getMonth()===calM&&s.getDate()===d})
+    const dBds=bdayEvs.filter(b=>b.day===d)
+    const di=`${calY}-${String(calM+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
+    h+=`<div class="cc${isT?' today':''}" onclick="openEvDlg(null,'${di}')">
+      <div class="cday">${d}</div>
+      ${dEvs.map((e,i)=>`<div class="cev" onclick="event.stopPropagation();openEvDlg(${calEvs.indexOf(e)})">${esc(e.title)}</div>`).join('')}
+      ${dBds.map(b=>`<div class="cbd">&#x1F382; ${esc(b.name)}</div>`).join('')}
+    </div>`
+  }
+  h+='</div>';$('calGrid').innerHTML=h
+}
+function renderCalList(){
+  const sorted=[...calEvs].sort((a,b)=>a.start.localeCompare(b.start))
+  $('calGrid').innerHTML=`<div style="padding:.4rem">${sorted.map(e=>`<div class="fr" onclick="openEvDlg(${calEvs.indexOf(e)})" style="flex-direction:column;align-items:flex-start;border-bottom:1px solid var(--line);padding:.38rem .55rem"><strong>${esc(e.title)}</strong><span style="font-size:11px;color:var(--subtle)">${new Date(e.start).toLocaleString('de')}</span></div>`).join('')}</div>`
+}
+function getBdays(y,m){
+  const r=[]
+  ctsList.forEach(c=>{if(!c.birthday)return;const[,cm,cd]=(c.birthday.split('-')||[]);if(parseInt(cm)-1===m)r.push({name:c.name||c.email,day:parseInt(cd)})})
+  return r
+}
+function openEvDlg(idx,defDate){
+  const ev=idx!==null&&idx!==undefined?calEvs[idx]:null;editEv=ev||null
+  $('evDlgT').textContent=ev?'Termin bearbeiten':'Neuer Termin'
+  $('evT').value=ev?.title||''
+  const dd=defDate?defDate+'T09:00':''
+  $('evS').value=ev?.start?.substring(0,16)||dd
+  $('evE').value=ev?.end?.substring(0,16)||(defDate?defDate+'T10:00':'')
+  $('evAD').checked=ev?.allDay||false
+  $('evDel').style.display=ev?'inline-block':'none';$('evDlg').showModal()
+}
+async function saveEv(){
+  const ev={uid:editEv?.uid||'',href:editEv?.href||'',etag:editEv?.etag||'',title:$('evT').value,start:$('evS').value,end:$('evE').value,allDay:$('evAD').checked}
+  try{await api().CalendarSave(calAcc,ev);$('evDlg').close();await loadCal()}catch(e){alert(e)}
+}
+async function delEv(){if(!editEv||!await uiConfirm('Termin löschen?'))return;try{await api().CalendarDelete(calAcc,editEv.href,editEv.etag);$('evDlg').close();await loadCal()}catch(e){alert(e)}}
+function togAD(){const a=$('evAD').checked;$('evS').type=a?'date':'datetime-local';$('evE').type=a?'date':'datetime-local'}
+
+// ── sieve ────────────────────────────────────────────────────────────────────
+function initSv(){$('svAccSel').innerHTML=accounts.map(a=>`<option value="${a.id}">${esc(a.email)}</option>`).join('');svAcc=accounts[0]?.id;loadSv()}
+async function loadSv(){
+  svAcc=$('svAccSel').value
+  try{const sc=await api().SieveList(svAcc);$('svItems').innerHTML=sc.map(s=>`<div class="si${svCur===s.name?' act':''}" onclick="selSv('${esc(s.name)}')">${s.active?`<span class="sad"></span>`:'<span style="width:7px"></span>'}<span>${esc(s.name)}</span></div>`).join('')}catch(e){$('svItems').textContent='Fehler: '+e}
+}
+async function selSv(name){svCur=name;$('svName').textContent=name;try{$('svCode').value=await api().SieveGet(svAcc,name)}catch(e){$('svCode').value=''};loadSv()}
+async function newSv(){const n=await uiPrompt('Skriptname:');if(!n)return;svCur=n;$('svName').textContent=n;$('svCode').value='require [];\n# Sieve-Skript'}
+async function saveSv(){if(!svCur)return;try{await api().SievePut(svAcc,svCur,$('svCode').value);loadSv()}catch(e){alert(e)}}
+async function actSv(){if(!svCur)return;try{await api().SieveSetActive(svAcc,svCur);loadSv()}catch(e){alert(e)}}
+async function delSv(){if(!svCur||!await uiConfirm(`"${svCur}" löschen?`))return;try{await api().SieveDelete(svAcc,svCur);svCur=null;$('svName').textContent='—';$('svCode').value='';loadSv()}catch(e){alert(e)}}
+
+// ── archive ───────────────────────────────────────────────────────────────────
+let _archData=[]
+async function loadArch(){
+  try{
+    _archData=await api().ArchiveList()
+    renderArch(_archData)
+  }catch(e){$('archList').textContent='Fehler: '+e}
+}
+function filterArch(){
+  const q=($('archSrch').value||'').toLowerCase()
+  const data=_archData||[]
+  renderArch(q?data.filter(f=>f.name.toLowerCase().includes(q)):data)
+}
+function renderArch(fs){
+  fs=fs||[]
+  $('archList').innerHTML=fs.map(f=>`<div class="arr">
+    <span class="arn">${esc(f.name)}</span>
+    <span style="color:var(--subtle);font-size:11px">${fmtSz(f.size)}</span>
+    <span style="color:var(--subtle);font-size:11px">${new Date(f.date).toLocaleDateString('de')}</span>
+    <button class="gho" onclick="api().ArchiveOpen('${esc(f.path)}')" style="padding:.12rem .45rem;font-size:11px">Öffnen</button>
+    <button class="gho" onclick="archDel('${esc(f.path)}')" style="color:var(--danger);padding:.12rem .45rem;font-size:11px">Löschen</button>
+  </div>`).join('')||'<div style="padding:.75rem;color:var(--subtle);font-size:12px">Keine Einträge</div>'
+}
+function fmtSz(b){if(b<1024)return b+'B';if(b<1048576)return(b/1024|0)+'KB';return(b/1048576).toFixed(1)+'MB'}
+async function archDel(p){if(!await uiConfirm('Datei löschen?'))return;try{await api().ArchiveDelete(p);loadArch()}catch(e){alert(e)}}
+function playNotifBeep(){
+  try{new Audio('notification.wav').play()}catch(e){}
+}
+
+// ── folder order ─────────────────────────────────────────────────────────────
+function fldOrderKey(accId){return 'fldOrder-'+accId}
+function getFldOrder(accId){return JSON.parse(localStorage.getItem(fldOrderKey(accId))||'[]')}
+function setFldOrder(accId,arr){localStorage.setItem(fldOrderKey(accId),JSON.stringify(arr))}
+
+function initOrdTab(){
+  const sel=$('ordAccSel')
+  sel.innerHTML=accounts.map(a=>`<option value="${esc(a.id)}">${esc(a.name||a.email)}</option>`).join('')
+  renderOrdList()
+}
+function renderOrdList(){
+  const accId=$('ordAccSel').value;if(!accId)return
+  const allFlds=(acFolders[accId]||[]).filter(f=>f.depth===0)
+  let order=getFldOrder(accId)
+  // Merge: add any folders not yet in custom order at the end
+  const known=new Set(order)
+  allFlds.forEach(f=>{if(!known.has(f.name))order.push(f.name)})
+  $('ordList').innerHTML=order.map((name,i)=>`
+    <div style="display:flex;align-items:center;gap:.5rem;padding:.22rem 0;border-bottom:1px solid var(--line)">
+      <span style="flex:1;font-size:12px">${esc(name)}</span>
+      <button class="gho" style="font-size:11px;padding:.1rem .35rem" onclick="ordMove('${esc(accId)}','${esc(name)}',-1)" ${i===0?'disabled':''}>&#x25B2;</button>
+      <button class="gho" style="font-size:11px;padding:.1rem .35rem" onclick="ordMove('${esc(accId)}','${esc(name)}',1)" ${i===order.length-1?'disabled':''}>&#x25BC;</button>
+    </div>`).join('')
+  setFldOrder(accId,order)
+}
+function ordMove(accId,name,dir){
+  const order=getFldOrder(accId)
+  const i=order.indexOf(name);if(i<0)return
+  const j=i+dir;if(j<0||j>=order.length)return
+  ;[order[i],order[j]]=[order[j],order[i]]
+  setFldOrder(accId,order);renderOrdList();renderSb()
+}
+function ordReset(){
+  const accId=$('ordAccSel').value;if(!accId)return
+  localStorage.removeItem(fldOrderKey(accId));renderOrdList();renderSb()
+}
+
+// Apply custom folder order on top of the base priority/hierarchy sort.
+function sortFlds(fs,accId){
+  const sorted=sortFldsBase(fs)
+  if(!accId)return sorted
+  const order=getFldOrder(accId)
+  if(!order.length)return sorted
+  const roots=sorted.filter(f=>f.depth===0)
+  const children=sorted.filter(f=>f.depth>0)
+  roots.sort((a,b)=>{
+    const ia=order.indexOf(a.name),ib=order.indexOf(b.name)
+    if(ia<0&&ib<0)return 0;if(ia<0)return 1;if(ib<0)return -1
+    return ia-ib
+  })
+  // Rebuild: each root followed by its children (preserve hierarchical walk)
+  const out=[]
+  roots.forEach(r=>{
+    out.push(r)
+    children.filter(c=>{const d=c.delimiter||'/';return c.name.startsWith(r.name+d)}).forEach(c=>out.push(c))
+  })
+  return out
+}
+
+// ── PGP key manager ──────────────────────────────────────────────────────────
+async function pgpImport(){
+  const arm=$('pgpKeyIn').value.trim()
+  if(!arm){alert('Bitte einen Schlüssel einfügen.');return}
+  try{
+    const k=await api().PGPImportKey(arm)
+    $('pgpKeyIn').value=''
+    alert((k.isPrivate?'Privater':'Öffentlicher')+' Schlüssel importiert:\n'+k.name+' <'+k.email+'>')
+    renderPGPList()
+  }catch(e){alert('Import fehlgeschlagen: '+e)}
+}
+async function renderPGPList(){
+  try{
+    const keys=await api().PGPListKeys()
+    $('pgpKeyList').innerHTML=keys.length?keys.map(k=>`
+      <div style="display:flex;align-items:center;gap:.5rem;padding:.3rem 0;border-bottom:1px solid var(--line)">
+        <span style="font-size:11px;padding:.1rem .38rem;border-radius:10px;background:${k.isPrivate?'var(--accent)':'var(--line)'};color:${k.isPrivate?'#fff':'var(--text)'}">${k.isPrivate?'Priv':'Pub'}</span>
+        <span style="flex:1;font-size:12px">${esc(k.name)} &lt;${esc(k.email)}&gt;</span>
+        <span style="font-size:10px;color:var(--subtle);font-family:monospace">${k.fingerprint.slice(-8)}</span>
+        <button class="gho" style="color:var(--danger);font-size:11px;padding:.1rem .38rem" onclick="pgpDelete('${esc(k.fingerprint)}')">Entfernen</button>
+      </div>`).join('')
+    :'<div style="font-size:12px;color:var(--subtle)">Keine Schlüssel importiert.</div>'
+  }catch(e){}
+}
+async function pgpDelete(fp){
+  if(!await uiConfirm('Schlüssel entfernen?'))return
+  try{await api().PGPDeleteKey(fp);renderPGPList()}catch(e){alert(e)}
+}
+
+// ── in-app update check ───────────────────────────────────────────────────────
+async function checkForUpdate(){
+  const btn=$('updBtn')
+  btn.textContent='Suche...'
+  btn.disabled=true
+  try{
+    const r=await fetch('https://api.github.com/repos/LunaSans/N-MailClient/releases/latest',{headers:{Accept:'application/vnd.github+json'}})
+    if(!r.ok)throw new Error(r.status)
+    const d=await r.json()
+    const latest=(d.tag_name||'').replace(/^v/,'')
+    const current='0.5.1'
+    if(latest&&latest!==current){
+      btn.textContent='v'+latest+' verfügbar'
+      $('updLink').href=d.html_url;$('updLink').style.display='inline'
+    }else{
+      btn.textContent='Aktuell ('+current+')'
+    }
+  }catch(e){btn.textContent='Fehler'}
+  btn.disabled=false
+}
+
+// ── MTA-STS badge ─────────────────────────────────────────────────────────────
+async function checkMTASTS(domain){
+  try{
+    const mode=await api().CheckMTASTS(domain)
+    const map={enforce:'MTA-STS enforce',testing:'MTA-STS testing',none:''}
+    return map[mode]||''
+  }catch(e){return ''}
+}
+
+// ── keyboard shortcuts ────────────────────────────────────────────────────────
+function navMsg(dir){
+  const rows=[...document.querySelectorAll('.mr')]
+  if(!rows.length)return
+  const cur=rows.findIndex(r=>r.classList.contains('act'))
+  const next=cur+dir
+  if(next<0||next>=rows.length)return
+  const r=rows[next]
+  const uid=parseInt(r.dataset.uid),acc=r.dataset.acc,fld=r.dataset.fld
+  openMsg(uid,acc,fld)
+  r.scrollIntoView({block:'nearest'})
+}
+
+document.addEventListener('keydown',e=>{
+  const tag=(document.activeElement?.tagName||'').toUpperCase()
+  const inEdit=tag==='INPUT'||tag==='TEXTAREA'||document.activeElement?.isContentEditable
+  // Ctrl+Enter: send compose if dialog open
+  if((e.ctrlKey||e.metaKey)&&e.key==='Enter'&&$('composeDlg').open){e.preventDefault();sendComp();return}
+  if(inEdit)return
+  if(e.ctrlKey||e.metaKey){
+    if(e.key==='n'){e.preventDefault();openCompose()}
+    if(e.key==='r'){e.preventDefault();refreshMsgs()}
+    if(e.key==='a'){e.preventDefault();document.querySelectorAll('.mr').forEach(r=>{selectedUIDs.add(r.dataset.uid+'|'+r.dataset.acc+'|'+r.dataset.fld)});updateBatchBar();renderSelHighlight()}
+    return
+  }
+  if(e.key==='j')navMsg(1)
+  else if(e.key==='k')navMsg(-1)
+  else if(e.key==='ArrowDown'){e.preventDefault();navMsg(1)}
+  else if(e.key==='ArrowUp'){e.preventDefault();navMsg(-1)}
+  else if(e.key==='r'&&viewUID)replyMsg()
+  else if(e.key==='f'&&viewUID)forwardMsg()
+  else if(e.key==='Delete'&&viewUID)deleteMsg()
+  else if(e.key==='e'&&viewUID)archiveMsg()
+  else if(e.key==='u'&&viewUID)api().SetSeen(viewAcc,viewFld,viewUID,false).catch(()=>{})
+  else if(e.key==='/'){ e.preventDefault();$('searchInp').focus() }
+  else if(e.key==='F5')refreshMsgs()
+})
+
+// ── Unbeantwortete-Filter ────────────────────────────────────────────────────
+let unansMode=false
+function toggleUnanswered(){
+  unansMode=!unansMode
+  $('unansBtn').classList.toggle('act',unansMode)
+  renderMsgList(unansMode?msgs.filter(m=>!m.answered):msgs)
+}
+
+// ── Kalender Wochenansicht ───────────────────────────────────────────────────
+function cycleCalView(){
+  const views=['month','week','list']
+  const labels={month:'Monat',week:'Liste',list:'Woche'}
+  calView=views[(views.indexOf(calView)+1)%3]
+  $('calVBtn').textContent=labels[calView]
+  renderCal()
+}
+function renderCalWeek(){
+  const now=new Date()
+  // find Monday of current week containing calY/calM/1
+  const ref=new Date(calY,calM,1)
+  const dow=ref.getDay()||7
+  const mon=new Date(ref);mon.setDate(ref.getDate()-(dow-1))
+  const days=Array.from({length:7},(_,i)=>{const d=new Date(mon);d.setDate(mon.getDate()+i);return d})
+  const isToday=d=>d.toDateString()===now.toDateString()
+  const hours=Array.from({length:24},(_,i)=>i)
+  let h=`<div class="wgrid">`
+  // header row
+  h+=`<div class="whdr-t"></div>`
+  days.forEach(d=>{h+=`<div class="whdr${isToday(d)?' today':''}">${d.toLocaleDateString('de',{weekday:'short',day:'numeric',month:'numeric'})}</div>`})
+  // hour rows
+  hours.forEach(hr=>{
+    h+=`<div class="whour">${String(hr).padStart(2,'0')}</div>`
+    days.forEach(d=>{
+      const di=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+      const evs=calEvs.filter(e=>{
+        if(!e.start)return false
+        const es=new Date(e.start)
+        return es.getFullYear()===d.getFullYear()&&es.getMonth()===d.getMonth()&&es.getDate()===d.getDate()&&es.getHours()===hr
+      })
+      // Overlapping events: split into columns
+      const n=evs.length||1
+      const evHtml=evs.map((e,i)=>{
+        const pct=Math.min(((new Date(e.end||e.start)-new Date(e.start))/3600000)*100,100)
+        const w=Math.floor(100/n),l=i*w
+        return`<div class="wev" style="height:${Math.max(pct,22)}%;top:0;left:${l}%;width:${w-1}%;right:auto" onclick="event.stopPropagation();openEvDlg(${calEvs.indexOf(e)})">${esc(e.title)}</div>`
+      }).join('')
+      h+=`<div class="wcell" onclick="openEvDlg(null,'${di}T${String(hr).padStart(2,'0')}:00')">${evHtml}</div>`
+    })
+  })
+  h+='</div>'
+  $('calGrid').innerHTML=h
+  // update title to show week range
+  const end=new Date(days[6]);$('calTitle').textContent=`${days[0].toLocaleDateString('de',{day:'numeric',month:'short'})} – ${end.toLocaleDateString('de',{day:'numeric',month:'short',year:'numeric'})}`
+}
+
+// ── Autostart ─────────────────────────────────────────────────────────────────
+async function initAutostart(){try{$('setAS').checked=await api().GetAutostart()}catch(e){}}
+async function saveAutostart(on){try{await api().SetAutostart(on)}catch(e){alert('Autostart konnte nicht gesetzt werden: '+e)}}
+
+// ── TLS recipient check ──────────────────────────────────────────────────────
+let tlsCache={}
+let daneCache={}
+async function checkTLS(){
+  const bar=$('tlsBar');bar.innerHTML='';bar.style.display='none'
+  const to=$('compTo').value
+  const emails=to.split(/[\s,;]+/).map(e=>e.replace(/.*<([^>]+)>.*/,'$1').trim()).filter(e=>e.includes('@'))
+  if(!emails.length)return
+  bar.style.display='block'
+  for(const email of emails){
+    if(tlsCache[email]===undefined){
+      const span=document.createElement('span')
+      span.textContent=email+' ⏳ '; bar.appendChild(span)
+      const ok=await api().CheckRecipientTLS(email).catch(()=>false)
+      tlsCache[email]=ok
+      span.className=ok?'tls-ok':'tls-no'
+      span.textContent=email+(ok?' 🔒 ':' ⚠️ ')
+    } else {
+      const span=document.createElement('span')
+      span.className=tlsCache[email]?'tls-ok':'tls-no'
+      span.textContent=email+(tlsCache[email]?' 🔒 ':' ⚠️ ')
+      bar.appendChild(span)
+    }
+    // MTA-STS badge
+    const domain=email.split('@')[1]
+    if(domain){
+      checkMTASTS(domain).then(mode=>{
+        if(mode){
+          const s=document.createElement('span')
+          s.style.cssText='font-size:10px;padding:.1rem .32rem;border-radius:8px;background:var(--accent);color:#fff;margin-left:.2rem'
+          s.textContent=mode
+          bar.appendChild(s)
+        }
+      })
+    }
+    // DANE/TLSA badge
+    const resolver=localStorage.getItem('daneResolver')||''
+    if(daneCache[email]===undefined){
+      api().CheckRecipientDANE(email,resolver).then(st=>{daneCache[email]=st;addDaneBadge(bar,st)}).catch(()=>{})
+    }else{
+      addDaneBadge(bar,daneCache[email])
+    }
+  }
+}
+function addDaneBadge(bar,st){
+  let txt='',col=''
+  if(st==='secure'){txt='DANE 🔒';col='var(--success)'}
+  else if(st==='present'){txt='TLSA (unvalidiert)';col='#d08040'}
+  else return
+  const s=document.createElement('span')
+  s.style.cssText=`font-size:10px;padding:.1rem .32rem;border-radius:8px;border:1px solid ${col};color:${col};margin-left:.2rem`
+  s.textContent=txt
+  bar.appendChild(s)
+}
+// hook TLS check on blur of To field
+document.addEventListener('DOMContentLoaded',()=>{
+  $('compTo')?.addEventListener('blur',checkTLS)
+})
+
+// ── Signatur-Editor ───────────────────────────────────────────────────────────
+// Wandelt einen gespeicherten Signaturwert in (bereinigtes) HTML zum Anzeigen/Einfügen.
+// Legacy-Klartext (ohne Tags) wird mit Zeilenumbrüchen → <br> dargestellt.
+function sigHTML(sig){
+  if(!sig)return ''
+  return /[<>]/.test(sig)?sanitizeHTML(sig):esc(sig).replace(/\n/g,'<br>')
+}
+// Liefert leeren String, wenn der Editor faktisch leer ist (nur <br>/whitespace).
+function sigClean(h){
+  const txt=h.replace(/<[^>]*>/g,'').replace(/&nbsp;|\s/g,'')
+  return (txt||/<img|<a\s|<hr/i.test(h))?h:''
+}
+function sigCmd(edId,cmd){$(edId).focus();document.execCommand(cmd,false,null)}
+async function sigLink(edId){
+  const ed=$(edId);ed.focus()
+  const sel=document.getSelection()
+  const range=sel&&sel.rangeCount?sel.getRangeAt(0).cloneRange():null
+  const savedText=(range&&range.toString())||''
+  const url=await uiPrompt('Link-URL:','https://');if(!url)return
+  ed.focus();if(range){const s=document.getSelection();s.removeAllRanges();s.addRange(range)}
+  const text=savedText||url
+  document.execCommand('insertHTML',false,`<a href="${url.replace(/"/g,'&quot;')}">${text}</a>`)
+}
+
+// ── Rich-Text link insert ────────────────────────────────────────────────────
+async function insLink(){
+  // Selektion sichern, bevor das Modal den Fokus übernimmt.
+  const sel=document.getSelection()
+  const savedText=(sel&&sel.toString())||''
+  const range=sel&&sel.rangeCount?sel.getRangeAt(0).cloneRange():null
+  const url=await uiPrompt('URL:','https://');if(!url)return
+  $('compBody').focus()
+  if(range){const s=document.getSelection();s.removeAllRanges();s.addRange(range)}
+  const text=savedText||url
+  document.execCommand('insertHTML',false,`<a href="${url.replace(/"/g,'&quot;')}">${text}</a>`)
+}
+
+// ── Layout: Vorschau unten ───────────────────────────────────────────────────
+function applySplitV(){
+  document.querySelector('.cols')?.classList.toggle('split-v',localStorage.getItem('splitV')==='1')
+}
+
+// ── Termin-Erinnerungen ──────────────────────────────────────────────────────
+const remindedEvs=new Set()
+function checkReminders(){
+  if(localStorage.getItem('reminders')!=='1'||!calEvs.length)return
+  const now=new Date()
+  calEvs.forEach(ev=>{
+    if(!ev.start||remindedEvs.has(ev.uid||ev.title+ev.start))return
+    const start=new Date(ev.start)
+    const diff=start-now
+    if(diff>0&&diff<=15*60000){
+      remindedEvs.add(ev.uid||ev.title+ev.start)
+      const mins=Math.round(diff/60000)
+      const msg=`${ev.title} – beginnt in ${mins} Min.`
+      // Windows Toast via backend
+      api().ShowNotification('Termin-Erinnerung',msg).catch(()=>{})
+      // Also show in app toast
+      showUndo(msg,()=>{})
+    }
+  })
+}
+
+// ── Drag & Drop Anhänge in Composer ─────────────────────────────────────────
+function dropFiles(e){
+  e.preventDefault()
+  $('compBody').classList.remove('dd-active')
+  const files=[...e.dataTransfer.files]
+  files.forEach(f=>compAtts.push({file:f,name:f.name}))
+  renderAttPicks()
+}
+
+// ── ICS Einladungen ──────────────────────────────────────────────────────────
+let icsAttIndex=-1
+function checkICS(atts){
+  icsAttIndex=-1
+  $('icsBnr').style.display='none'
+  if(!atts)return
+  const idx=atts.findIndex(a=>a.filename.toLowerCase().endsWith('.ics')||a.mimeType==='text/calendar')
+  if(idx>=0){icsAttIndex=idx;$('icsBnr').style.display='flex'}
+}
+
+async function addICSToCalendar(){
+  if(icsAttIndex<0||!viewUID)return
+  try{
+    const text=await api().GetAttachmentText(viewAcc,viewFld,viewUID,icsAttIndex)
+    const ev=parseICSText(text)
+    calAcc=calAcc||accounts[0]?.id
+    openEvDlg(null)
+    $('evT').value=ev.title||''
+    $('evS').value=ev.start||''
+    $('evE').value=ev.end||''
+    $('evAD').checked=ev.allDay||false
+    $('icsBnr').style.display='none'
+  }catch(e){alert('Fehler beim Lesen der Einladung: '+e)}
+}
+
+function parseICSText(text){
+  const lines=text.split(/\r?\n/)
+  let ev={title:'',start:'',end:'',allDay:false},inEv=false
+  for(const line of lines){
+    if(line==='BEGIN:VEVENT'){inEv=true;continue}
+    if(line==='END:VEVENT'){break}
+    if(!inEv)continue
+    const i=line.indexOf(':');if(i<0)continue
+    const key=line.substring(0,i).split(';')[0].toUpperCase()
+    const val=line.substring(i+1).trim()
+    if(key==='SUMMARY')ev.title=val
+    else if(key==='DTSTART'){
+      ev.allDay=val.length===8
+      ev.start=ev.allDay?val.substring(0,4)+'-'+val.substring(4,6)+'-'+val.substring(6,8):
+        new Date(val.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z?/,'$1-$2-$3T$4:$5:$6')).toISOString().slice(0,16)
+    }
+    else if(key==='DTEND'){
+      const allDay=val.length===8
+      ev.end=allDay?val.substring(0,4)+'-'+val.substring(4,6)+'-'+val.substring(6,8):
+        new Date(val.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z?/,'$1-$2-$3T$4:$5:$6')).toISOString().slice(0,16)
+    }
+  }
+  return ev
+}
+
+
+// ── Sieve Regelassistent ─────────────────────────────────────────────────────
+let rbMode=false
+function toggleRB(){
+  rbMode=!rbMode
+  $('ruleBuilder').style.display=rbMode?'block':'none'
+  $('rbToggle').classList.toggle('act',rbMode)
+  if(rbMode&&!$('rbConds').children.length){addRBCond();addRBAct()}
+}
+
+function addRBCond(){
+  const d=document.createElement('div');d.className='rb-row'
+  d.innerHTML=`
+    <select class="rb-field"><option value="from">Von</option><option value="to">An</option><option value="subject">Betreff</option><option value="size">Größe (KB)</option></select>
+    <select class="rb-op"><option value="contains">enthält</option><option value="is">ist gleich</option><option value="startswith">beginnt mit</option><option value="over">größer als</option></select>
+    <input class="rb-val" placeholder="Wert...">
+    <button onclick="this.parentElement.remove()">&#x2212;</button>`
+  $('rbConds').appendChild(d)
+}
+
+function addRBAct(){
+  const d=document.createElement('div');d.className='rb-row'
+  d.innerHTML=`
+    <select class="rb-action">
+      <option value="fileinto">Verschieben nach</option>
+      <option value="flag">Markieren</option>
+      <option value="discard">Verwerfen</option>
+      <option value="reject">Ablehnen mit</option>
+      <option value="addflag">Flag setzen</option>
+    </select>
+    <input class="rb-aval" placeholder="Ordner / Nachricht...">
+    <button onclick="this.parentElement.remove()">&#x2212;</button>`
+  $('rbActs').appendChild(d)
+}
+
+function genSieve(){
+  const conds=[...$('rbConds').querySelectorAll('.rb-row')]
+  const acts=[...$('rbActs').querySelectorAll('.rb-row')]
+  const requires=new Set()
+  let condParts=[], actParts=[]
+
+  conds.forEach(row=>{
+    const field=row.querySelector('.rb-field').value
+    const op=row.querySelector('.rb-op').value
+    const val=row.querySelector('.rb-val').value
+    if(!val)return
+    if(field==='size'){
+      condParts.push(`size :over ${parseInt(val)*1024}`)
+    } else {
+      const sieveField={from:'From',to:'To',subject:'Subject'}[field]||field
+      const sieveOp={contains:':contains',is:':is',startswith:':matches'}[op]||':contains'
+      condParts.push(`header ${sieveOp} "${sieveField}" "${val.replace(/"/g,'\\"')}"`)
+    }
+  })
+
+  acts.forEach(row=>{
+    const action=row.querySelector('.rb-action').value
+    const aval=row.querySelector('.rb-aval').value
+    if(action==='fileinto'){requires.add('fileinto');actParts.push(`fileinto "${aval.replace(/"/g,'\\"')}";`)}
+    else if(action==='flag'){requires.add('imap4flags');actParts.push(`setflag "\\\\Flagged";`)}
+    else if(action==='discard'){actParts.push('discard;')}
+    else if(action==='reject'){requires.add('reject');actParts.push(`reject "${aval.replace(/"/g,'\\"')}";`)}
+    else if(action==='addflag'){requires.add('imap4flags');actParts.push(`addflag "${aval.replace(/"/g,'\\"')}";`)}
+  })
+
+  if(!condParts.length||!actParts.length){alert('Bitte mindestens eine Bedingung und eine Aktion angeben.');return}
+
+  const req=requires.size>0?`require [${[...requires].map(r=>`"${r}"`).join(', ')}];\n`:'require [];\n'
+  const ifBlock=condParts.length===1?`if ${condParts[0]}`:`if anyof (\n    ${condParts.join(',\n    ')}\n)`
+  $('svCode').value=req+`${ifBlock} {\n    ${actParts.join('\n    ')}\n}`
+  toggleRB() // switch back to code view
+}
+
+// ── Vacation auto-responder ──────────────────────────────────────────────────
+function openVacDlg(){$('vacDlg').showModal()}
+function genVacation(){
+  const subj=($('vacSubj').value||'').replace(/"/g,'\\"')
+  const body=($('vacBody').value||'').replace(/"/g,'\\"').replace(/\n/g,'\\n')
+  const days=parseInt($('vacDays').value)||7
+  $('svCode').value=`require ["vacation"];\nvacation\n  :days ${days}\n  :subject "${subj}"\n"${body}";`
+  $('vacDlg').close()
+}
+
+// ── Settings Backup / Restore ─────────────────────────────────────────────────
+async function expSettings(){
+  try{
+    const json=await api().ExportSettings()
+    const a=document.createElement('a')
+    a.href='data:application/json;charset=utf-8,'+encodeURIComponent(json)
+    a.download='n-mailclient-settings.json';a.click()
+  }catch(e){alert('Export fehlgeschlagen: '+e)}
+}
+async function impSettings(){
+  const file=$('impFile').files[0];if(!file)return
+  const text=await file.text()
+  if(!await uiConfirm('Einstellungen wirklich überschreiben? Bestehende Konten gehen verloren.'))return
+  try{
+    await api().ImportSettings(text)
+    accounts=await api().ListAccounts()
+    await loadAllFolders();renderSb()
+    alert('Einstellungen importiert. Bitte App neu starten für vollständige Wirkung.')
+  }catch(e){alert('Import fehlgeschlagen: '+e)}
+}
+
+// ── Mail-Fenster (separater Prozess) ─────────────────────────────────────────
+async function openMsgWin(uid,acc,fld,subj){
+  const dark=document.body.classList.contains('dark')
+  try{await api().OpenMailWindow(uid,acc,fld,subj,dark)}catch(e){alert('Fenster konnte nicht geöffnet werden: '+e)}
+}
+
+async function initMailWindow(wm){
+  // Dark mode from parent flag; fallback: leave whatever the early script set
+  if(wm.dark!=null){
+    if(wm.dark)document.body.classList.add('dark')
+    else document.body.classList.remove('dark')
+  }
+
+  // Don't replace body.innerHTML — WebView2 does not reliably re-apply <head>
+  // CSS to dynamically inserted elements. Instead hide main-window elements
+  // and reshape the existing layout so all CSS rules keep working naturally.
+  // Match body bg to #tb so the OS resize border at the top is invisible.
+  document.body.style.background='var(--panel)'
+  $('nav').style.display='none'
+  const cols=document.querySelector('.cols')
+  cols.style.cssText='display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden'
+  $('sidebar').style.display='none'
+  $('listPane').style.display='none'
+  $('readPane').style.cssText='display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;border:none'
+
+  // In the popup the close button must quit the whole subprocess
+  $('wClose').onclick=()=>window.runtime.Quit()
+
+  // Load and render message
+  try{
+    accounts=await api().ListAccounts()
+    viewUID=wm.uid;viewAcc=wm.acc;viewFld=wm.fld
+    const d=await api().Message(wm.acc,wm.fld,wm.uid)
+    viewFrom=exEmail(d.from||'')
+    $('readActs').innerHTML=`
+      <button class="ra" onclick="replyMsg()">&#x21A9; Antworten</button>
+      <button class="ra" onclick="replyAllMsg()">Allen</button>
+      <button class="ra" onclick="forwardMsg()">&#x21AA; Weiterleiten</button>
+      <button class="ra" onclick="archiveMsg()">&#x1F4C2; Archiv</button>
+      <button class="ra" onclick="trashMsg()">Papierkorb</button>
+      <button class="ra d" onclick="deleteMsg()">&#x2715; Löschen</button>
+      <button class="ra" onclick="printMsg()">Drucken</button>
+      <button class="ra" onclick="translateMsg()">Übersetzen</button>
+      <button class="ra" onclick="viewSrc()">Quelltext</button>`
+    $('readEmpty').style.display='none';$('readContent').style.display='block';renderRH(d);renderRB(d)
+    document.title='N-MailClient — '+(d.subject||'(kein Betreff)')
+  }catch(e){
+    $('readHead').textContent='Fehler: '+e
+  }
+}
+
+// ── startup ───────────────────────────────────────────────────────────────────
+const doInit=()=>init()
+if(window.go)doInit()
+else window.addEventListener('load',()=>setTimeout(doInit,100))
+</script>
+</body>
+</html>

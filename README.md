@@ -1,77 +1,65 @@
-# N-MailClient
+# N-MailClient — Go + Wails (Proof of Concept)
 
-Ein E-Mail-Programm für den Desktop — mit eingebautem **Kalender** und
-**Adressbuch**. Funktioniert mit jeder normalen E-Mail-Adresse, egal bei welchem
-Anbieter.
+Test-Implementierung des **MVP-Kerns** in **Go + Wails** als Stack-Evaluierung —
+**nicht** die vollständige 0.1.0-Featureliste. Enthalten:
 
-Version **0.1.0**
+- Konten anlegen/auflisten (JSON-Store im User-Config-Verzeichnis)
+- IMAP: Ordner auflisten, Posteingang/Folder lesen (Liste), Nachricht öffnen
+  (Text/HTML) — via `emersion/go-imap` + `go-message`
+- SMTP: einfache Textmail senden (`net/smtp`, implizites TLS 465 / STARTTLS 587)
+- Schlanke **Vanilla-JS-UI** (kein Node-Build nötig)
 
----
+> **Status:** Auf dem Build-Rechner war **keine Go-Toolchain installiert**, daher ist
+> dieser Code **nicht kompiliert/getestet** — es ist ein sauberes Gerüst. Kleinere
+> Anpassungen beim ersten Build sind möglich.
 
-## Funktionen
+## Voraussetzungen
 
-### Mehrere Postfächer
-- Beliebig viele Konten gleichzeitig nutzen
-- Einrichtung in Sekunden: E-Mail-Adresse eingeben, der Rest wird automatisch erkannt
-- Jedes Konto bekommt eine eigene Farbe, einen Anzeigenamen und eine Signatur
-- Auch mit zusätzlichen Absenderadressen (Aliassen) verschicken
+- **Go** ≥ 1.22 — https://go.dev/dl/
+- **C-Compiler** (Wails braucht cgo): unter Windows z. B. MSYS2/MinGW oder TDM-GCC
+- **WebView2 Runtime** (auf Windows 11 i. d. R. vorinstalliert)
+- **Wails-CLI:**
+  ```powershell
+  go install github.com/wailsapp/wails/v2/cmd/wails@latest
+  wails doctor   # prüft die Umgebung
+  ```
 
-### E-Mails lesen
-- Ein **gemeinsamer Posteingang** zeigt alle Konten auf einen Blick, farblich getrennt
-- Übersichtliche **Ordnerliste** zum Auf- und Zuklappen; Posteingang immer ganz oben
-- **Profilbilder** der Absender direkt in der Liste
-- Anzahl **ungelesener Nachrichten** pro Ordner, immer aktuell
-- E-Mails werden sicher angezeigt; externe Bilder werden erst auf Knopfdruck geladen
-- Nachricht im Original-Quelltext ansehen oder **ausdrucken**
+## Starten
 
-### E-Mails schreiben
-- **Antworten, Allen antworten und Weiterleiten**
-- Texte gestalten: **fett, kursiv, Listen, Zitate, Links**
-- **Dateien anhängen**
-- Empfänger werden beim Tippen **automatisch aus den Kontakten vorgeschlagen**
-- Geschriebene Mails werden automatisch als **Entwurf** gesichert
-- **Senden rückgängig machen** — ein paar Sekunden Zeit, falls man es sich anders überlegt
+```powershell
+cd experiments/go-wails
+go mod tidy        # Abhängigkeiten auflösen
+wails dev          # Live-Entwicklung (Fenster öffnet sich)
+# oder:
+wails build        # erzeugt build/bin/n-mailclient-go.exe
+```
 
-### Ordnung halten
-- **Farbige Etiketten** zum Sortieren
-- Wichtiges mit einem **Stern** markieren; sehen, worauf man noch nicht geantwortet hat
-- Per Rechtsklick: gelesen/ungelesen, löschen, **in einen Ordner verschieben**
-- Ordner **anlegen, umbenennen, verschieben** und in eigener Reihenfolge anordnen
-- **Suche** über alle Nachrichten
-- **Spam melden** und Fehleinschätzungen korrigieren — der Server lernt mit
+## Architektur (analog zur Electron-Version)
 
-### Anhänge sammeln
-- Anhänge **speichern** oder automatisch **nach Absender in einen Ordner ablegen**
-- Ablage wahlweise auf dem **eigenen Rechner** oder in der **Cloud** (z. B. Nextcloud)
-- Eigene **Archiv-Ansicht** zum Durchsuchen und Öffnen der gesammelten Dateien
-- **PDFs** direkt im Programm ansehen
+```
+main.go            App-Bootstrap, Wails-Window, Bind(App)
+app.go             gebundene Methoden (Frontend ruft window.go.main.App.*)
+internal/store/    Konten-Store (JSON)
+internal/mail/     imap.go (lesen) · smtp.go (senden)
+frontend/dist/     Vanilla-JS-UI (index.html)
+```
 
-### Kalender & Adressbuch
-- **Kalender** in Monats-, Wochen- und Tagesansicht
-- Termine anlegen, bearbeiten und löschen — auch **direkt aus einer E-Mail** heraus
-- **Erinnerungen** an anstehende Termine
-- **Kontakte** anlegen, bearbeiten, löschen und durchsuchen
-- Kontaktfotos erscheinen automatisch als Bildchen in der Mailliste
+Die Trennung ist identisch zum Electron-Vorbild: **UI ↔ gebundene Go-Methoden**
+(statt IPC), Mail-Logik nur im Go-Backend.
 
-### Angenehm im Alltag
-- Neue Mails werden **sofort gemeldet** — mit Ton und Hinweis, abschaltbar
-- **Heller und dunkler Modus**
-- Vorschau wahlweise **rechts oder unten**
-- **Tastenkürzel** für schnelles Arbeiten
-- Alle Einstellungen an **einem zentralen Ort**
+## Bewusste PoC-Grenzen
 
----
+- **Passwort im Klartext** im JSON-Store. Produktiv: OS-Keychain
+  (`github.com/zalando/go-keyring`) — Pendant zu Electrons `safeStorage`.
+- Nur **IMAPS (993)** + SMTP **465/587**, **eine** Empfängeradresse, **Plaintext**-Versand.
+- **Kein** Autodiscover, Kalender (CalDAV), Kontakte (CardDAV), Sieve, Anhänge,
+  Suche, Etiketten, PGP — die decken die emersion-Libraries (`go-webdav`,
+  `go-vcard`, `go-ical`, `go-sieve`, ProtonMail `gopenpgp`) aber sauber ab und
+  wären die nächsten Schritte.
 
-## Sicherheit
+## Fazit der Evaluierung
 
-Passwörter werden verschlüsselt auf dem Gerät gespeichert — nie im Klartext. Der
-gesamte Mailverkehr läuft abgeschottet vom Anzeigebereich der App.
-
----
-
-Konten, Kalender und Kontakte werden direkt im Programm unter **Einstellungen**
-eingerichtet — vorab ist nichts zu konfigurieren.
-
-## Lizenz
-
-MIT
+Der Stack trägt: Das emersion-Ökosystem deckt IMAP/SMTP/MIME (und perspektivisch
+CalDAV/CardDAV/Sieve/PGP) kohärent ab, Wails behält die Web-UI bei und liefert
+deutlich kleinere Binaries als Electron. Hauptaufwand eines echten Umstiegs wäre
+die Portierung der Backend-Services von TypeScript nach Go — die UI bliebe nahezu.

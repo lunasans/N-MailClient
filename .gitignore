@@ -1,12 +1,16 @@
+# Build output / binaries
+/build/bin/
+/build/windows/installer/tmp/
+*.exe
+*.syso
+
+# Go
+/vendor/
+
+# Node (frontend tooling, falls genutzt)
 node_modules/
-out/
-dist/
-release/
-*.log
-*.tsbuildinfo
+
+# OS / Editor
 .DS_Store
-# Code-signing certificate (provided via CI secret, never commit)
-*.pfx
-*.b64
-docs/RELEASE.md
-tools/
+Thumbs.db
+*.log
