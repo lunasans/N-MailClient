@@ -11,7 +11,7 @@
     !define INFO_COMPANYNAME "n-mailclient-go"
 !endif
 !ifndef INFO_PRODUCTNAME
-    !define INFO_PRODUCTNAME "N-MailClient (Go/Wails PoC)"
+    !define INFO_PRODUCTNAME "N-MailClient"
 !endif
 !ifndef INFO_PRODUCTVERSION
     !define INFO_PRODUCTVERSION "1.0.0"

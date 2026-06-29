@@ -1,65 +1,64 @@
-# N-MailClient — Go + Wails (Proof of Concept)
+# N-MailClient — Go + Wails
 
-Test-Implementierung des **MVP-Kerns** in **Go + Wails** als Stack-Evaluierung —
-**nicht** die vollständige 0.1.0-Featureliste. Enthalten:
+Datenschutzorientierter Desktop-E-Mail-Client für Windows, gebaut mit **Go + Wails v2**
+und einer schlanken Vanilla-JS-Oberfläche (kein Node-Build nötig). Neufassung der
+früheren Electron-Version (die liegt im Branch `electron-legacy`).
 
-- Konten anlegen/auflisten (JSON-Store im User-Config-Verzeichnis)
-- IMAP: Ordner auflisten, Posteingang/Folder lesen (Liste), Nachricht öffnen
-  (Text/HTML) — via `emersion/go-imap` + `go-message`
-- SMTP: einfache Textmail senden (`net/smtp`, implizites TLS 465 / STARTTLS 587)
-- Schlanke **Vanilla-JS-UI** (kein Node-Build nötig)
+## Funktionen
 
-> **Status:** Auf dem Build-Rechner war **keine Go-Toolchain installiert**, daher ist
-> dieser Code **nicht kompiliert/getestet** — es ist ein sauberes Gerüst. Kleinere
-> Anpassungen beim ersten Build sind möglich.
+- **Mail**: IMAP/SMTP (implizites TLS 993/465, STARTTLS 143/587), Ordnerbaum, Lesen
+  (Text/HTML, sandboxed iframe), Senden, Antworten/Weiterleiten, Anhänge, Entwürfe
+  (Auto-Save), Volltextsuche, Etiketten, Threads, gemeinsamer Posteingang, Paginierung
+- **Sicherheit**: SPF/DKIM/DMARC-Anzeige + Spoofing-Warnung, DANE/TLSA-Prüfung,
+  MTA-STS, externe Bilder blockiert, PGP (Ver-/Entschlüsseln, Key-Manager),
+  Passwörter im **OS-Keychain**
+- **Produktivität**: Inbox-Kategorien (Tabs), Drag & Drop in Ordner, Rechtschreibprüfung,
+  Übersetzung (LibreTranslate), Anhang-Archiv, Druck, Tastenkürzel, Undo-Toast,
+  Offline-Cache (Listen + Inhalte)
+- **Groupware**: Kalender (CalDAV), Kontakte (CardDAV, inkl. vCard-Im/Export),
+  Sieve-Filter (ManageSieve, Regelassistent, Abwesenheitsnotiz)
+- **Komfort**: robustes Autodiscover (Autoconfig/ISPDB + DNS-SRV), Dark Mode,
+  Systembenachrichtigungen, Tray-Icon, Autostart
 
-## Voraussetzungen
+## Voraussetzungen (Build)
 
-- **Go** ≥ 1.22 — https://go.dev/dl/
-- **C-Compiler** (Wails braucht cgo): unter Windows z. B. MSYS2/MinGW oder TDM-GCC
-- **WebView2 Runtime** (auf Windows 11 i. d. R. vorinstalliert)
-- **Wails-CLI:**
-  ```powershell
-  go install github.com/wailsapp/wails/v2/cmd/wails@latest
-  wails doctor   # prüft die Umgebung
-  ```
+- **Go** (Version siehe `go.mod`) — https://go.dev/dl/
+- **Wails CLI**: `go install github.com/wailsapp/wails/v2/cmd/wails@latest`
+- **NSIS** (nur für den Installer): https://nsis.sourceforge.io/ — `makensis` muss im PATH sein
+- **WebView2 Runtime** (auf Windows 10/11 i. d. R. vorinstalliert)
 
-## Starten
+Ein C-Compiler ist nicht nötig (neuer Go-WebView2Loader).
+
+## Bauen & Starten
 
 ```powershell
-cd experiments/go-wails
-go mod tidy        # Abhängigkeiten auflösen
-wails dev          # Live-Entwicklung (Fenster öffnet sich)
-# oder:
-wails build        # erzeugt build/bin/n-mailclient-go.exe
+wails dev                                   # Live-Entwicklung
+wails build -platform windows/amd64         # build/bin/n-mailclient-go.exe
+wails build -platform windows/amd64 -nsis   # zusätzlich den Installer
 ```
 
-## Architektur (analog zur Electron-Version)
+Releases werden bei jedem `v*`-Tag automatisch von GitHub Actions gebaut
+(siehe `.github/workflows/release.yml`).
+
+## Architektur
 
 ```
 main.go            App-Bootstrap, Wails-Window, Bind(App)
 app.go             gebundene Methoden (Frontend ruft window.go.main.App.*)
-internal/store/    Konten-Store (JSON)
-internal/mail/     imap.go (lesen) · smtp.go (senden)
+internal/store/    Konten-Store (JSON; Passwörter im OS-Keychain)
+internal/mail/     IMAP, SMTP, Autodiscover, DANE, Offline-Cache
+internal/{calendar,contacts,sieve,translate}/  Groupware-Dienste
+pgp.go · mta_sts.go · tray_windows.go · dwm_windows.go
 frontend/dist/     Vanilla-JS-UI (index.html)
 ```
 
-Die Trennung ist identisch zum Electron-Vorbild: **UI ↔ gebundene Go-Methoden**
-(statt IPC), Mail-Logik nur im Go-Backend.
+UI ↔ gebundene Go-Methoden (statt IPC), Mail-Logik nur im Go-Backend.
 
-## Bewusste PoC-Grenzen
+## Bekannte Einschränkungen
 
-- **Passwort im Klartext** im JSON-Store. Produktiv: OS-Keychain
-  (`github.com/zalando/go-keyring`) — Pendant zu Electrons `safeStorage`.
-- Nur **IMAPS (993)** + SMTP **465/587**, **eine** Empfängeradresse, **Plaintext**-Versand.
-- **Kein** Autodiscover, Kalender (CalDAV), Kontakte (CardDAV), Sieve, Anhänge,
-  Suche, Etiketten, PGP — die decken die emersion-Libraries (`go-webdav`,
-  `go-vcard`, `go-ical`, `go-sieve`, ProtonMail `gopenpgp`) aber sauber ab und
-  wären die nächsten Schritte.
+- **Windows-only**: Autostart (Registry), Tray, DANE-System-DNS und Toasts nutzen
+  Windows-APIs; ein Linux-Build (.deb) ist als Cross-Platform-Port geplant (Roadmap 1.0.0).
+- **Unsigniert**: Der Installer trägt keine Code-Signatur → SmartScreen-Warnung.
+- Anhänge offline nur eingeschränkt (Inhalte gecacht, Datei-Download braucht Verbindung).
 
-## Fazit der Evaluierung
-
-Der Stack trägt: Das emersion-Ökosystem deckt IMAP/SMTP/MIME (und perspektivisch
-CalDAV/CardDAV/Sieve/PGP) kohärent ab, Wails behält die Web-UI bei und liefert
-deutlich kleinere Binaries als Electron. Hauptaufwand eines echten Umstiegs wäre
-die Portierung der Backend-Services von TypeScript nach Go — die UI bliebe nahezu.
+Details und Roadmap: siehe [STATUS.md](STATUS.md).
