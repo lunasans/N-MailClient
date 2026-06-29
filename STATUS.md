@@ -128,6 +128,7 @@ Version 0.6.0 (veröffentlicht)
 
 Version 0.7.0
 
+- [x] Links aus E-Mails im Systembrowser öffnen (statt in der Mail-Ansicht) — via Wails BrowserOpenURL
 - [] Follow-up / Wiedervorlage-Markierung mit Erinnerung  [Produktivität]
 - [] Smart-/virtuelle Ordner (gespeicherte Suchen, z. B. „ungelesen + markiert")  [Produktivität]
 - [] Geplanter Versand (zu bestimmtem Zeitpunkt senden; baut auf Undo-Send/Scheduler auf)  [Vorhandenes nutzen]

@@ -982,6 +982,16 @@ const api=()=>window.go.main.App
 const $=id=>document.getElementById(id)
 const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
 
+// Öffnet eine URL im Systembrowser (statt in der WebView/Mail).
+function openExternal(u){try{window.runtime.BrowserOpenURL(u)}catch(e){window.open(u,'_blank')}}
+// Links im Haupt-Dokument (z. B. Download-Link) extern öffnen.
+document.addEventListener('click',e=>{
+  const a=e.target.closest&&e.target.closest('a[href]')
+  if(!a)return
+  const href=a.getAttribute('href')||''
+  if(/^https?:|^mailto:/i.test(href)){e.preventDefault();openExternal(href)}
+})
+
 // ── custom dialogs ───────────────────────────────────────────────────────────
 // In-App-Ersatz für die nativen confirm/alert/prompt (zeigen sonst "wails.localhost").
 function uiDialog(opt){
@@ -1519,7 +1529,17 @@ function renderRB(d){
     iframe.sandbox='allow-same-origin'
     iframe.srcdoc=blockImgs(d.html)
     body.innerHTML='';body.appendChild(iframe)
-    iframe.onload=()=>{try{iframe.style.height=iframe.contentDocument.body.scrollHeight+40+'px'}catch(e){}}
+    iframe.onload=()=>{try{
+      const doc=iframe.contentDocument
+      iframe.style.height=doc.body.scrollHeight+40+'px'
+      // Links nicht in der Mail öffnen, sondern im Systembrowser.
+      doc.addEventListener('click',e=>{
+        const a=e.target.closest&&e.target.closest('a[href]')
+        if(!a)return
+        const href=a.getAttribute('href')||''
+        if(/^https?:|^mailto:/i.test(href)){e.preventDefault();openExternal(href)}
+      })
+    }catch(e){}}
     checkExtImgs(d.html)
   }else{
     body.innerHTML=`<pre style="white-space:pre-wrap;font-family:inherit">${esc(d.text||'(leer)')}</pre>`
