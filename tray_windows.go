@@ -115,10 +115,10 @@ var quitAppFn func()
 func wndProc(hwnd windows.HWND, msg uint32, wParam, lParam uintptr) uintptr {
 	switch msg {
 	case wmTray:
-		event := lParam & 0xFFFF
-		if event == 0x0205 { // WM_RBUTTONUP
+		switch lParam & 0xFFFF {
+		case 0x0205: // WM_RBUTTONUP
 			showTrayMenu(hwnd)
-		} else if event == 0x0203 { // WM_LBUTTONDBLCLK
+		case 0x0203: // WM_LBUTTONDBLCLK
 			if showWindowFn != nil {
 				showWindowFn()
 			}
