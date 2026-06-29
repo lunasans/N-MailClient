@@ -473,9 +473,10 @@ textarea.sc{flex:1;resize:none;border-radius:0;border:none;padding:.45rem;font-f
 <div id="view-about" class="view">
   <div class="ai">
     <h2>N-MailClient</h2>
-    <p style="color:var(--accent);font-size:13px;margin-bottom:.7rem">Version 0.6.0 — Go + Wails v2</p>
+    <p style="color:var(--accent);font-size:13px;margin-bottom:.7rem">Version 0.6.0a — Go + Wails v2</p>
     <p>Datenschutzorientierter E-Mail-Client. IMAP/SMTP, CardDAV, CalDAV, ManageSieve.</p>
     <hr style="margin:.8rem 0">
+    <p><strong>0.6.0a</strong> — Drag &amp; Drop: Mails (auch Mehrfachauswahl) per Ziehen in Ordner verschieben</p>
     <p><strong>0.6.0</strong> — SPF/DKIM/DMARC-Anzeige + Spoofing-Warnung, Inbox-Kategorien (Tabs), DANE/TLSA-Prüfung, Rechtschreibprüfung im Composer, robustes Autodiscover (Autoconfig/SRV), Passwörter im OS-Keychain, Offline-Cache (Listen + Inhalte)</p>
     <p><strong>0.5.1</strong> — Benachrichtigungston (WAV), Archiv-Suche, CalDAV-Cache (5 min), konfigurierbare Sendeverzögerung, Ruhezeiten für Benachrichtigungen</p>
     <p><strong>0.5.0</strong> — Thread-Ansicht, Übersetzung (LibreTranslate), Hover-Aktionen, Undo-Toast, Dateianhänge im Composer, Accounts-Sidebar, Paginierung, Datumsgruppen, Bildblockierung, Ordner-CRUD, Kontextmenü, Drucken, Systembenachrichtigungen, Geburtstage im Kalender, vCard-Import/Export</p>
@@ -487,7 +488,7 @@ textarea.sc{flex:1;resize:none;border-radius:0;border:none;padding:.45rem;font-f
       <button id="updBtn" class="gho" onclick="checkForUpdate()">Nach Updates suchen</button>
       <a id="updLink" href="#" target="_blank" style="display:none;font-size:12px;color:var(--accent)">Download</a>
     </div>
-    <p style="font-size:11px;color:var(--subtle);margin-top:.4rem">Aktuell installiert: v0.6.0</p>
+    <p style="font-size:11px;color:var(--subtle);margin-top:.4rem">Aktuell installiert: v0.6.0a</p>
     <hr style="margin:.8rem 0">
     <button class="gho" onclick="openSettings()">&#x2699; Einstellungen</button>
   </div>
@@ -2317,7 +2318,7 @@ async function checkForUpdate(){
     if(!r.ok)throw new Error(r.status)
     const d=await r.json()
     const latest=(d.tag_name||'').replace(/^v/,'')
-    const current='0.6.0'
+    const current='0.6.0a'
     if(latest&&latest!==current){
       btn.textContent='v'+latest+' verfügbar'
       $('updLink').href=d.html_url;$('updLink').style.display='inline'
