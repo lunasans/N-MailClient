@@ -118,32 +118,32 @@ Markierung: [x] implementiert · [ ] noch nicht in Go-Version
 
 ---
 
-Version 0.6.0
+Version 0.6.0 (veröffentlicht)
 
 - [x] SPF/DKIM/DMARC-Ergebnis anzeigen + Spoofing-Warnung (Authentication-Results parsen, Anzeigename≠Adresse)  [Vorhandenes nutzen]
+- [x] Rechtschreibprüfung im Composer (WebView2-Spellcheck, Sprache wählbar: DE/EN/Auto/Aus)  [Konten & Protokoll]
+- [x] Inbox-Kategorien / Tabs (Allgemein, Werbung, Newsletter, Soziales …) — automatische Einordnung anhand von Headern (List-Unsubscribe, Precedence: bulk, Auto-Submitted) + Absender-Heuristik; Tab-Leiste über der Liste, Kategorie pro Absender überschreibbar  [Produktivität]
+- [x] Offline-Modus / lokaler Cache  [Konten & Protokoll] — Maillisten-Cache (Summaries) + Nachrichten-Bodies (Detail je UID) als JSON; Sofort-Anzeige + transparenter Offline-Fallback bei Liste und beim Öffnen
+- [x] Empfänger-TLS: DANE/TLSA (braucht DNSSEC-validierenden Resolver) — konfigurierbarer Resolver, AD-Flag-Prüfung
+
+Version 0.7.0
+
+- [] Follow-up / Wiedervorlage-Markierung mit Erinnerung  [Produktivität]
+- [] Smart-/virtuelle Ordner (gespeicherte Suchen, z. B. „ungelesen + markiert")  [Produktivität]
 - [] Geplanter Versand (zu bestimmtem Zeitpunkt senden; baut auf Undo-Send/Scheduler auf)  [Vorhandenes nutzen]
 - [] Snooze / „später erinnern" (Mail verschwindet, kommt zur gewählten Zeit zurück)  [Produktivität]
 - [] Vorlagen / Textbausteine (Canned Responses)  [Produktivität]
-- [x] Rechtschreibprüfung im Composer (WebView2-Spellcheck, Sprache wählbar: DE/EN/Auto/Aus)  [Konten & Protokoll]
 - [] Anpassbare Listendichte / Spalten  [Komfort]
-- [x] Inbox-Kategorien / Tabs (Allgemein, Werbung, Newsletter, Soziales …) — automatische Einordnung anhand von Headern (List-Unsubscribe, Precedence: bulk, Auto-Submitted) + Absender-Heuristik; Tab-Leiste über der Liste, Kategorie pro Absender überschreibbar  [Produktivität]
-- [] OAuth2 (Gmail/Microsoft 365) für Konten (aus 0.5 verschoben)  [Konten & Protokoll]
-- [x] Offline-Modus / lokaler Cache (aus 0.5 verschoben)  [Konten & Protokoll] — Maillisten-Cache (Summaries) + Nachrichten-Bodies (Detail je UID) als JSON; Sofort-Anzeige + transparenter Offline-Fallback bei Liste und beim Öffnen
-- [] Listen-Virtualisierung für sehr große Ordner (aus 0.5 verschoben)
-- [] Sieve-Baukasten: Mehrfachbedingungen UND/ODER (aus 0.5 verschoben)
-- [] Kontaktgruppen/Verteiler aus vCards (aus 0.5 verschoben)  [Kontakte/Kalender]
-- [x] Empfänger-TLS: DANE/TLSA (braucht DNSSEC-validierenden Resolver) (aus 0.5 verschoben) — konfigurierbarer Resolver, AD-Flag-Prüfung
+- [] OAuth2 (Gmail/Microsoft 365) für Konten  [Konten & Protokoll]
+- [] Listen-Virtualisierung für sehr große Ordner
+- [] Sieve-Baukasten: Mehrfachbedingungen UND/ODER
+- [] Kontaktgruppen/Verteiler aus vCards  [Kontakte/Kalender]
 - [] Aliase vom Server abrufen — Button „Vom Server abrufen" im Aliase-Abschnitt der
   Konto-Einstellungen. Hintergrund: IMAP/SMTP kennen kein Alias-Konzept, JMAP wird von
   mailcow noch nicht unterstützt. Umsetzung via mailcow-Admin-API: `GET /api/v1/get/alias/all`
   mit Read-only-API-Key, filtern auf `goto` = Konto-Adresse (liefert präzise alle Aliase,
   auch ungenutzte). Benötigt pro Konto mailcow-Host + API-Key (API-Key im OS-Keychain
   ablegen, nicht in `db.json`).
-
-Version 0.7.0
-
-- [] Follow-up / Wiedervorlage-Markierung mit Erinnerung  [Produktivität]
-- [] Smart-/virtuelle Ordner (gespeicherte Suchen, z. B. „ungelesen + markiert")  [Produktivität]
 - [] Mailcow-Integration Phase 1 (Modus A: eigener API-Key) — siehe tasks/mailcow-konzept.md:
       Mailcow-Verbindung pro Konto (Host + API-Key + Test, Key via safeStorage);
       App-Passwörter verwalten; Alias-Verwaltung anlegen/Ziel ändern/löschen (Auflisten/Abruf bereits in 0.6.0);
