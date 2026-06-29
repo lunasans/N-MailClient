@@ -152,6 +152,10 @@ Version 0.7.0
 Version 1.0.0
 
 - [] Mehrsprachigkeit (i18n) DE/EN
+- [] Linux-Build / .deb (Cross-Platform-Port) — Windows-spezifischen Code (Autostart-Registry,
+  DANE System-DNS via IP-Helper-API, Tray, DWM-Titelleiste, go-toast) hinter Build-Tags
+  kapseln + Linux-Pendants (autostart .desktop, /etc/resolv.conf, notify-send); CI um
+  Linux-Job (gtk3/webkit2gtk) + .deb-Paketierung (nfpm) erweitern. Baut aktuell nicht für Linux.
 
 ## Mailcow-API-Integration (zukünftige Versionen)
 
