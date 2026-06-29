@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"syscall"
 	"time"
 
 	"golang.org/x/sys/windows/registry"
@@ -750,5 +752,9 @@ func (a *App) SetAutostart(on bool) error {
 		}
 		return k.SetStringValue(autostartName, `"`+exe+`"`)
 	}
-	return k.DeleteValue(autostartName)
+	// Beim Deaktivieren ist ein fehlender Wert kein Fehler (Zustand ist bereits "aus").
+	if err := k.DeleteValue(autostartName); err != nil && !errors.Is(err, syscall.ERROR_FILE_NOT_FOUND) {
+		return err
+	}
+	return nil
 }

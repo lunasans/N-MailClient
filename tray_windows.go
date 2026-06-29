@@ -3,6 +3,7 @@
 package main
 
 import (
+	"os"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -12,6 +13,7 @@ var (
 	modShell32 = windows.NewLazySystemDLL("shell32.dll")
 
 	procShellNotifyIcon    = modShell32.NewProc("Shell_NotifyIconW")
+	procExtractIconW       = modShell32.NewProc("ExtractIconW")
 	procCreateWindowExW    = modUser32.NewProc("CreateWindowExW")
 	procDefWindowProcW     = modUser32.NewProc("DefWindowProcW")
 	procDestroyWindow      = modUser32.NewProc("DestroyWindow")
@@ -157,8 +159,22 @@ func showTrayMenu(hwnd windows.HWND) {
 	procDestroyMenu.Call(hmenu)
 }
 
+// loadAppIcon returns the icon embedded in the running executable; falls back
+// to the generic application icon if extraction fails.
+func loadAppIcon() uintptr {
+	if exe, err := os.Executable(); err == nil {
+		if p, err := windows.UTF16PtrFromString(exe); err == nil {
+			if h, _, _ := procExtractIconW.Call(0, uintptr(unsafe.Pointer(p)), 0); h != 0 && h != 1 {
+				return h
+			}
+		}
+	}
+	h, _, _ := procLoadIconW.Call(0, 32512) // IDI_APPLICATION
+	return h
+}
+
 func addTrayIcon(hwnd windows.HWND) {
-	icon, _, _ := procLoadIconW.Call(0, 32516) // IDI_APPLICATION
+	icon := loadAppIcon()
 	tip, _ := windows.UTF16FromString("N-MailClient")
 
 	var nid NOTIFYICONDATA
