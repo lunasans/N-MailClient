@@ -258,6 +258,56 @@ export namespace mail {
 		    return a;
 		}
 	}
+	export class SmartCounts {
+	    unread: number;
+	    flagged: number;
+	    unreadFlagged: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new SmartCounts(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.unread = source["unread"];
+	        this.flagged = source["flagged"];
+	        this.unreadFlagged = source["unreadFlagged"];
+	    }
+	}
+	export class SmartSummary {
+	    uid: number;
+	    subject: string;
+	    from: string;
+	    date: string;
+	    seen: boolean;
+	    flagged: boolean;
+	    answered: boolean;
+	    hasAttachments: boolean;
+	    labels: string[];
+	    category: string;
+	    accountId: string;
+	    folder: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SmartSummary(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.uid = source["uid"];
+	        this.subject = source["subject"];
+	        this.from = source["from"];
+	        this.date = source["date"];
+	        this.seen = source["seen"];
+	        this.flagged = source["flagged"];
+	        this.answered = source["answered"];
+	        this.hasAttachments = source["hasAttachments"];
+	        this.labels = source["labels"];
+	        this.category = source["category"];
+	        this.accountId = source["accountId"];
+	        this.folder = source["folder"];
+	    }
+	}
 	export class Summary {
 	    uid: number;
 	    subject: string;
@@ -404,6 +454,7 @@ export namespace store {
 	    cardDavUrl: string;
 	    calDavUrl: string;
 	    webDavUrl: string;
+	    archiveDir: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Account(source);
@@ -427,6 +478,7 @@ export namespace store {
 	        this.cardDavUrl = source["cardDavUrl"];
 	        this.calDavUrl = source["calDavUrl"];
 	        this.webDavUrl = source["webDavUrl"];
+	        this.archiveDir = source["archiveDir"];
 	    }
 	}
 

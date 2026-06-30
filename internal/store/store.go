@@ -37,6 +37,7 @@ type Account struct {
 	CardDAVURL string `json:"cardDavUrl"` // address-book base URL
 	CalDAVURL  string `json:"calDavUrl"`  // calendar base URL
 	WebDAVURL  string `json:"webDavUrl"`  // attachment archive WebDAV target (optional)
+	ArchiveDir string `json:"archiveDir"` // local attachment-archive folder (empty = default)
 }
 
 type Store struct {

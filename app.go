@@ -427,6 +427,25 @@ func (a *App) UnifiedInbox() []mail.UnifiedSummary {
 	return all
 }
 
+// SmartFolder runs a flag-based search ("unread"|"flagged"|"unread_flagged")
+// across all folders of an account.
+func (a *App) SmartFolder(accountID, kind string) ([]mail.SmartSummary, error) {
+	acc, err := a.acc(accountID)
+	if err != nil {
+		return nil, err
+	}
+	return mail.SmartSearch(acc, kind)
+}
+
+// SmartCounts returns account-wide counts for the smart-folder badges.
+func (a *App) SmartCounts(accountID string) (mail.SmartCounts, error) {
+	acc, err := a.acc(accountID)
+	if err != nil {
+		return mail.SmartCounts{}, err
+	}
+	return mail.SmartCount(acc)
+}
+
 // MessageSource returns the raw RFC 2822 source of a message.
 func (a *App) MessageSource(accountID, folder string, uid uint32) (string, error) {
 	acc, err := a.acc(accountID)
@@ -606,7 +625,12 @@ type ArchivedFile struct {
 	Date string `json:"date"`
 }
 
-func archiveDir() (string, error) {
+// archiveDir returns the attachment archive folder. A non-empty custom path
+// overrides the default (<UserConfigDir>/n-mailclient-go/attachments).
+func archiveDir(custom string) (string, error) {
+	if strings.TrimSpace(custom) != "" {
+		return custom, os.MkdirAll(custom, 0o755)
+	}
 	dir, err := os.UserConfigDir()
 	if err != nil {
 		return "", err
@@ -615,9 +639,34 @@ func archiveDir() (string, error) {
 	return p, os.MkdirAll(p, 0o755)
 }
 
-// ArchiveSave downloads an attachment, stores it locally and optionally uploads
-// to a WebDAV target configured for the account.
-func (a *App) ArchiveSave(accountID, folder string, uid uint32, index int) error {
+// PickFolder opens a native folder-chooser and returns the selected path ("" if cancelled).
+func (a *App) PickFolder() (string, error) {
+	return wruntime.OpenDirectoryDialog(a.ctx, wruntime.OpenDialogOptions{Title: "Archiv-Ordner wählen"})
+}
+
+// sanitizeFolder turns a sender address into a safe folder name.
+func sanitizeFolder(s string) string {
+	s = strings.TrimSpace(s)
+	s = strings.Map(func(r rune) rune {
+		switch r {
+		case '<', '>', ':', '"', '/', '\\', '|', '?', '*':
+			return '_'
+		}
+		if r < 32 {
+			return '_'
+		}
+		return r
+	}, s)
+	s = strings.Trim(s, ". ")
+	if s == "" {
+		return "Unbekannt"
+	}
+	return s
+}
+
+// ArchiveSave downloads an attachment, stores it locally under a per-sender
+// subfolder and optionally uploads to a WebDAV target configured for the account.
+func (a *App) ArchiveSave(accountID, folder string, uid uint32, index int, sender, dateStr string) error {
 	acc, err := a.acc(accountID)
 	if err != nil {
 		return err
@@ -632,15 +681,25 @@ func (a *App) ArchiveSave(accountID, folder string, uid uint32, index int) error
 	if name == "." || name == string(filepath.Separator) || strings.TrimSpace(name) == "" {
 		return fmt.Errorf("ungültiger Anhangsname")
 	}
-	dir, err := archiveDir()
+	dir, err := archiveDir(acc.ArchiveDir)
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(dir, name), data, 0o644); err != nil {
+	// Ablage nach Absender/Jahr/Monat (Mail-Datum, sonst heute).
+	year, month := time.Now().Format("2006"), time.Now().Format("01")
+	if t, err := time.Parse(time.RFC3339, dateStr); err == nil {
+		year, month = t.Format("2006"), t.Format("01")
+	}
+	rel := filepath.Join(sanitizeFolder(sender), year, month)
+	subDir := filepath.Join(dir, rel)
+	if err := os.MkdirAll(subDir, 0o755); err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(subDir, name), data, 0o644); err != nil {
 		return err
 	}
 	if acc.WebDAVURL != "" {
-		go webdavPut(acc.WebDAVURL, acc.User, acc.Password, name, data)
+		go webdavPut(acc.WebDAVURL, acc.User, acc.Password, sanitizeFolder(sender)+"/"+year+"/"+month+"/"+name, data)
 	}
 	return nil
 }
@@ -664,7 +723,20 @@ func (a *App) GetAttachmentData(accountID, folder string, uid uint32, index int)
 }
 
 func webdavPut(rawURL, user, pass, filename string, data []byte) {
-	req, err := http.NewRequest("PUT", strings.TrimRight(rawURL, "/")+"/"+filename, bytes.NewReader(data))
+	base := strings.TrimRight(rawURL, "/")
+	// Best-effort: alle Zwischen-Collections (Absender/Jahr/Monat) anlegen.
+	parts := strings.Split(filename, "/")
+	cur := base
+	for _, seg := range parts[:len(parts)-1] {
+		cur += "/" + seg
+		if mkcol, err := http.NewRequest("MKCOL", cur, nil); err == nil {
+			mkcol.SetBasicAuth(user, pass)
+			if r, e := http.DefaultClient.Do(mkcol); e == nil {
+				r.Body.Close()
+			}
+		}
+	}
+	req, err := http.NewRequest("PUT", base+"/"+filename, bytes.NewReader(data))
 	if err != nil {
 		return
 	}
@@ -676,30 +748,40 @@ func webdavPut(rawURL, user, pass, filename string, data []byte) {
 }
 
 // ArchiveList returns all files in the local attachment archive, newest first.
-func (a *App) ArchiveList() ([]ArchivedFile, error) {
-	dir, err := archiveDir()
+func (a *App) ArchiveList(accountID string) ([]ArchivedFile, error) {
+	acc, err := a.acc(accountID)
 	if err != nil {
 		return nil, err
 	}
-	entries, err := os.ReadDir(dir)
+	dir, err := archiveDir(acc.ArchiveDir)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return []ArchivedFile{}, nil
-		}
 		return nil, err
 	}
+	dir, _ = filepath.Abs(dir)
 	files := []ArchivedFile{}
-	for _, e := range entries {
-		if e.IsDir() {
-			continue
+	// Rekursiv, damit auch nach Absender o. ä. abgelegte Unterordner erscheinen.
+	walkErr := filepath.WalkDir(dir, func(p string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return nil
 		}
-		info, _ := e.Info()
+		info, e := d.Info()
+		if e != nil {
+			return nil
+		}
+		rel, _ := filepath.Rel(dir, p)
 		files = append(files, ArchivedFile{
-			Name: e.Name(),
-			Path: filepath.Join(dir, e.Name()),
+			Name: filepath.ToSlash(rel), // zeigt ggf. Unterordner (z. B. "absender/datei.pdf")
+			Path: p,
 			Size: info.Size(),
 			Date: info.ModTime().Format(time.RFC3339),
 		})
+		return nil
+	})
+	if walkErr != nil {
+		if os.IsNotExist(walkErr) {
+			return []ArchivedFile{}, nil
+		}
+		return nil, walkErr
 	}
 	sort.Slice(files, func(i, j int) bool { return files[i].Date > files[j].Date })
 	return files, nil
@@ -711,14 +793,23 @@ func (a *App) ArchiveOpen(path string) error {
 }
 
 // ArchiveDelete removes a file from the archive.
-func (a *App) ArchiveDelete(path string) error {
-	dir, err := archiveDir()
+func (a *App) ArchiveDelete(path, accountID string) error {
+	acc, err := a.acc(accountID)
 	if err != nil {
 		return err
 	}
-	// Safety: only delete files inside the archive directory.
+	dir, err := archiveDir(acc.ArchiveDir)
+	if err != nil {
+		return err
+	}
+	dir, _ = filepath.Abs(dir)
+	// Safety: only delete files inside the archive tree (incl. subfolders).
 	abs, err := filepath.Abs(path)
-	if err != nil || filepath.Dir(abs) != dir {
+	if err != nil {
+		return fmt.Errorf("ungültiger Pfad")
+	}
+	rel, err := filepath.Rel(dir, abs)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
 		return fmt.Errorf("ungültiger Pfad")
 	}
 	return os.Remove(abs)

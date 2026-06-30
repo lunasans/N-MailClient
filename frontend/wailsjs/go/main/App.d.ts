@@ -9,13 +9,13 @@ import {sieve} from '../models';
 
 export function AddAccount(arg1:store.Account):Promise<store.Account>;
 
-export function ArchiveDelete(arg1:string):Promise<void>;
+export function ArchiveDelete(arg1:string,arg2:string):Promise<void>;
 
-export function ArchiveList():Promise<Array<main.ArchivedFile>>;
+export function ArchiveList(arg1:string):Promise<Array<main.ArchivedFile>>;
 
 export function ArchiveOpen(arg1:string):Promise<void>;
 
-export function ArchiveSave(arg1:string,arg2:string,arg3:number,arg4:number):Promise<void>;
+export function ArchiveSave(arg1:string,arg2:string,arg3:number,arg4:number,arg5:string,arg6:string):Promise<void>;
 
 export function CachedMessages(arg1:string,arg2:string):Promise<Array<mail.Summary>>;
 
@@ -81,6 +81,8 @@ export function PGPImportKey(arg1:string):Promise<main.PGPKeyInfo>;
 
 export function PGPListKeys():Promise<Array<main.PGPKeyInfo>>;
 
+export function PickFolder():Promise<string>;
+
 export function Probe(arg1:string):Promise<mail.ProbeResult>;
 
 export function RemoveAccount(arg1:string):Promise<void>;
@@ -116,6 +118,10 @@ export function SieveList(arg1:string):Promise<Array<sieve.Script>>;
 export function SievePut(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function SieveSetActive(arg1:string,arg2:string):Promise<void>;
+
+export function SmartCounts(arg1:string):Promise<mail.SmartCounts>;
+
+export function SmartFolder(arg1:string,arg2:string):Promise<Array<mail.SmartSummary>>;
 
 export function Translate(arg1:string,arg2:string,arg3:string,arg4:string):Promise<string>;
 

@@ -590,6 +590,140 @@ type UnifiedSummary struct {
 	AccountEmail string `json:"accountEmail"`
 }
 
+// SmartSummary extends Summary with the source folder (smart folders span all folders).
+type SmartSummary struct {
+	Summary
+	AccountID string `json:"accountId"`
+	Folder    string `json:"folder"`
+}
+
+// SmartCounts holds account-wide message counts for the smart folders.
+type SmartCounts struct {
+	Unread        int `json:"unread"`
+	Flagged       int `json:"flagged"`
+	UnreadFlagged int `json:"unreadFlagged"`
+}
+
+// SmartCount counts unread / flagged / unread+flagged messages across all
+// selectable folders of an account (one IMAP connection, SEARCH per folder).
+func SmartCount(a store.Account) (SmartCounts, error) {
+	var res SmartCounts
+	c, err := connect(a)
+	if err != nil {
+		return res, err
+	}
+	defer c.Logout()
+
+	mailboxes := make(chan *imap.MailboxInfo, 50)
+	listDone := make(chan error, 1)
+	go func() { listDone <- c.List("", "*", mailboxes) }()
+	var names []string
+	for m := range mailboxes {
+		noselect := false
+		for _, attr := range m.Attributes {
+			if attr == imap.NoSelectAttr {
+				noselect = true
+			}
+		}
+		if !noselect {
+			names = append(names, m.Name)
+		}
+	}
+	if err := <-listDone; err != nil {
+		return res, err
+	}
+
+	unread := imap.NewSearchCriteria()
+	unread.WithoutFlags = []string{imap.SeenFlag}
+	flagged := imap.NewSearchCriteria()
+	flagged.WithFlags = []string{imap.FlaggedFlag}
+	uf := imap.NewSearchCriteria()
+	uf.WithoutFlags = []string{imap.SeenFlag}
+	uf.WithFlags = []string{imap.FlaggedFlag}
+
+	for _, name := range names {
+		if _, err := c.Select(name, true); err != nil {
+			continue
+		}
+		if u, err := c.UidSearch(unread); err == nil {
+			res.Unread += len(u)
+		}
+		if u, err := c.UidSearch(flagged); err == nil {
+			res.Flagged += len(u)
+		}
+		if u, err := c.UidSearch(uf); err == nil {
+			res.UnreadFlagged += len(u)
+		}
+	}
+	return res, nil
+}
+
+// SmartSearch runs a flag-based search across all selectable folders of an account.
+// kind: "unread", "flagged", or "unread_flagged".
+func SmartSearch(a store.Account, kind string) ([]SmartSummary, error) {
+	crit := imap.NewSearchCriteria()
+	switch kind {
+	case "unread":
+		crit.WithoutFlags = []string{imap.SeenFlag}
+	case "flagged":
+		crit.WithFlags = []string{imap.FlaggedFlag}
+	case "unread_flagged":
+		crit.WithoutFlags = []string{imap.SeenFlag}
+		crit.WithFlags = []string{imap.FlaggedFlag}
+	default:
+		return nil, fmt.Errorf("unbekannter Filter")
+	}
+
+	c, err := connect(a)
+	if err != nil {
+		return nil, err
+	}
+	defer c.Logout()
+
+	// Collect selectable mailbox names.
+	mailboxes := make(chan *imap.MailboxInfo, 50)
+	listDone := make(chan error, 1)
+	go func() { listDone <- c.List("", "*", mailboxes) }()
+	var names []string
+	for m := range mailboxes {
+		noselect := false
+		for _, attr := range m.Attributes {
+			if attr == imap.NoSelectAttr {
+				noselect = true
+			}
+		}
+		if !noselect {
+			names = append(names, m.Name)
+		}
+	}
+	if err := <-listDone; err != nil {
+		return nil, err
+	}
+
+	var out []SmartSummary
+	for _, name := range names {
+		if _, err := c.Select(name, true); err != nil {
+			continue
+		}
+		uids, err := c.UidSearch(crit)
+		if err != nil || len(uids) == 0 {
+			continue
+		}
+		seqset := new(imap.SeqSet)
+		seqset.AddNum(uids...)
+		msgs := make(chan *imap.Message, len(uids))
+		fetchDone := make(chan error, 1)
+		items := []imap.FetchItem{imap.FetchEnvelope, imap.FetchUid, imap.FetchFlags, imap.FetchBodyStructure}
+		go func() { fetchDone <- c.UidFetch(seqset, items, msgs) }()
+		for m := range msgs {
+			out = append(out, SmartSummary{Summary: summaryFrom(m), AccountID: a.ID, Folder: name})
+		}
+		<-fetchDone
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Date > out[j].Date })
+	return out, nil
+}
+
 // GetSource returns the raw RFC 2822 bytes of a message as a string.
 func GetSource(a store.Account, folder string, uid uint32) (string, error) {
 	c, err := connect(a)

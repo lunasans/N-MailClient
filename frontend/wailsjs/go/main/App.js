@@ -6,20 +6,20 @@ export function AddAccount(arg1) {
   return window['go']['main']['App']['AddAccount'](arg1);
 }
 
-export function ArchiveDelete(arg1) {
-  return window['go']['main']['App']['ArchiveDelete'](arg1);
+export function ArchiveDelete(arg1, arg2) {
+  return window['go']['main']['App']['ArchiveDelete'](arg1, arg2);
 }
 
-export function ArchiveList() {
-  return window['go']['main']['App']['ArchiveList']();
+export function ArchiveList(arg1) {
+  return window['go']['main']['App']['ArchiveList'](arg1);
 }
 
 export function ArchiveOpen(arg1) {
   return window['go']['main']['App']['ArchiveOpen'](arg1);
 }
 
-export function ArchiveSave(arg1, arg2, arg3, arg4) {
-  return window['go']['main']['App']['ArchiveSave'](arg1, arg2, arg3, arg4);
+export function ArchiveSave(arg1, arg2, arg3, arg4, arg5, arg6) {
+  return window['go']['main']['App']['ArchiveSave'](arg1, arg2, arg3, arg4, arg5, arg6);
 }
 
 export function CachedMessages(arg1, arg2) {
@@ -150,6 +150,10 @@ export function PGPListKeys() {
   return window['go']['main']['App']['PGPListKeys']();
 }
 
+export function PickFolder() {
+  return window['go']['main']['App']['PickFolder']();
+}
+
 export function Probe(arg1) {
   return window['go']['main']['App']['Probe'](arg1);
 }
@@ -220,6 +224,14 @@ export function SievePut(arg1, arg2, arg3) {
 
 export function SieveSetActive(arg1, arg2) {
   return window['go']['main']['App']['SieveSetActive'](arg1, arg2);
+}
+
+export function SmartCounts(arg1) {
+  return window['go']['main']['App']['SmartCounts'](arg1);
+}
+
+export function SmartFolder(arg1, arg2) {
+  return window['go']['main']['App']['SmartFolder'](arg1, arg2);
 }
 
 export function Translate(arg1, arg2, arg3, arg4) {

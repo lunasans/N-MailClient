@@ -196,9 +196,12 @@ textarea.sc{flex:1;resize:none;border-radius:0;border:none;padding:.45rem;font-f
 
 /* archive */
 .arl{flex:1;overflow-y:auto}
-.arr{display:flex;align-items:center;padding:.35rem .7rem;border-bottom:1px solid var(--line);gap:.45rem;font-size:12px}
+.arr{display:flex;align-items:center;padding:.35rem .7rem .35rem 1.6rem;border-bottom:1px solid var(--line);gap:.45rem;font-size:12px}
 .arr:hover{background:var(--hover)}
 .arn{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.arch-grp{display:flex;align-items:center;gap:.4rem;padding:.5rem .6rem .35rem;font-size:12.5px;font-weight:600;color:var(--text);background:var(--panel);border-top:2px solid var(--accent);position:sticky;top:0;z-index:2}
+.arch-grp .cnt{margin-left:auto;color:var(--subtle);font-weight:400;font-size:11px}
+.ar-ic{flex-shrink:0;opacity:.6;font-size:12px}
 
 /* about */
 #view-about .ai{max-width:480px;margin:1.5rem auto;padding:.8rem}
@@ -463,7 +466,8 @@ textarea.sc{flex:1;resize:none;border-radius:0;border:none;padding:.45rem;font-f
 <div id="view-archive" class="view">
   <div style="display:flex;align-items:center;gap:.45rem;padding:.35rem .55rem;border-bottom:1px solid var(--line);flex-shrink:0">
     <span style="font-weight:600;white-space:nowrap">Anhang-Archiv</span>
-    <input id="archSrch" placeholder="Suchen..." style="flex:1;font-size:12px" oninput="filterArch()">
+    <select id="archAccSel" style="font-size:12px;width:auto;flex:0 0 auto;max-width:220px" onchange="loadArch()"></select>
+    <input id="archSrch" placeholder="Suchen..." style="flex:1 1 auto;min-width:160px;font-size:12px" oninput="filterArch()">
     <button class="gho" onclick="loadArch()">&#x21BB;</button>
   </div>
   <div class="arl" id="archList"></div>
@@ -839,6 +843,7 @@ textarea.sc{flex:1;resize:none;border-radius:0;border:none;padding:.45rem;font-f
           <button class="sa-navbtn" data-sec="sig" onclick="setAccSec('sig')">Signatur</button>
           <button class="sa-navbtn" data-sec="alias" onclick="setAccSec('alias')">Aliase</button>
           <button class="sa-navbtn" data-sec="kk" onclick="setAccSec('kk')">Kalender &amp; Kontakte</button>
+          <button class="sa-navbtn" data-sec="arch" onclick="setAccSec('arch')">Archiv</button>
           <button class="sa-navbtn" data-sec="adv" onclick="setAccSec('adv')">Erweitert</button>
         </div>
       </div>
@@ -881,11 +886,21 @@ textarea.sc{flex:1;resize:none;border-radius:0;border:none;padding:.45rem;font-f
             <input id="saCdav" placeholder="https://…/carddav/">
           </div>
         </div>
+        <div class="sa-sec" data-sec="arch" style="display:none">
+          <div style="display:grid;gap:.28rem">
+            <label style="font-size:11.5px;color:var(--subtle)">Lokaler Archiv-Ordner (leer = Standard in AppData)</label>
+            <div style="display:flex;gap:.3rem">
+              <input id="saArch" placeholder="z. B. ein Nextcloud-/OneDrive-Ordner" style="flex:1">
+              <button class="gho" type="button" onclick="pickArchiveFolder()" style="font-size:12px;white-space:nowrap">Durchsuchen…</button>
+            </div>
+            <label style="font-size:11.5px;color:var(--subtle);margin-top:.3rem">WebDAV-Upload-URL (optional, zusätzlich)</label>
+            <input id="saWdav" placeholder="https://…/remote.php/dav/files/…/">
+          </div>
+        </div>
         <div class="sa-sec" data-sec="adv" style="display:none">
           <div style="display:grid;gap:.28rem">
             <input id="saSvH" placeholder="Sieve Host (leer = IMAP)">
             <input id="saSvP" placeholder="Sieve Port (leer = 4190)" type="number">
-            <input id="saWdav" placeholder="WebDAV Archiv-URL (optional)">
           </div>
         </div>
         <div style="display:flex;gap:.4rem;margin-top:.65rem">
@@ -1029,9 +1044,9 @@ function uiPrompt(message,defaultValue){return uiDialog({message,input:true,defa
 window.alert=message=>{uiAlert(message)}
 
 // ── state ────────────────────────────────────────────────────────────────────
-let accounts=[],acFolders={},collAcc={},collFld={},ctsList=[]
+let accounts=[],acFolders={},collAcc={},collFld={},collSmart={},ctsList=[]
 let curAcc=null,curFld=null,msgs=[],msgOff=0,hasMore=false,threadMode=false
-let viewUID=0,viewAcc=null,viewFld=null,viewFrom=''
+let viewUID=0,viewAcc=null,viewFld=null,viewFrom='',viewDate=''
 let ctxUID=0,ctxAcc=null,ctxFld=null
 let undoPend=null,undoTm=null
 let calY=new Date().getFullYear(),calM=new Date().getMonth(),calView='month',calEvs=[],calAcc=null
@@ -1054,7 +1069,7 @@ function sw(name){
   if(name==='contacts'&&!ctlLoaded){ctlLoaded=true;loadCts()}
   if(name==='calendar'&&!calLoaded){calLoaded=true;loadCal()}
   if(name==='filter'&&!flLoaded){flLoaded=true;initSv()}
-  if(name==='archive'&&!arLoaded){arLoaded=true;loadArch()}
+  if(name==='archive'&&!arLoaded){arLoaded=true;initArch()}
 }
 
 // ── init ─────────────────────────────────────────────────────────────────────
@@ -1118,7 +1133,7 @@ function renderSb(){
   if(accounts.length>1){
     const r=ce('div','fr'+(curAcc===null?' act':''))
     r.innerHTML=`<span style="font-size:13px">&#x1F4EC;</span><span>Alle Konten</span>`
-    r.onclick=()=>{curAcc=null;curFld=null;loadUnified()}
+    r.onclick=()=>{smartActive=null;curAcc=null;curFld=null;loadUnified()}
     tree.appendChild(r)
   }
   accounts.forEach((a,i)=>{
@@ -1129,6 +1144,26 @@ function renderSb(){
     hdr.ondblclick=e=>{e.stopPropagation();openAccDlg(a)}
     tree.appendChild(hdr)
     if(collAcc[a.id])return
+    // Smarte Ordner (feste Schnellfilter über alle Ordner des Kontos)
+    const sgKey=a.id
+    if(collSmart[sgKey]===undefined)collSmart[sgKey]=true
+    const accUnread=(acFolders[a.id]||[]).reduce((s,f)=>s+(f.unseen||0),0)
+    const sg=ce('div','fr')
+    sg.style.paddingLeft='0.4rem'
+    sg.innerHTML=`<span style="font-size:9px;width:10px;flex-shrink:0">${collSmart[sgKey]?'&#x25B8;':'&#x25BE;'}</span><span style="flex:1;color:var(--subtle)">&#x1F50E; Smarte Ordner</span>${accUnread?`<span class="fbadge">${accUnread}</span>`:''}`
+    sg.onclick=()=>{const open=collSmart[sgKey];collSmart[sgKey]=!open;if(open&&!smartCounts[a.id])loadSmartCounts(a.id);renderSb()}
+    tree.appendChild(sg)
+    if(!collSmart[sgKey]){
+      const sc=smartCounts[a.id]||{}
+      ;[['unread','&#x2709; Ungelesen','unread'],['flagged','&#x2605; Markiert','flagged'],['unread_flagged','&#x2709;&#x2605; Ungelesen &amp; Markiert','unreadFlagged']].forEach(([kind,lbl,ck])=>{
+        const r=ce('div','fr'+(smartActive===a.id+':'+kind?' act':''))
+        r.style.paddingLeft='1.6rem'
+        const n=sc[ck]||0
+        r.innerHTML=`<span style="width:10px;flex-shrink:0"></span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${lbl}</span>${n?`<span class="fbadge">${n}</span>`:''}`
+        r.onclick=()=>runSmart(a.id,kind)
+        tree.appendChild(r)
+      })
+    }
     const sorted=sortFlds(acFolders[a.id]||[],a.id)
     const hasKids=new Set()
     sorted.forEach(f=>{if(f.depth>0){const p=f.name.substring(0,f.name.lastIndexOf(f.delimiter||'/'));hasKids.add(p)}})
@@ -1207,6 +1242,7 @@ async function reloadFlds(accId){try{acFolders[accId]=await api().Folders(accId)
 
 // ── select folder / load ─────────────────────────────────────────────────────
 function selectFld(accId,folder){
+  smartActive=null
   curAcc=accId;curFld=folder;msgOff=0;msgs=[];renderSb();$('searchInp').value='';
   const isSpam=/spam|junk/i.test(folder||'')
   if($('hamBtn'))$('hamBtn').style.display=isSpam?'':'none'
@@ -1243,6 +1279,24 @@ async function loadMsgs(){
 async function loadUnified(){
   renderSb()
   try{msgs=await api().UnifiedInbox();hasMore=false;$('loadMoreBar').style.display='none';renderMsgList(msgs)}catch(e){console.error(e);$('msgList').innerHTML='<div style="padding:1rem;color:var(--danger);font-size:12px;white-space:pre-wrap">Fehler beim Laden:\n'+esc(''+e)+'</div>'}
+}
+
+// ── Smarte Ordner (gespeicherte Schnellfilter, kontoweit) ─────────────────────
+let smartActive=null
+let smartCounts={}
+async function loadSmartCounts(accId){
+  try{smartCounts[accId]=await api().SmartCounts(accId);renderSb()}catch(e){}
+}
+async function runSmart(accId,kind){
+  smartActive=accId+':'+kind
+  curAcc=accId;curFld=null;msgOff=0;selectedUIDs.clear();updateBatchBar()
+  setCat('alle');renderSb()
+  $('msgList').innerHTML='<div style="padding:1rem;color:var(--subtle);font-size:12px">Suche läuft…</div>'
+  try{
+    msgs=await api().SmartFolder(accId,kind)
+    hasMore=false;$('loadMoreBar').style.display='none'
+    renderMsgList(msgs)
+  }catch(e){$('msgList').innerHTML='<div style="padding:1rem;color:var(--danger);font-size:12px;white-space:pre-wrap">Fehler: '+esc(''+e)+'</div>'}
 }
 
 function loadMore(){msgOff+=50;loadMsgs()}
@@ -1322,7 +1376,7 @@ function renderMsgList(list){
     const bkt=dateBkt(m.date)
     if(bkt!==lastBkt){html+=`<div class="dgh">${bkt}</div>`;lastBkt=bkt}
     const accId=m.accountId||curAcc
-    const fld=m.accountEmail?'INBOX':(curFld||'INBOX')
+    const fld=m.folder||(m.accountEmail?'INBOX':(curFld||'INBOX'))
     const unread=!m.seen?' unread':''
     const accBadge=m.accountEmail?`<span class="macc">${esc((m.accountEmail||'').split('@')[0])}</span>`:''
     const ini=senderIni(m.from)
@@ -1463,7 +1517,7 @@ async function openMsg(uid,accId,folder){
 }
 
 function renderRH(d){
-  viewFrom=exEmail(d.from||'')
+  viewFrom=exEmail(d.from||'');viewDate=d.date||''
   const lbls=(d.labels||[]).map(l=>`<span class="lc" style="background:${labelColor(l)};color:#fff">${esc(l)}<span class="rx" onclick="rmLbl('${esc(l)}')">&#x2715;</span></span>`).join('')
   $('readHead').innerHTML=`
     <div class="rh-subj">${esc(d.subject||'(kein Betreff)')}</div>
@@ -1668,7 +1722,7 @@ async function translateMsg(){
 async function viewSrc(){if(!viewUID)return;try{$('srcTxt').value=await api().MessageSource(viewAcc,viewFld,viewUID);$('srcDlg').showModal()}catch(e){alert(e)}}
 
 async function saveAtt(idx){try{await api().SaveAttachment(viewAcc,viewFld,viewUID,idx)}catch(e){alert(e)}}
-async function archAtt(idx){try{await api().ArchiveSave(viewAcc,viewFld,viewUID,idx);alert('Im Archiv gespeichert.')}catch(e){alert(e)}}
+async function archAtt(idx){try{await api().ArchiveSave(viewAcc,viewFld,viewUID,idx,viewFrom||'',viewDate||'');alert('Im Archiv gespeichert.')}catch(e){alert(e)}}
 async function previewPDF(idx){
   try{
     const r=await api().GetAttachmentData(viewAcc,viewFld,viewUID,idx)
@@ -1985,6 +2039,7 @@ function setAccEdit(idx){
   $('saAliases').value=JSON.parse(localStorage.getItem('acc-aliases-'+a.id)||'[]').join(', ')
   $('saSvH').value=a.sieveHost||'';$('saSvP').value=a.sievePort||''
   $('saCdav').value=a.cardDavUrl||'';$('saCalv').value=a.calDavUrl||'';$('saWdav').value=a.webDavUrl||''
+  $('saArch').value=a.archiveDir||''
   $('setAccDel').style.display='inline-block'
   $('saProbeStatus').style.display='none'
   $('setAccForm').style.display='block';$('setAccHint').style.display='none'
@@ -2004,7 +2059,7 @@ function setAccNew(){
   $('saN').value='';$('saE').value='';$('saU').value='';$('saP').value=''
   $('saIH').value='';$('saIP').value='993';$('saSH').value='';$('saSP').value='587'
   $('saSigEd').innerHTML='';$('saAliases').value=''
-  $('saSvH').value='';$('saSvP').value='';$('saCdav').value='';$('saCalv').value='';$('saWdav').value=''
+  $('saSvH').value='';$('saSvP').value='';$('saCdav').value='';$('saCalv').value='';$('saWdav').value='';$('saArch').value=''
   $('setAccDel').style.display='none'
   $('saProbeStatus').style.display='none'
   $('setAccForm').style.display='block';$('setAccHint').style.display='none'
@@ -2026,7 +2081,7 @@ async function setAccSave(){
     password:$('saP').value,imapHost:$('saIH').value,imapPort:parseInt($('saIP').value)||993,
     smtpHost:$('saSH').value,smtpPort:parseInt($('saSP').value)||587,signature:sigClean($('saSigEd').innerHTML),
     sieveHost:$('saSvH').value,sievePort:parseInt($('saSvP').value)||0,
-    cardDavUrl:$('saCdav').value,calDavUrl:$('saCalv').value,webDavUrl:$('saWdav').value}
+    cardDavUrl:$('saCdav').value,calDavUrl:$('saCalv').value,webDavUrl:$('saWdav').value,archiveDir:$('saArch').value}
   try{
     if(setEditAcc)await api().UpdateAccount(data)
     else await api().AddAccount(data)
@@ -2220,9 +2275,16 @@ async function delSv(){if(!svCur||!await uiConfirm(`"${svCur}" löschen?`))retur
 
 // ── archive ───────────────────────────────────────────────────────────────────
 let _archData=[]
+async function pickArchiveFolder(){try{const p=await api().PickFolder();if(p)$('saArch').value=p}catch(e){alert(e)}}
+function initArch(){
+  $('archAccSel').innerHTML=accounts.map(a=>`<option value="${esc(a.id)}">${esc(a.name||a.email)}</option>`).join('')
+  loadArch()
+}
 async function loadArch(){
+  const accId=$('archAccSel').value||accounts[0]?.id
+  if(!accId){renderArch([]);return}
   try{
-    _archData=await api().ArchiveList()
+    _archData=await api().ArchiveList(accId)
     renderArch(_archData)
   }catch(e){$('archList').textContent='Fehler: '+e}
 }
@@ -2233,16 +2295,33 @@ function filterArch(){
 }
 function renderArch(fs){
   fs=fs||[]
-  $('archList').innerHTML=fs.map(f=>`<div class="arr">
-    <span class="arn">${esc(f.name)}</span>
-    <span style="color:var(--subtle);font-size:11px">${fmtSz(f.size)}</span>
-    <span style="color:var(--subtle);font-size:11px">${new Date(f.date).toLocaleDateString('de')}</span>
-    <button class="gho" onclick="api().ArchiveOpen('${esc(f.path)}')" style="padding:.12rem .45rem;font-size:11px">Öffnen</button>
-    <button class="gho" onclick="archDel('${esc(f.path)}')" style="color:var(--danger);padding:.12rem .45rem;font-size:11px">Löschen</button>
-  </div>`).join('')||'<div style="padding:.75rem;color:var(--subtle);font-size:12px">Keine Einträge</div>'
+  if(!fs.length){$('archList').innerHTML='<div style="padding:.75rem;color:var(--subtle);font-size:12px">Keine Einträge</div>';return}
+  // Nach Absender (erstes Pfadsegment des Namens) gruppieren.
+  const groups={}
+  fs.forEach(f=>{
+    const i=(f.name||'').indexOf('/')
+    const sender=i>0?f.name.slice(0,i):'(Ohne Absender)'
+    const disp=i>0?f.name.slice(i+1):(f.name||'')
+    ;(groups[sender]=groups[sender]||[]).push(Object.assign({disp},f))
+  })
+  let html=''
+  Object.keys(groups).sort((a,b)=>a.localeCompare(b)).forEach(s=>{
+    html+=`<div class="arch-grp"><span>&#x1F4C1;</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s)}</span><span class="cnt">${groups[s].length} Datei(en)</span></div>`
+    groups[s].forEach(f=>{
+      html+=`<div class="arr" data-p="${esc(f.path)}" ondblclick="api().ArchiveOpen(this.dataset.p)" style="cursor:pointer">
+        <span class="ar-ic">&#x1F4C4;</span>
+        <span class="arn">${esc(f.disp)}</span>
+        <span style="color:var(--subtle);font-size:11px">${fmtSz(f.size)}</span>
+        <span style="color:var(--subtle);font-size:11px">${new Date(f.date).toLocaleDateString('de')}</span>
+        <button class="gho" data-p="${esc(f.path)}" onclick="api().ArchiveOpen(this.dataset.p)" style="padding:.12rem .45rem;font-size:11px">Öffnen</button>
+        <button class="gho" data-p="${esc(f.path)}" onclick="archDel(this.dataset.p)" style="color:var(--danger);padding:.12rem .45rem;font-size:11px">Löschen</button>
+      </div>`
+    })
+  })
+  $('archList').innerHTML=html
 }
 function fmtSz(b){if(b<1024)return b+'B';if(b<1048576)return(b/1024|0)+'KB';return(b/1048576).toFixed(1)+'MB'}
-async function archDel(p){if(!await uiConfirm('Datei löschen?'))return;try{await api().ArchiveDelete(p);loadArch()}catch(e){alert(e)}}
+async function archDel(p){if(!await uiConfirm('Datei löschen?'))return;try{await api().ArchiveDelete(p,$('archAccSel').value||accounts[0]?.id);loadArch()}catch(e){alert(e)}}
 function playNotifBeep(){
   try{new Audio('notification.wav').play()}catch(e){}
 }
@@ -2780,7 +2859,7 @@ async function initMailWindow(wm){
     accounts=await api().ListAccounts()
     viewUID=wm.uid;viewAcc=wm.acc;viewFld=wm.fld
     const d=await api().Message(wm.acc,wm.fld,wm.uid)
-    viewFrom=exEmail(d.from||'')
+    viewFrom=exEmail(d.from||'');viewDate=d.date||''
     $('readActs').innerHTML=`
       <button class="ra" onclick="replyMsg()">&#x21A9; Antworten</button>
       <button class="ra" onclick="replyAllMsg()">Allen</button>

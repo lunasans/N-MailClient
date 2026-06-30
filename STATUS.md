@@ -129,8 +129,9 @@ Version 0.6.0 (veröffentlicht)
 Version 0.7.0
 
 - [x] Links aus E-Mails im Systembrowser öffnen (statt in der Mail-Ansicht) — via Wails BrowserOpenURL
+- [x] Smart-/virtuelle Ordner (feste Schnellfilter Ungelesen/Markiert/Ungelesen&Markiert, kontoweit über alle Ordner; Badges, lazy berechnet)  [Produktivität]
+- [x] Anhang-Archiv überarbeitet: kontobezogener Ordner (+Ordnerauswahl), rekursive Anzeige, Ablage nach Absender/Jahr/Monat, nach Absender gruppierte Ansicht, Doppelklick zum Öffnen, WebDAV mit MKCOL
 - [] Follow-up / Wiedervorlage-Markierung mit Erinnerung  [Produktivität]
-- [] Smart-/virtuelle Ordner (gespeicherte Suchen, z. B. „ungelesen + markiert")  [Produktivität]
 - [] Geplanter Versand (zu bestimmtem Zeitpunkt senden; baut auf Undo-Send/Scheduler auf)  [Vorhandenes nutzen]
 - [] Snooze / „später erinnern" (Mail verschwindet, kommt zur gewählten Zeit zurück)  [Produktivität]
 - [] Vorlagen / Textbausteine (Canned Responses)  [Produktivität]
