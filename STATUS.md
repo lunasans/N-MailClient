@@ -134,7 +134,7 @@ Version 0.7.0
 - [] Follow-up / Wiedervorlage-Markierung mit Erinnerung  [Produktivität]
 - [] Geplanter Versand (zu bestimmtem Zeitpunkt senden; baut auf Undo-Send/Scheduler auf)  [Vorhandenes nutzen]
 - [] Snooze / „später erinnern" (Mail verschwindet, kommt zur gewählten Zeit zurück)  [Produktivität]
-- [] Vorlagen / Textbausteine (Canned Responses)  [Produktivität]
+- [x] Vorlagen / Textbausteine (Composer-Dropdown: einfügen/speichern/verwalten, localStorage)  [Produktivität]
 - [x] Anpassbare Listendichte (Kompakt/Normal/Komfortabel, live umschaltbar)  [Komfort]
 - [] OAuth2 (Gmail/Microsoft 365) für Konten  [Konten & Protokoll]
 - [] Listen-Virtualisierung für sehr große Ordner

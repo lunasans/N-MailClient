@@ -591,7 +591,10 @@ textarea.sc{flex:1;resize:none;border-radius:0;border:none;padding:.45rem;font-f
       <option value="7">Sehr groß</option>
     </select>
     <button onmousedown="event.preventDefault();document.execCommand('removeFormat')" title="Formatierung löschen">Aa</button>
-    <button onclick="pickAtt()" style="margin-left:auto" title="Datei anhängen">&#x1F4CE; Datei</button>
+    <select id="tplSel" onchange="tplPick(this)" title="Textbausteine / Vorlagen" style="width:auto;flex:0 0 auto;margin-left:auto">
+      <option value="">Vorlage…</option>
+    </select>
+    <button onclick="pickAtt()" title="Datei anhängen">&#x1F4CE; Datei</button>
   </div>
   <div id="tlsBar" style="display:none;font-size:11px;padding:.18rem 0;min-height:18px"></div>
   <div id="compBody" contenteditable="true" spellcheck="true"
@@ -979,6 +982,18 @@ Ich melde mich nach meiner Rückkehr bei Ihnen.</textarea>
   <div style="display:flex;gap:.45rem;justify-content:flex-end;margin-top:.7rem">
     <button class="gho" onclick="$('vacDlg').close()">Abbrechen</button>
     <button class="pri" onclick="genVacation()">Skript generieren</button>
+  </div>
+</dialog>
+
+<!-- TEMPLATE MANAGER -->
+<dialog id="tplDlg">
+  <div style="display:flex;align-items:center;margin-bottom:.65rem">
+    <strong>Vorlagen verwalten</strong>
+    <button style="margin-left:auto;opacity:.6" onclick="$('tplDlg').close()">&#x2715;</button>
+  </div>
+  <div id="tplList" style="max-height:320px;overflow-y:auto"></div>
+  <div style="display:flex;gap:.45rem;justify-content:flex-end;margin-top:.7rem">
+    <button class="gho" onclick="$('tplDlg').close()">Schließen</button>
   </div>
 </dialog>
 
@@ -1829,6 +1844,7 @@ function applySpellcheck(){
 
 function openCompose(orig,mode){
   applySpellcheck()
+  renderTplSel()
   compAtts=[];renderAttPicks()
   const sel=$('compFrom')
   sel.innerHTML=accounts.flatMap(a=>{
@@ -2613,6 +2629,8 @@ function addDaneBadge(bar,st){
 // hook TLS check on blur of To field
 document.addEventListener('DOMContentLoaded',()=>{
   $('compTo')?.addEventListener('blur',checkTLS)
+  const cb=$('compBody')
+  if(cb){['keyup','mouseup','blur'].forEach(ev=>cb.addEventListener(ev,saveCompRange))}
 })
 
 // ── Signatur-Editor ───────────────────────────────────────────────────────────
@@ -2651,6 +2669,47 @@ async function insLink(){
   const text=savedText||url
   document.execCommand('insertHTML',false,`<a href="${url.replace(/"/g,'&quot;')}">${text}</a>`)
 }
+
+// ── Vorlagen / Textbausteine ──────────────────────────────────────────────────
+let compRange=null
+function saveCompRange(){const s=document.getSelection();if(s&&s.rangeCount&&$('compBody').contains(s.anchorNode))compRange=s.getRangeAt(0).cloneRange()}
+function tplList(){try{return JSON.parse(localStorage.getItem('mailTemplates')||'[]')}catch(e){return[]}}
+function tplSave(l){localStorage.setItem('mailTemplates',JSON.stringify(l))}
+function renderTplSel(){
+  const sel=$('tplSel');if(!sel)return
+  let h='<option value="">Vorlage…</option>'
+  tplList().forEach((t,i)=>{h+=`<option value="${i}">${esc(t.name)}</option>`})
+  h+='<option value="__save">+ Aktuellen Text speichern…</option><option value="__manage">&#x2699; Verwalten…</option>'
+  sel.innerHTML=h
+}
+function tplPick(sel){
+  const v=sel.value;sel.value=''
+  if(!v)return
+  if(v==='__save')return tplSaveCurrent()
+  if(v==='__manage')return tplManage()
+  const t=tplList()[+v];if(t)tplInsertHTML(t.body)
+}
+function tplInsertHTML(html){
+  const ed=$('compBody');ed.focus()
+  if(compRange&&ed.contains(compRange.startContainer)){const s=document.getSelection();s.removeAllRanges();s.addRange(compRange)}
+  document.execCommand('insertHTML',false,html);compBodyEdited=true
+}
+async function tplSaveCurrent(){
+  const name=await uiPrompt('Name der Vorlage:');if(!name)return
+  const l=tplList();l.push({name:name,body:$('compBody').innerHTML});tplSave(l);renderTplSel()
+}
+function tplManage(){renderTplManage();$('tplDlg').showModal()}
+function renderTplManage(){
+  const l=tplList()
+  $('tplList').innerHTML=l.length?l.map((t,i)=>`
+    <div style="display:flex;align-items:center;gap:.4rem;padding:.3rem 0;border-bottom:1px solid var(--line)">
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.name)}</span>
+      <button class="gho" onclick="tplRename(${i})" style="font-size:11px;padding:.1rem .4rem">Umbenennen</button>
+      <button class="gho" onclick="tplDelete(${i})" style="color:var(--danger);font-size:11px;padding:.1rem .4rem">Löschen</button>
+    </div>`).join(''):'<div style="color:var(--subtle);font-size:12px;padding:.4rem">Noch keine Vorlagen. Im Composer „+ Aktuellen Text speichern…".</div>'
+}
+async function tplRename(i){const l=tplList();if(!l[i])return;const n=await uiPrompt('Neuer Name:',l[i].name);if(!n)return;l[i].name=n;tplSave(l);renderTplManage();renderTplSel()}
+async function tplDelete(i){const l=tplList();if(!l[i])return;if(!await uiConfirm('Vorlage „'+l[i].name+'" löschen?'))return;l.splice(i,1);tplSave(l);renderTplManage();renderTplSel()}
 
 // ── Layout: Vorschau unten ───────────────────────────────────────────────────
 function applySplitV(){
