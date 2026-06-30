@@ -101,6 +101,11 @@ hr{border:none;border-top:1px solid var(--line);margin:.3rem 0}
 .ms{flex:1;font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--subtle)}
 .md{font-size:10.5px;color:var(--subtle);flex-shrink:0;white-space:nowrap}
 .macc{font-size:9.5px;background:var(--panel);border:1px solid var(--ctlbrd);border-radius:3px;padding:0 3px;color:var(--subtle);flex-shrink:0}
+/* Listendichte */
+body.density-compact .mr{padding-top:.1rem;padding-bottom:.1rem;min-height:28px}
+body.density-compact .mav{width:20px;height:20px;font-size:9px}
+body.density-comfort .mr{padding-top:.5rem;padding-bottom:.5rem;min-height:56px}
+body.density-comfort .mav{width:34px;height:34px;font-size:12px}
 .tcount{background:var(--accent);color:#fff;border-radius:10px;padding:0 5px;font-size:10px;font-weight:700;flex-shrink:0}
 .hov-act{display:none;position:absolute;right:4px;top:50%;transform:translateY(-50%);gap:2px;background:var(--hover);border-radius:4px;padding:1px 2px}
 .mr:hover .hov-act{display:flex}
@@ -761,6 +766,14 @@ textarea.sc{flex:1;resize:none;border-radius:0;border:none;padding:.45rem;font-f
       <input type="checkbox" id="setLSP"> Vorschau unterhalb der Mailliste
     </label>
     <label style="font-size:12px;display:flex;align-items:center;gap:.4rem;margin-bottom:.28rem">
+      Listendichte
+      <select id="setDensity" style="width:auto;flex:0 0 auto" onchange="applyDensity(this.value)">
+        <option value="compact">Kompakt</option>
+        <option value="normal">Normal</option>
+        <option value="comfort">Komfortabel</option>
+      </select>
+    </label>
+    <label style="font-size:12px;display:flex;align-items:center;gap:.4rem;margin-bottom:.28rem">
       <input type="checkbox" id="setRem"> Termin-Erinnerungen (15 min vorher)
     </label>
 
@@ -1089,6 +1102,7 @@ async function init(){
   $('svAccSel').innerHTML=opts
   calAcc=accounts[0].id
   applySplitV()
+  applyDensity()
   setInterval(checkReminders,60000)
   // Wails events
   if(window.runtime?.EventsOn){
@@ -1978,6 +1992,7 @@ function openSettings(tab){
   $('setTL').value=localStorage.getItem('transLang')||'de'
   $('setDR').value=localStorage.getItem('daneResolver')||''
   $('setSpell').value=localStorage.getItem('spellLang')||'de'
+  $('setDensity').value=localStorage.getItem('listDensity')||'normal'
   initAutostart()
   // Konten tab
   renderSetAccList()
@@ -2640,6 +2655,13 @@ async function insLink(){
 // ── Layout: Vorschau unten ───────────────────────────────────────────────────
 function applySplitV(){
   document.querySelector('.cols')?.classList.toggle('split-v',localStorage.getItem('splitV')==='1')
+}
+function applyDensity(d){
+  d=d||localStorage.getItem('listDensity')||'normal'
+  localStorage.setItem('listDensity',d)
+  document.body.classList.remove('density-compact','density-comfort')
+  if(d==='compact')document.body.classList.add('density-compact')
+  else if(d==='comfort')document.body.classList.add('density-comfort')
 }
 
 // ── Termin-Erinnerungen ──────────────────────────────────────────────────────

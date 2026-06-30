@@ -135,7 +135,7 @@ Version 0.7.0
 - [] Geplanter Versand (zu bestimmtem Zeitpunkt senden; baut auf Undo-Send/Scheduler auf)  [Vorhandenes nutzen]
 - [] Snooze / „später erinnern" (Mail verschwindet, kommt zur gewählten Zeit zurück)  [Produktivität]
 - [] Vorlagen / Textbausteine (Canned Responses)  [Produktivität]
-- [] Anpassbare Listendichte / Spalten  [Komfort]
+- [x] Anpassbare Listendichte (Kompakt/Normal/Komfortabel, live umschaltbar)  [Komfort]
 - [] OAuth2 (Gmail/Microsoft 365) für Konten  [Konten & Protokoll]
 - [] Listen-Virtualisierung für sehr große Ordner
 - [] Sieve-Baukasten: Mehrfachbedingungen UND/ODER
