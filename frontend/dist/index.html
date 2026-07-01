@@ -454,7 +454,12 @@ textarea.sc{flex:1;resize:none;border-radius:0;border:none;padding:.45rem;font-f
       </div>
       <!-- Rule builder panel -->
       <div id="ruleBuilder" style="display:none;padding:.5rem;overflow-y:auto;border-bottom:1px solid var(--line)">
-        <div style="font-size:11.5px;font-weight:600;margin-bottom:.35rem;color:var(--subtle)">WENN (eine der Bedingungen)</div>
+        <div style="font-size:11.5px;font-weight:600;margin-bottom:.35rem;color:var(--subtle);display:flex;align-items:center;gap:.4rem">WENN
+          <select id="rbMatch" style="width:auto;flex:0 0 auto;font-size:11px">
+            <option value="anyof">eine der Bedingungen (ODER)</option>
+            <option value="allof">alle Bedingungen (UND)</option>
+          </select>
+        </div>
         <div id="rbConds"></div>
         <button class="gho" onclick="addRBCond()" style="font-size:11px;padding:.18rem .45rem;margin-bottom:.5rem">+ Bedingung</button>
         <div style="font-size:11.5px;font-weight:600;margin-bottom:.35rem;color:var(--subtle)">DANN</div>
@@ -2956,7 +2961,8 @@ function genSieve(){
   if(!condParts.length||!actParts.length){alert('Bitte mindestens eine Bedingung und eine Aktion angeben.');return}
 
   const req=requires.size>0?`require [${[...requires].map(r=>`"${r}"`).join(', ')}];\n`:'require [];\n'
-  const ifBlock=condParts.length===1?`if ${condParts[0]}`:`if anyof (\n    ${condParts.join(',\n    ')}\n)`
+  const match=$('rbMatch')?.value==='allof'?'allof':'anyof'
+  const ifBlock=condParts.length===1?`if ${condParts[0]}`:`if ${match} (\n    ${condParts.join(',\n    ')}\n)`
   $('svCode').value=req+`${ifBlock} {\n    ${actParts.join('\n    ')}\n}`
   toggleRB() // switch back to code view
 }

@@ -138,7 +138,7 @@ Version 0.7.0
 - [x] Anpassbare Listendichte (Kompakt/Normal/Komfortabel, live umschaltbar)  [Komfort]
 - [] OAuth2 (Gmail/Microsoft 365) für Konten  [Konten & Protokoll]
 - [] Listen-Virtualisierung für sehr große Ordner
-- [] Sieve-Baukasten: Mehrfachbedingungen UND/ODER
+- [x] Sieve-Baukasten: Mehrfachbedingungen UND/ODER (Auswahl anyof/allof im Regelassistenten)
 - [] Kontaktgruppen/Verteiler aus vCards  [Kontakte/Kalender]
 - [] Aliase vom Server abrufen — Button „Vom Server abrufen" im Aliase-Abschnitt der
   Konto-Einstellungen. Hintergrund: IMAP/SMTP kennen kein Alias-Konzept, JMAP wird von
