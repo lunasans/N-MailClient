@@ -5,6 +5,7 @@ import {main} from '../models';
 import {mail} from '../models';
 import {calendar} from '../models';
 import {contacts} from '../models';
+import {mailcow} from '../models';
 import {sieve} from '../models';
 
 export function AddAccount(arg1:store.Account):Promise<store.Account>;
@@ -62,6 +63,18 @@ export function ImportSettings(arg1:string):Promise<void>;
 export function ListAccounts():Promise<Array<store.Account>>;
 
 export function ListScheduled():Promise<Array<main.ScheduledView>>;
+
+export function MailcowAddAlias(arg1:string,arg2:string):Promise<void>;
+
+export function MailcowAliases(arg1:string):Promise<Array<mailcow.Alias>>;
+
+export function MailcowDeleteAlias(arg1:string,arg2:string):Promise<void>;
+
+export function MailcowQuota(arg1:string):Promise<mailcow.Quota>;
+
+export function MailcowSetAliasGoto(arg1:string,arg2:string,arg3:string):Promise<void>;
+
+export function MailcowTest(arg1:string,arg2:string):Promise<void>;
 
 export function Message(arg1:string,arg2:string,arg3:number):Promise<mail.Detail>;
 

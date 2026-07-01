@@ -38,6 +38,8 @@ type Account struct {
 	CalDAVURL  string `json:"calDavUrl"`  // calendar base URL
 	WebDAVURL  string `json:"webDavUrl"`  // attachment archive WebDAV target (optional)
 	ArchiveDir string `json:"archiveDir"` // local attachment-archive folder (empty = default)
+	MailcowHost string `json:"mailcowHost"` // mailcow base host (optional)
+	MailcowKey  string `json:"mailcowKey"`  // mailcow API key — kept in OS keychain, blanked on disk
 }
 
 type Store struct {
@@ -77,6 +79,9 @@ func (s *Store) Load() {
 		if pw, err := keyring.Get(keyringService, s.Accounts[i].ID); err == nil {
 			s.Accounts[i].Password = pw
 		}
+		if k, err := keyring.Get(keyringService, s.Accounts[i].ID+":mailcow"); err == nil {
+			s.Accounts[i].MailcowKey = k
+		}
 	}
 	if migrated {
 		// Rewrite db.json without the plaintext passwords.
@@ -94,6 +99,10 @@ func (s *Store) persist() {
 			_ = keyring.Set(keyringService, clean[i].ID, clean[i].Password)
 		}
 		clean[i].Password = ""
+		if clean[i].MailcowKey != "" {
+			_ = keyring.Set(keyringService, clean[i].ID+":mailcow", clean[i].MailcowKey)
+		}
+		clean[i].MailcowKey = ""
 	}
 	b, _ := json.MarshalIndent(struct {
 		Accounts []Account `json:"accounts"`
@@ -140,9 +149,12 @@ func (s *Store) Update(in Account) (Account, error) {
 	defer s.mu.Unlock()
 	for i, a := range s.Accounts {
 		if a.ID == in.ID {
-			// Keep the existing password when the update leaves it empty.
+			// Keep the existing password/mailcow key when the update leaves them empty.
 			if in.Password == "" {
 				in.Password = a.Password
+			}
+			if in.MailcowKey == "" {
+				in.MailcowKey = a.MailcowKey
 			}
 			s.Accounts[i] = in
 			s.persist()
@@ -163,6 +175,7 @@ func (s *Store) Remove(id string) error {
 	}
 	s.Accounts = out
 	_ = keyring.Delete(keyringService, id)
+	_ = keyring.Delete(keyringService, id+":mailcow")
 	s.persist()
 	return nil
 }

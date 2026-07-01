@@ -327,6 +327,7 @@ textarea.sc{flex:1;resize:none;border-radius:0;border:none;padding:.45rem;font-f
     <button class="nvb" onclick="sw('calendar')" id="nb-calendar">Kalender</button>
     <button class="nvb" onclick="sw('filter')" id="nb-filter">Filter</button>
     <button class="nvb" onclick="sw('archive')" id="nb-archive">Archiv</button>
+    <button class="nvb" onclick="sw('mc')" id="nb-mc">mailcow</button>
     <button class="nvb" onclick="sw('about')" id="nb-about">Info</button>
   </nav>
   <div id="tb-right">
@@ -481,6 +482,24 @@ textarea.sc{flex:1;resize:none;border-radius:0;border:none;padding:.45rem;font-f
     <button class="gho" onclick="loadArch()">&#x21BB;</button>
   </div>
   <div class="arl" id="archList"></div>
+</div>
+
+<!-- MAILCOW -->
+<div id="view-mc" class="view">
+  <div style="display:flex;align-items:center;gap:.45rem;padding:.35rem .55rem;border-bottom:1px solid var(--line);flex-shrink:0">
+    <span style="font-weight:600;white-space:nowrap">mailcow</span>
+    <select id="mcAccSel" style="width:auto;flex:0 0 auto;font-size:12px" onchange="loadMc()"></select>
+    <button class="gho" onclick="loadMc()" style="margin-left:auto">&#x21BB;</button>
+  </div>
+  <div style="flex:1;overflow-y:auto;padding:.6rem">
+    <div id="mcQuota" style="margin-bottom:.9rem"></div>
+    <div style="font-weight:600;font-size:12.5px;margin-bottom:.3rem">Aliase (Ziel: dieses Postfach)</div>
+    <div style="display:flex;gap:.4rem;margin-bottom:.5rem">
+      <input id="mcNewAlias" placeholder="neuer-alias@domain.tld" style="flex:1;font-size:12px">
+      <button class="gho" onclick="mcAddAlias()" style="font-size:12px">+ Alias</button>
+    </div>
+    <div id="mcAliasList"></div>
+  </div>
 </div>
 
 <!-- ABOUT -->
@@ -881,6 +900,7 @@ textarea.sc{flex:1;resize:none;border-radius:0;border:none;padding:.45rem;font-f
           <button class="sa-navbtn" data-sec="alias" onclick="setAccSec('alias')">Aliase</button>
           <button class="sa-navbtn" data-sec="kk" onclick="setAccSec('kk')">Kalender &amp; Kontakte</button>
           <button class="sa-navbtn" data-sec="arch" onclick="setAccSec('arch')">Archiv</button>
+          <button class="sa-navbtn" data-sec="mc" onclick="setAccSec('mc')">mailcow</button>
           <button class="sa-navbtn" data-sec="adv" onclick="setAccSec('adv')">Erweitert</button>
         </div>
       </div>
@@ -932,6 +952,17 @@ textarea.sc{flex:1;resize:none;border-radius:0;border:none;padding:.45rem;font-f
             </div>
             <label style="font-size:11.5px;color:var(--subtle);margin-top:.3rem">WebDAV-Upload-URL (optional, zusätzlich)</label>
             <input id="saWdav" placeholder="https://…/remote.php/dav/files/…/">
+          </div>
+        </div>
+        <div class="sa-sec" data-sec="mc" style="display:none">
+          <div style="display:grid;gap:.28rem">
+            <label style="font-size:11.5px;color:var(--subtle)">mailcow-Host (Read-Write-API-Key nötig, ggf. IP-Allowlist)</label>
+            <input id="saMcHost" placeholder="mail.example.com">
+            <input id="saMcKey" type="password" placeholder="API-Key">
+            <div style="display:flex;gap:.4rem;align-items:center">
+              <button class="gho" type="button" onclick="mcTestConn()" style="font-size:12px">Verbindung testen</button>
+              <span id="saMcStatus" style="font-size:11px"></span>
+            </div>
           </div>
         </div>
         <div class="sa-sec" data-sec="adv" style="display:none">
@@ -1109,7 +1140,7 @@ function toggleDark(){document.body.classList.toggle('dark');localStorage.setIte
 if(localStorage.getItem('dark')==='false')document.body.classList.remove('dark')
 
 // ── navigation ───────────────────────────────────────────────────────────────
-let ctlLoaded=false,calLoaded=false,flLoaded=false,arLoaded=false
+let ctlLoaded=false,calLoaded=false,flLoaded=false,arLoaded=false,mcLoaded=false
 function sw(name){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('act'))
   document.querySelectorAll('.nvb').forEach(b=>b.classList.remove('act'))
@@ -1119,6 +1150,7 @@ function sw(name){
   if(name==='calendar'&&!calLoaded){calLoaded=true;loadCal()}
   if(name==='filter'&&!flLoaded){flLoaded=true;initSv()}
   if(name==='archive'&&!arLoaded){arLoaded=true;initArch()}
+  if(name==='mc')initMc() // Kontoliste jedes Mal aktualisieren (Config kann sich geändert haben)
 }
 
 // ── init ─────────────────────────────────────────────────────────────────────
@@ -1477,6 +1509,58 @@ async function ctxFollowupCustom(){
   setFollowup(u,a,f,t)
 }
 function ctxFollowupClear(){const u=ctxUID,a=ctxAcc,f=ctxFld;hideCtx();clearFollowup(u,a,f)}
+
+// ── mailcow (Phase 1) ─────────────────────────────────────────────────────────
+async function mcTestConn(){
+  const st=$('saMcStatus');st.style.color='var(--subtle)';st.textContent='Teste…'
+  try{await api().MailcowTest($('saMcHost').value,$('saMcKey').value);st.style.color='var(--success)';st.textContent='✓ Verbindung ok'}
+  catch(e){st.style.color='var(--danger)';st.textContent='✗ '+e}
+}
+function initMc(){
+  const mc=accounts.filter(a=>a.mailcowHost)
+  $('mcAccSel').innerHTML=mc.map(a=>`<option value="${esc(a.id)}">${esc(a.name||a.email)}</option>`).join('')
+  loadMc()
+}
+function loadMc(){
+  const accId=$('mcAccSel').value
+  if(!accId){$('mcQuota').innerHTML='<div style="color:var(--subtle);font-size:12px">Kein Konto mit mailcow-Verbindung. In den Einstellungen → Konten → „mailcow" konfigurieren.</div>';$('mcAliasList').innerHTML='';return}
+  renderMcQuota(accId);renderMcAliases(accId)
+}
+async function renderMcQuota(accId){
+  $('mcQuota').innerHTML='<div style="color:var(--subtle);font-size:12px">Lade Kontingent…</div>'
+  try{
+    const q=await api().MailcowQuota(accId)
+    const used=q.used||0,total=q.bytes||0,pct=total>0?Math.min(100,Math.round(used/total*100)):0
+    $('mcQuota').innerHTML=`<div style="font-weight:600;font-size:12.5px;margin-bottom:.25rem">Postfach-Kontingent</div>
+      <div style="height:10px;background:var(--panel);border-radius:5px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${pct>=90?'var(--danger)':'var(--accent)'}"></div></div>
+      <div style="font-size:11.5px;color:var(--subtle);margin-top:.25rem">${fmtBytes(used)} von ${total>0?fmtBytes(total):'∞'} (${pct}%) · ${q.messages||0} Nachrichten</div>`
+  }catch(e){$('mcQuota').innerHTML='<div style="color:var(--danger);font-size:12px">Kontingent-Fehler: '+esc(''+e)+'</div>'}
+}
+async function renderMcAliases(accId){
+  $('mcAliasList').innerHTML='<div style="color:var(--subtle);font-size:12px">Lade Aliase…</div>'
+  try{
+    const l=await api().MailcowAliases(accId)
+    $('mcAliasList').innerHTML=l.length?l.map(a=>`
+      <div style="display:flex;align-items:center;gap:.4rem;padding:.3rem 0;border-bottom:1px solid var(--line)">
+        <div style="flex:1;min-width:0">
+          <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.address)}</div>
+          <div style="font-size:10.5px;color:var(--subtle)">&#x2192; ${esc(a.goto)}</div>
+        </div>
+        <button class="gho" data-id="${esc(''+a.id)}" onclick="mcDelAlias(this.dataset.id)" style="color:var(--danger);font-size:11px;padding:.1rem .4rem">Löschen</button>
+      </div>`).join(''):'<div style="color:var(--subtle);font-size:12px;padding:.3rem">Keine Aliase.</div>'
+  }catch(e){$('mcAliasList').innerHTML='<div style="color:var(--danger);font-size:12px">Alias-Fehler: '+esc(''+e)+'</div>'}
+}
+async function mcAddAlias(){
+  const accId=$('mcAccSel').value;if(!accId){alert('Kein mailcow-Konto ausgewählt.');return}
+  const addr=$('mcNewAlias').value.trim();if(!addr){alert('Bitte Alias-Adresse eingeben.');return}
+  try{await api().MailcowAddAlias(accId,addr);$('mcNewAlias').value='';renderMcAliases(accId)}catch(e){alert('Anlegen fehlgeschlagen: '+e)}
+}
+async function mcDelAlias(id){
+  const accId=$('mcAccSel').value;if(!accId)return
+  if(!await uiConfirm('Alias löschen?'))return
+  try{await api().MailcowDeleteAlias(accId,id);renderMcAliases(accId)}catch(e){alert('Löschen fehlgeschlagen: '+e)}
+}
+function fmtBytes(b){b=+b||0;if(b<1024)return b+' B';if(b<1048576)return(b/1024).toFixed(0)+' KB';if(b<1073741824)return(b/1048576).toFixed(1)+' MB';return(b/1073741824).toFixed(2)+' GB'}
 
 function renderMsgList(list){
   const el=$('msgList')
@@ -2195,6 +2279,7 @@ function setAccEdit(idx){
   $('saSvH').value=a.sieveHost||'';$('saSvP').value=a.sievePort||''
   $('saCdav').value=a.cardDavUrl||'';$('saCalv').value=a.calDavUrl||'';$('saWdav').value=a.webDavUrl||''
   $('saArch').value=a.archiveDir||''
+  $('saMcHost').value=a.mailcowHost||'';$('saMcKey').value=a.mailcowKey||'';$('saMcStatus').textContent=''
   $('setAccDel').style.display='inline-block'
   $('saProbeStatus').style.display='none'
   $('setAccForm').style.display='block';$('setAccHint').style.display='none'
@@ -2215,6 +2300,7 @@ function setAccNew(){
   $('saIH').value='';$('saIP').value='993';$('saSH').value='';$('saSP').value='587'
   $('saSigEd').innerHTML='';$('saAliases').value=''
   $('saSvH').value='';$('saSvP').value='';$('saCdav').value='';$('saCalv').value='';$('saWdav').value='';$('saArch').value=''
+  $('saMcHost').value='';$('saMcKey').value='';$('saMcStatus').textContent=''
   $('setAccDel').style.display='none'
   $('saProbeStatus').style.display='none'
   $('setAccForm').style.display='block';$('setAccHint').style.display='none'
@@ -2236,7 +2322,8 @@ async function setAccSave(){
     password:$('saP').value,imapHost:$('saIH').value,imapPort:parseInt($('saIP').value)||993,
     smtpHost:$('saSH').value,smtpPort:parseInt($('saSP').value)||587,signature:sigClean($('saSigEd').innerHTML),
     sieveHost:$('saSvH').value,sievePort:parseInt($('saSvP').value)||0,
-    cardDavUrl:$('saCdav').value,calDavUrl:$('saCalv').value,webDavUrl:$('saWdav').value,archiveDir:$('saArch').value}
+    cardDavUrl:$('saCdav').value,calDavUrl:$('saCalv').value,webDavUrl:$('saWdav').value,archiveDir:$('saArch').value,
+    mailcowHost:$('saMcHost').value,mailcowKey:$('saMcKey').value}
   try{
     if(setEditAcc)await api().UpdateAccount(data)
     else await api().AddAccount(data)

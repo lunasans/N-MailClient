@@ -25,6 +25,7 @@ import (
 	"n-mailclient-go/internal/calendar"
 	"n-mailclient-go/internal/contacts"
 	"n-mailclient-go/internal/mail"
+	"n-mailclient-go/internal/mailcow"
 	"n-mailclient-go/internal/sieve"
 	"n-mailclient-go/internal/store"
 	"n-mailclient-go/internal/translate"
@@ -970,6 +971,67 @@ func (a *App) ArchiveDelete(path, accountID string) error {
 		return fmt.Errorf("ungültiger Pfad")
 	}
 	return os.Remove(abs)
+}
+
+// --- mailcow (Phase 1: eigener API-Key) -----------------------------------
+
+// MailcowTest checks a host + key combination (used before saving).
+func (a *App) MailcowTest(host, key string) error {
+	if strings.TrimSpace(host) == "" || strings.TrimSpace(key) == "" {
+		return fmt.Errorf("Host und API-Key erforderlich")
+	}
+	return mailcow.New(host, key).Test()
+}
+
+func (a *App) mailcowClient(accountID string) (*mailcow.Client, string, error) {
+	acc, err := a.acc(accountID)
+	if err != nil {
+		return nil, "", err
+	}
+	if acc.MailcowHost == "" || acc.MailcowKey == "" {
+		return nil, "", fmt.Errorf("mailcow für dieses Konto nicht konfiguriert")
+	}
+	return mailcow.New(acc.MailcowHost, acc.MailcowKey), acc.Email, nil
+}
+
+func (a *App) MailcowAliases(accountID string) ([]mailcow.Alias, error) {
+	c, email, err := a.mailcowClient(accountID)
+	if err != nil {
+		return nil, err
+	}
+	return c.Aliases(email)
+}
+
+func (a *App) MailcowAddAlias(accountID, address string) error {
+	c, email, err := a.mailcowClient(accountID)
+	if err != nil {
+		return err
+	}
+	return c.AddAlias(address, email)
+}
+
+func (a *App) MailcowSetAliasGoto(accountID, id, goto_ string) error {
+	c, _, err := a.mailcowClient(accountID)
+	if err != nil {
+		return err
+	}
+	return c.SetAliasGoto(id, goto_)
+}
+
+func (a *App) MailcowDeleteAlias(accountID, id string) error {
+	c, _, err := a.mailcowClient(accountID)
+	if err != nil {
+		return err
+	}
+	return c.DeleteAlias(id)
+}
+
+func (a *App) MailcowQuota(accountID string) (mailcow.Quota, error) {
+	c, email, err := a.mailcowClient(accountID)
+	if err != nil {
+		return mailcow.Quota{}, err
+	}
+	return c.Quota(email)
 }
 
 // --- Autostart ---------------------------------------------------------------

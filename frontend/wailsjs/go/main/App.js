@@ -114,6 +114,30 @@ export function ListScheduled() {
   return window['go']['main']['App']['ListScheduled']();
 }
 
+export function MailcowAddAlias(arg1, arg2) {
+  return window['go']['main']['App']['MailcowAddAlias'](arg1, arg2);
+}
+
+export function MailcowAliases(arg1) {
+  return window['go']['main']['App']['MailcowAliases'](arg1);
+}
+
+export function MailcowDeleteAlias(arg1, arg2) {
+  return window['go']['main']['App']['MailcowDeleteAlias'](arg1, arg2);
+}
+
+export function MailcowQuota(arg1) {
+  return window['go']['main']['App']['MailcowQuota'](arg1);
+}
+
+export function MailcowSetAliasGoto(arg1, arg2, arg3) {
+  return window['go']['main']['App']['MailcowSetAliasGoto'](arg1, arg2, arg3);
+}
+
+export function MailcowTest(arg1, arg2) {
+  return window['go']['main']['App']['MailcowTest'](arg1, arg2);
+}
+
 export function Message(arg1, arg2, arg3) {
   return window['go']['main']['App']['Message'](arg1, arg2, arg3);
 }

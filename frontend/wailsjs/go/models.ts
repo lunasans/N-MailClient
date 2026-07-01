@@ -375,6 +375,45 @@ export namespace mail {
 
 }
 
+export namespace mailcow {
+	
+	export class Alias {
+	    id: any;
+	    address: string;
+	    goto: string;
+	    active: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new Alias(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.address = source["address"];
+	        this.goto = source["goto"];
+	        this.active = source["active"];
+	    }
+	}
+	export class Quota {
+	    bytes: number;
+	    used: number;
+	    messages: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Quota(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.bytes = source["bytes"];
+	        this.used = source["used"];
+	        this.messages = source["messages"];
+	    }
+	}
+
+}
+
 export namespace main {
 	
 	export class ArchivedFile {
@@ -473,6 +512,8 @@ export namespace store {
 	    calDavUrl: string;
 	    webDavUrl: string;
 	    archiveDir: string;
+	    mailcowHost: string;
+	    mailcowKey: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Account(source);
@@ -497,6 +538,8 @@ export namespace store {
 	        this.calDavUrl = source["calDavUrl"];
 	        this.webDavUrl = source["webDavUrl"];
 	        this.archiveDir = source["archiveDir"];
+	        this.mailcowHost = source["mailcowHost"];
+	        this.mailcowKey = source["mailcowKey"];
 	    }
 	}
 
