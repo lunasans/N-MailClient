@@ -136,7 +136,6 @@ Version 0.7.0
 - [x] Snooze / „später erinnern" (Kontextmenü, lokal: Mail ausblenden + Erinnerung; Presets + Datum/Zeit)  [Produktivität]
 - [x] Vorlagen / Textbausteine (Composer-Dropdown: einfügen/speichern/verwalten, localStorage)  [Produktivität]
 - [x] Anpassbare Listendichte (Kompakt/Normal/Komfortabel, live umschaltbar)  [Komfort]
-- [] OAuth2 (Gmail/Microsoft 365) für Konten  [Konten & Protokoll]
 - [x] Listen-Virtualisierung für sehr große Ordner (CSS content-visibility: auto — Browser überspringt Layout/Paint nicht sichtbarer Zeilen)
 - [x] Sieve-Baukasten: Mehrfachbedingungen UND/ODER (Auswahl anyof/allof im Regelassistenten)
 - [] Kontaktgruppen/Verteiler aus vCards  [Kontakte/Kalender]
