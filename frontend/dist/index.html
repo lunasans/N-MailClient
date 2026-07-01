@@ -1135,6 +1135,7 @@ async function init(){
   applySplitV()
   applyDensity()
   setInterval(checkReminders,60000)
+  checkSnoozes();setInterval(checkSnoozes,30000)
   // Wails events
   if(window.runtime?.EventsOn){
     window.runtime.EventsOn('new-mail',d=>{
@@ -1411,10 +1412,42 @@ function setSenderCat(from,cat){
   renderMsgList(msgs)
 }
 
+// ── Snooze / später erinnern ──────────────────────────────────────────────────
+function snoozeGet(){try{return JSON.parse(localStorage.getItem('snoozed')||'{}')}catch(e){return{}}}
+function snoozeSet(m){localStorage.setItem('snoozed',JSON.stringify(m))}
+function snoozeMsg(uid,acc,fld,when){
+  const key=uid+'|'+acc+'|'+fld
+  const m=snoozeGet();m[key]=new Date(when).toISOString();snoozeSet(m)
+  renderMsgList(msgs)
+  if(viewUID===uid){$('readEmpty').style.display='flex';$('readContent').style.display='none'}
+  showUndo('Zurückgestellt bis '+new Date(when).toLocaleString('de'),()=>{const mm=snoozeGet();delete mm[key];snoozeSet(mm);renderMsgList(msgs)})
+}
+function checkSnoozes(){
+  const m=snoozeGet(),now=Date.now();let due=0
+  for(const k in m){if(new Date(m[k]).getTime()<=now){delete m[k];due++}}
+  if(due){snoozeSet(m);renderMsgList(msgs);showUndo('Erinnerung: '+due+' zurückgestellte Mail(s) wieder da',()=>{})}
+}
+function ctxSnooze(hours){hideCtx();snoozeMsg(ctxUID,ctxAcc,ctxFld,Date.now()+hours*3600000)}
+function ctxSnoozeAt(kind){
+  hideCtx();const d=new Date()
+  if(kind==='evening'){d.setHours(18,0,0,0);if(d.getTime()<=Date.now())d.setDate(d.getDate()+1)}
+  else{d.setDate(d.getDate()+1);d.setHours(8,0,0,0)}
+  snoozeMsg(ctxUID,ctxAcc,ctxFld,d.getTime())
+}
+async function ctxSnoozeCustom(){
+  const u=ctxUID,a=ctxAcc,f=ctxFld;hideCtx()
+  const v=await uiPrompt('Zeitpunkt (JJJJ-MM-TTThh:mm):',localDT(new Date(Date.now()+3600000)))
+  if(!v)return;const t=new Date(v).getTime();if(isNaN(t)){alert('Ungültige Zeit.');return}
+  snoozeMsg(u,a,f,t)
+}
+
 function renderMsgList(list){
   const el=$('msgList')
   list=list||[]
-  const src=(curCat==='alle')?list:list.filter(m=>msgCategory(m)===curCat)
+  // Snooze: zurückgestellte Mails ausblenden, solange die Weckzeit in der Zukunft liegt.
+  const snz=snoozeGet(),now=Date.now()
+  let src=list.filter(m=>{const k=m.uid+'|'+(m.accountId||curAcc)+'|'+(m.folder||(m.accountEmail?'INBOX':(curFld||'INBOX')));return !(snz[k]&&new Date(snz[k]).getTime()>now)})
+  if(curCat!=='alle')src=src.filter(m=>msgCategory(m)===curCat)
   if(!src.length){el.innerHTML='<div style="padding:1rem;text-align:center;color:var(--subtle)">Keine Nachrichten</div>';return}
   const disp=threadMode?grpThreads(src):src
   let html='',lastBkt=''
@@ -1801,7 +1834,7 @@ function showCtx(e,uid,acc,fld){
   const moveSub=flds.map(f=>`<div class="ci" style="padding-left:1.1rem" onclick="ctxMoveTo('${esc(f.name)}')">${esc(f.label||f.name)}</div>`).join('')
   const cats=[['allgemein','Allgemein'],['werbung','Werbung'],['newsletter','Newsletter'],['soziales','Soziales'],['auto','Automatisch']]
   const catSub=cats.map(([v,l])=>`<div class="ci" style="padding-left:1.1rem" onclick="ctxSetCat('${v}')">${l}</div>`).join('')
-  m.innerHTML=`<div class="ci" onclick="ctxDo('read')">Als gelesen</div><div class="ci" onclick="ctxDo('unread')">Als ungelesen</div><hr><div class="ci" onclick="ctxDo('flag')">&#x2605; Markieren</div><div class="ci" onclick="ctxDo('unflag')">Markierung entfernen</div><hr><div class="ci" onclick="ctxDo('archive')">Archivieren</div><div class="ci" onclick="ctxDo('spam')">Als Spam</div><div class="ci" onclick="ctxDo('trash')">In Papierkorb</div><hr><div class="ci" style="color:var(--subtle);font-size:10.5px;cursor:default">Kategorie für Absender</div>${catSub}<hr><div class="ci d" onclick="ctxDo('delete')">Löschen</div><hr><div class="ci" style="color:var(--subtle);font-size:10.5px;cursor:default">Verschieben nach…</div><div class="ci-move">${moveSub}</div>`
+  m.innerHTML=`<div class="ci" onclick="ctxDo('read')">Als gelesen</div><div class="ci" onclick="ctxDo('unread')">Als ungelesen</div><hr><div class="ci" onclick="ctxDo('flag')">&#x2605; Markieren</div><div class="ci" onclick="ctxDo('unflag')">Markierung entfernen</div><hr><div class="ci" onclick="ctxDo('archive')">Archivieren</div><div class="ci" onclick="ctxDo('spam')">Als Spam</div><div class="ci" onclick="ctxDo('trash')">In Papierkorb</div><hr><div class="ci" style="color:var(--subtle);font-size:10.5px;cursor:default">&#x23F0; Später erinnern</div><div class="ci" style="padding-left:1.1rem" onclick="ctxSnooze(1)">In 1 Stunde</div><div class="ci" style="padding-left:1.1rem" onclick="ctxSnooze(3)">In 3 Stunden</div><div class="ci" style="padding-left:1.1rem" onclick="ctxSnoozeAt('evening')">Heute Abend (18 Uhr)</div><div class="ci" style="padding-left:1.1rem" onclick="ctxSnoozeAt('tomorrow')">Morgen früh (8 Uhr)</div><div class="ci" style="padding-left:1.1rem" onclick="ctxSnoozeCustom()">Datum/Zeit…</div><hr><div class="ci" style="color:var(--subtle);font-size:10.5px;cursor:default">Kategorie für Absender</div>${catSub}<hr><div class="ci d" onclick="ctxDo('delete')">Löschen</div><hr><div class="ci" style="color:var(--subtle);font-size:10.5px;cursor:default">Verschieben nach…</div><div class="ci-move">${moveSub}</div>`
   // Erst sichtbar machen (display:block), dann an den Viewport-Rand klemmen.
   m.style.left='0px';m.style.top='0px';m.style.display='block'
   const w=m.offsetWidth,h=m.offsetHeight

@@ -133,7 +133,7 @@ Version 0.7.0
 - [x] Anhang-Archiv überarbeitet: kontobezogener Ordner (+Ordnerauswahl), rekursive Anzeige, Ablage nach Absender/Jahr/Monat, nach Absender gruppierte Ansicht, Doppelklick zum Öffnen, WebDAV mit MKCOL
 - [] Follow-up / Wiedervorlage-Markierung mit Erinnerung  [Produktivität]
 - [x] Geplanter Versand (Composer „Später…", Backend-Scheduler + persistente Queue, Nachholen beim Start; nur während App läuft)  [Vorhandenes nutzen]
-- [] Snooze / „später erinnern" (Mail verschwindet, kommt zur gewählten Zeit zurück)  [Produktivität]
+- [x] Snooze / „später erinnern" (Kontextmenü, lokal: Mail ausblenden + Erinnerung; Presets + Datum/Zeit)  [Produktivität]
 - [x] Vorlagen / Textbausteine (Composer-Dropdown: einfügen/speichern/verwalten, localStorage)  [Produktivität]
 - [x] Anpassbare Listendichte (Kompakt/Normal/Komfortabel, live umschaltbar)  [Komfort]
 - [] OAuth2 (Gmail/Microsoft 365) für Konten  [Konten & Protokoll]
