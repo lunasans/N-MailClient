@@ -609,8 +609,24 @@ textarea.sc{flex:1;resize:none;border-radius:0;border:none;padding:.45rem;font-f
   </div>
   <div style="display:flex;gap:.45rem;justify-content:flex-end;margin-top:.5rem">
     <button class="gho" onclick="closeComp()">Abbrechen</button>
+    <button class="gho" onclick="openSchedDlg()" title="Zu einem späteren Zeitpunkt senden">&#x23F0; Später…</button>
     <button class="pri" onclick="sendComp()">&#x2709; Senden</button>
   </div>
+</dialog>
+
+<!-- SCHEDULE SEND DIALOG -->
+<dialog id="schedDlg">
+  <div style="display:flex;align-items:center;margin-bottom:.65rem">
+    <strong>Später senden</strong>
+    <button style="margin-left:auto;opacity:.6" onclick="$('schedDlg').close()">&#x2715;</button>
+  </div>
+  <div style="display:flex;gap:.4rem;align-items:center">
+    <input id="schedAt" type="datetime-local" style="flex:1">
+    <button class="pri" onclick="doSchedule()">Planen</button>
+  </div>
+  <div style="font-size:10.5px;color:var(--subtle);margin:.3rem 0 .6rem">Wird nur gesendet, während die App (auch im Tray) läuft; verpasste Mails werden beim nächsten Start nachgeholt.</div>
+  <div style="font-weight:600;font-size:12px;margin-bottom:.2rem">Geplante Mails</div>
+  <div id="schedList" style="max-height:240px;overflow-y:auto"></div>
 </dialog>
 
 <!-- ACCOUNT DIALOG -->
@@ -1128,6 +1144,7 @@ async function init(){
       setTimeout(()=>$('nmb').style.display='none',8000)
       if(localStorage.getItem('notifBell')==='1')playNotifBeep()
     })
+    window.runtime.EventsOn('scheduled-sent',d=>{showUndo('Geplante Mail gesendet: '+(d.subject||''),()=>{})})
   }
 }
 
@@ -1894,20 +1911,23 @@ async function autoDraft(){
   const accId=$('compFrom').value;const df=findFld(accId,'drafts')||'Drafts'
   try{await api().SaveDraft(buildReq(),df)}catch(e){}
 }
-async function sendComp(){
+// Baut den vollständigen Versand-Request (Anhänge + DSN + optional PGP).
+// Liefert null, wenn der Nutzer den unverschlüsselten Fallback ablehnt.
+async function prepReq(){
   const req=buildReq()
   const atts=[]
   for(const it of compAtts){const d=await rdB64(it.file);atts.push({filename:it.name,mimeType:it.file.type||'application/octet-stream',data:d})}
   req.attachments=atts
   req.requestDSN=!!$('compDSN').checked
-  // PGP encryption: encrypt the body text before sending
   if($('compPGP').checked){
     const toEmail=(req.to||'').match(/[^\s<>,";]+@[^\s<>,";]+\.[^\s<>,";]+/)?.[0]||''
-    try{
-      req.text=await api().PGPEncryptBody(toEmail,req.text)
-      req.html=''
-    }catch(e){if(!await uiConfirm('PGP-Verschlüsselung fehlgeschlagen: '+e+'\n\nUnverschlüsselt senden?'))return}
+    try{req.text=await api().PGPEncryptBody(toEmail,req.text);req.html=''}
+    catch(e){if(!await uiConfirm('PGP-Verschlüsselung fehlgeschlagen: '+e+'\n\nUnverschlüsselt senden?'))return null}
   }
+  return req
+}
+async function sendComp(){
+  const req=await prepReq();if(!req)return
   // Save draft so message survives if send is cancelled
   const dfFld=findFld(req.accountId,'drafts')||'Drafts'
   try{await api().SaveDraft(req,dfFld)}catch(e){}
@@ -1929,6 +1949,38 @@ function rdB64(f){return new Promise((r,j)=>{const rd=new FileReader();rd.onload
 function pickAtt(){const i=$('fileInp');i.value='';i.onchange=()=>{for(const f of i.files)compAtts.push({file:f,name:f.name});renderAttPicks()};i.click()}
 function rmAtt(i){compAtts.splice(i,1);renderAttPicks()}
 function renderAttPicks(){$('compAtts').innerHTML=compAtts.map((a,i)=>`<div class="apchip"><span>${esc(a.name)}</span><span style="cursor:pointer;opacity:.7;font-size:10px" onclick="rmAtt(${i})">&#x2715;</span></div>`).join('')}
+
+// ── Geplanter Versand ─────────────────────────────────────────────────────────
+function localDT(d){const p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes())}
+function openSchedDlg(){
+  $('schedAt').value=localDT(new Date(Date.now()+3600000)) // Standard: in 1 Stunde
+  renderSchedList()
+  $('schedDlg').showModal()
+}
+async function doSchedule(){
+  const at=$('schedAt').value
+  if(!at){alert('Bitte einen Zeitpunkt wählen.');return}
+  const req=await prepReq();if(!req)return
+  try{
+    await api().ScheduleSend(req,at)
+    $('schedDlg').close();closeComp()
+    showUndo('Geplant für '+new Date(at).toLocaleString('de'),()=>{})
+  }catch(e){alert('Planen fehlgeschlagen: '+e)}
+}
+async function renderSchedList(){
+  try{
+    const l=await api().ListScheduled()
+    $('schedList').innerHTML=l.length?l.map(s=>`
+      <div style="display:flex;align-items:center;gap:.4rem;padding:.3rem 0;border-bottom:1px solid var(--line)">
+        <div style="flex:1;min-width:0">
+          <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(s.subject||'(kein Betreff)')}</div>
+          <div style="font-size:10.5px;color:var(--subtle)">an ${esc(s.to||'')} · ${new Date(s.sendAt).toLocaleString('de')}</div>
+        </div>
+        <button class="gho" data-id="${esc(s.id)}" onclick="schedCancel(this.dataset.id)" style="color:var(--danger);font-size:11px;padding:.1rem .4rem">Abbrechen</button>
+      </div>`).join(''):'<div style="color:var(--subtle);font-size:12px;padding:.3rem">Keine geplanten Mails.</div>'
+  }catch(e){$('schedList').textContent='Fehler: '+e}
+}
+async function schedCancel(id){try{await api().CancelScheduled(id);renderSchedList()}catch(e){alert(e)}}
 
 // ── autocomplete ─────────────────────────────────────────────────────────────
 let acTarget=null

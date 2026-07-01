@@ -413,6 +413,24 @@ export namespace main {
 	        this.isPrivate = source["isPrivate"];
 	    }
 	}
+	export class ScheduledView {
+	    id: string;
+	    to: string;
+	    subject: string;
+	    sendAt: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ScheduledView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.to = source["to"];
+	        this.subject = source["subject"];
+	        this.sendAt = source["sendAt"];
+	    }
+	}
 
 }
 

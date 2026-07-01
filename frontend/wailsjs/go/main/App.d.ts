@@ -25,6 +25,8 @@ export function CalendarList(arg1:string):Promise<Array<calendar.Event>>;
 
 export function CalendarSave(arg1:string,arg2:calendar.Event):Promise<void>;
 
+export function CancelScheduled(arg1:string):Promise<void>;
+
 export function CheckMTASTS(arg1:string):Promise<string>;
 
 export function CheckRecipientDANE(arg1:string,arg2:string):Promise<string>;
@@ -59,6 +61,8 @@ export function ImportSettings(arg1:string):Promise<void>;
 
 export function ListAccounts():Promise<Array<store.Account>>;
 
+export function ListScheduled():Promise<Array<main.ScheduledView>>;
+
 export function Message(arg1:string,arg2:string,arg3:number):Promise<mail.Detail>;
 
 export function MessageSource(arg1:string,arg2:string,arg3:number):Promise<string>;
@@ -92,6 +96,8 @@ export function RenameFolder(arg1:string,arg2:string,arg3:string):Promise<void>;
 export function SaveAttachment(arg1:string,arg2:string,arg3:number,arg4:number):Promise<void>;
 
 export function SaveDraft(arg1:mail.SendRequest,arg2:string):Promise<void>;
+
+export function ScheduleSend(arg1:mail.SendRequest,arg2:string):Promise<void>;
 
 export function Search(arg1:string,arg2:string,arg3:string):Promise<Array<mail.Summary>>;
 

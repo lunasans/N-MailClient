@@ -132,7 +132,7 @@ Version 0.7.0
 - [x] Smart-/virtuelle Ordner (feste Schnellfilter Ungelesen/Markiert/Ungelesen&Markiert, kontoweit über alle Ordner; Badges, lazy berechnet)  [Produktivität]
 - [x] Anhang-Archiv überarbeitet: kontobezogener Ordner (+Ordnerauswahl), rekursive Anzeige, Ablage nach Absender/Jahr/Monat, nach Absender gruppierte Ansicht, Doppelklick zum Öffnen, WebDAV mit MKCOL
 - [] Follow-up / Wiedervorlage-Markierung mit Erinnerung  [Produktivität]
-- [] Geplanter Versand (zu bestimmtem Zeitpunkt senden; baut auf Undo-Send/Scheduler auf)  [Vorhandenes nutzen]
+- [x] Geplanter Versand (Composer „Später…", Backend-Scheduler + persistente Queue, Nachholen beim Start; nur während App läuft)  [Vorhandenes nutzen]
 - [] Snooze / „später erinnern" (Mail verschwindet, kommt zur gewählten Zeit zurück)  [Produktivität]
 - [x] Vorlagen / Textbausteine (Composer-Dropdown: einfügen/speichern/verwalten, localStorage)  [Produktivität]
 - [x] Anpassbare Listendichte (Kompakt/Normal/Komfortabel, live umschaltbar)  [Komfort]

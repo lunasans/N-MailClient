@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -50,6 +52,15 @@ type App struct {
 	notifQuietEnd   string // "HH:MM"
 	// CalDAV cache keyed by accountID
 	calCache map[string]calCacheEntry
+	// scheduled send queue
+	schedMu   sync.Mutex
+	scheduled []scheduledMail
+}
+
+type scheduledMail struct {
+	ID     string           `json:"id"`
+	Req    mail.SendRequest `json:"req"`
+	SendAt time.Time        `json:"sendAt"`
 }
 
 // GetWindowMode returns the startup mode for the frontend.
@@ -95,7 +106,9 @@ func NewApp() *App {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	a.store.Load()
+	a.loadScheduled()
 	go a.pollNewMail()
+	go a.scheduleLoop()
 }
 
 func (a *App) domReady(_ context.Context) {
@@ -467,6 +480,150 @@ func (a *App) Send(req mail.SendRequest) error {
 	}
 	_ = mail.Append(acc, "Sent", raw)
 	return nil
+}
+
+// --- Scheduled send -------------------------------------------------------
+//
+// Note: messages are only sent while the app is running (the tray keeps the
+// process alive); due messages are caught up on the next startup.
+
+func (a *App) schedPath() string {
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		dir = "."
+	}
+	return filepath.Join(dir, "n-mailclient-go", "scheduled.json")
+}
+
+func (a *App) loadScheduled() {
+	a.schedMu.Lock()
+	defer a.schedMu.Unlock()
+	b, err := os.ReadFile(a.schedPath())
+	if err != nil {
+		return
+	}
+	_ = json.Unmarshal(b, &a.scheduled)
+}
+
+// saveScheduled persists the queue; caller must hold schedMu.
+func (a *App) saveScheduled() {
+	b, _ := json.MarshalIndent(a.scheduled, "", "  ")
+	_ = os.WriteFile(a.schedPath(), b, 0o600)
+}
+
+func parseSchedTime(s string) (time.Time, error) {
+	if t, err := time.Parse(time.RFC3339, s); err == nil {
+		return t, nil
+	}
+	return time.ParseInLocation("2006-01-02T15:04", s, time.Local)
+}
+
+// ScheduleSend queues a message to be sent at sendAt ("2006-01-02T15:04" or RFC3339).
+func (a *App) ScheduleSend(req mail.SendRequest, sendAt string) error {
+	t, err := parseSchedTime(sendAt)
+	if err != nil {
+		return fmt.Errorf("ungültige Zeit")
+	}
+	if _, err := a.acc(req.AccountID); err != nil {
+		return err
+	}
+	a.schedMu.Lock()
+	defer a.schedMu.Unlock()
+	a.scheduled = append(a.scheduled, scheduledMail{
+		ID:     fmt.Sprintf("%d", time.Now().UnixNano()),
+		Req:    req,
+		SendAt: t,
+	})
+	a.saveScheduled()
+	return nil
+}
+
+// ScheduledView is a lightweight entry for the frontend list.
+type ScheduledView struct {
+	ID      string `json:"id"`
+	To      string `json:"to"`
+	Subject string `json:"subject"`
+	SendAt  string `json:"sendAt"`
+}
+
+func (a *App) ListScheduled() []ScheduledView {
+	a.schedMu.Lock()
+	defer a.schedMu.Unlock()
+	out := []ScheduledView{}
+	for _, s := range a.scheduled {
+		out = append(out, ScheduledView{ID: s.ID, To: s.Req.To, Subject: s.Req.Subject, SendAt: s.SendAt.Format(time.RFC3339)})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].SendAt < out[j].SendAt })
+	return out
+}
+
+func (a *App) CancelScheduled(id string) error {
+	a.schedMu.Lock()
+	defer a.schedMu.Unlock()
+	out := a.scheduled[:0]
+	for _, s := range a.scheduled {
+		if s.ID != id {
+			out = append(out, s)
+		}
+	}
+	a.scheduled = out
+	a.saveScheduled()
+	return nil
+}
+
+func (a *App) scheduleLoop() {
+	ticker := time.NewTicker(20 * time.Second)
+	defer ticker.Stop()
+	a.sendDue() // catch up overdue mails right after startup
+	for {
+		select {
+		case <-a.ctx.Done():
+			return
+		case <-ticker.C:
+			a.sendDue()
+		}
+	}
+}
+
+func (a *App) sendDue() {
+	a.schedMu.Lock()
+	now := time.Now()
+	var due, rest []scheduledMail
+	for _, s := range a.scheduled {
+		if s.SendAt.After(now) {
+			rest = append(rest, s)
+		} else {
+			due = append(due, s)
+		}
+	}
+	if len(due) == 0 {
+		a.schedMu.Unlock()
+		return
+	}
+	a.scheduled = rest
+	a.saveScheduled()
+	a.schedMu.Unlock()
+
+	for _, s := range due {
+		acc, err := a.acc(s.Req.AccountID)
+		if err != nil {
+			continue // account gone → drop
+		}
+		raw, err := mail.Send(acc, s.Req)
+		if err != nil {
+			// Re-queue for a retry in 2 minutes (e.g. offline).
+			s.SendAt = time.Now().Add(2 * time.Minute)
+			a.schedMu.Lock()
+			a.scheduled = append(a.scheduled, s)
+			a.saveScheduled()
+			a.schedMu.Unlock()
+			continue
+		}
+		_ = mail.Append(acc, "Sent", raw)
+		if a.ctx != nil {
+			wruntime.EventsEmit(a.ctx, "scheduled-sent", map[string]interface{}{"subject": s.Req.Subject, "to": s.Req.To})
+		}
+	}
 }
 
 // --- Sieve / ManageSieve --------------------------------------------------

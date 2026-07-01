@@ -38,6 +38,10 @@ export function CalendarSave(arg1, arg2) {
   return window['go']['main']['App']['CalendarSave'](arg1, arg2);
 }
 
+export function CancelScheduled(arg1) {
+  return window['go']['main']['App']['CancelScheduled'](arg1);
+}
+
 export function CheckMTASTS(arg1) {
   return window['go']['main']['App']['CheckMTASTS'](arg1);
 }
@@ -106,6 +110,10 @@ export function ListAccounts() {
   return window['go']['main']['App']['ListAccounts']();
 }
 
+export function ListScheduled() {
+  return window['go']['main']['App']['ListScheduled']();
+}
+
 export function Message(arg1, arg2, arg3) {
   return window['go']['main']['App']['Message'](arg1, arg2, arg3);
 }
@@ -172,6 +180,10 @@ export function SaveAttachment(arg1, arg2, arg3, arg4) {
 
 export function SaveDraft(arg1, arg2) {
   return window['go']['main']['App']['SaveDraft'](arg1, arg2);
+}
+
+export function ScheduleSend(arg1, arg2) {
+  return window['go']['main']['App']['ScheduleSend'](arg1, arg2);
 }
 
 export function Search(arg1, arg2, arg3) {
