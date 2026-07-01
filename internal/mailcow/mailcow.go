@@ -144,6 +144,90 @@ func toInt64(v any) int64 {
 	return 0
 }
 
+// --- App passwords --------------------------------------------------------
+
+type AppPassword struct {
+	ID     any    `json:"id"`
+	Name   string `json:"name"`
+	Active any    `json:"active"`
+}
+
+func (c *Client) AppPasswords(mailbox string) ([]AppPassword, error) {
+	b, err := c.do("GET", "/get/app-passwd/all/"+url.PathEscape(mailbox), nil)
+	if err != nil {
+		return nil, err
+	}
+	var out []AppPassword
+	if err := json.Unmarshal(b, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *Client) AddAppPassword(mailbox, name, pass string) error {
+	_, err := c.do("POST", "/add/app-passwd", map[string]interface{}{
+		"username":    mailbox,
+		"app_name":    name,
+		"app_passwd":  pass,
+		"app_passwd2": pass,
+		"active":      "1",
+		"protocols":   []string{"imap", "smtp", "pop3", "sieve", "dav"},
+	})
+	return err
+}
+
+func (c *Client) DeleteAppPassword(id string) error {
+	_, err := c.do("POST", "/delete/app-passwd", []string{id})
+	return err
+}
+
+// --- Quarantine -----------------------------------------------------------
+
+type QItem struct {
+	ID      any    `json:"id"`
+	Subject string `json:"subject"`
+	Sender  string `json:"sender"`
+	Rcpt    string `json:"rcpt"`
+	Score   any    `json:"score"`
+	Created any    `json:"created"`
+}
+
+func (c *Client) Quarantine(rcpt string) ([]QItem, error) {
+	b, err := c.do("GET", "/get/quarantine/all", nil)
+	if err != nil {
+		return nil, err
+	}
+	var all []QItem
+	if err := json.Unmarshal(b, &all); err != nil {
+		return nil, err
+	}
+	if rcpt == "" {
+		return all, nil
+	}
+	rc := strings.ToLower(rcpt)
+	out := []QItem{}
+	for _, q := range all {
+		if strings.Contains(strings.ToLower(q.Rcpt), rc) {
+			out = append(out, q)
+		}
+	}
+	return out, nil
+}
+
+func (c *Client) QuarantineDelete(id string) error {
+	_, err := c.do("POST", "/delete/qitem", []string{id})
+	return err
+}
+
+// QuarantineAction runs "release" or "learnham" on an item (best-effort).
+func (c *Client) QuarantineAction(id, action string) error {
+	_, err := c.do("POST", "/edit/qitem", map[string]interface{}{
+		"items": []string{id},
+		"attr":  map[string]string{"action": action},
+	})
+	return err
+}
+
 func (c *Client) Quota(email string) (Quota, error) {
 	b, err := c.do("GET", "/get/mailbox/"+url.PathEscape(email), nil)
 	if err != nil {

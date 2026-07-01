@@ -118,12 +118,36 @@ export function MailcowAddAlias(arg1, arg2) {
   return window['go']['main']['App']['MailcowAddAlias'](arg1, arg2);
 }
 
+export function MailcowAddAppPassword(arg1, arg2, arg3) {
+  return window['go']['main']['App']['MailcowAddAppPassword'](arg1, arg2, arg3);
+}
+
 export function MailcowAliases(arg1) {
   return window['go']['main']['App']['MailcowAliases'](arg1);
 }
 
+export function MailcowAppPasswords(arg1) {
+  return window['go']['main']['App']['MailcowAppPasswords'](arg1);
+}
+
 export function MailcowDeleteAlias(arg1, arg2) {
   return window['go']['main']['App']['MailcowDeleteAlias'](arg1, arg2);
+}
+
+export function MailcowDeleteAppPassword(arg1, arg2) {
+  return window['go']['main']['App']['MailcowDeleteAppPassword'](arg1, arg2);
+}
+
+export function MailcowQuarantine(arg1) {
+  return window['go']['main']['App']['MailcowQuarantine'](arg1);
+}
+
+export function MailcowQuarantineAction(arg1, arg2, arg3) {
+  return window['go']['main']['App']['MailcowQuarantineAction'](arg1, arg2, arg3);
+}
+
+export function MailcowQuarantineDelete(arg1, arg2) {
+  return window['go']['main']['App']['MailcowQuarantineDelete'](arg1, arg2);
 }
 
 export function MailcowQuota(arg1) {

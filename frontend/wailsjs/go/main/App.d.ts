@@ -66,9 +66,21 @@ export function ListScheduled():Promise<Array<main.ScheduledView>>;
 
 export function MailcowAddAlias(arg1:string,arg2:string):Promise<void>;
 
+export function MailcowAddAppPassword(arg1:string,arg2:string,arg3:string):Promise<void>;
+
 export function MailcowAliases(arg1:string):Promise<Array<mailcow.Alias>>;
 
+export function MailcowAppPasswords(arg1:string):Promise<Array<mailcow.AppPassword>>;
+
 export function MailcowDeleteAlias(arg1:string,arg2:string):Promise<void>;
+
+export function MailcowDeleteAppPassword(arg1:string,arg2:string):Promise<void>;
+
+export function MailcowQuarantine(arg1:string):Promise<Array<mailcow.QItem>>;
+
+export function MailcowQuarantineAction(arg1:string,arg2:string,arg3:string):Promise<void>;
+
+export function MailcowQuarantineDelete(arg1:string,arg2:string):Promise<void>;
 
 export function MailcowQuota(arg1:string):Promise<mailcow.Quota>;
 

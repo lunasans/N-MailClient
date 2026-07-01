@@ -146,7 +146,7 @@ Version 0.7.0
   mit Read-only-API-Key, filtern auf `goto` = Konto-Adresse (liefert präzise alle Aliase,
   auch ungenutzte). Benötigt pro Konto mailcow-Host + API-Key (API-Key im OS-Keychain
   ablegen, nicht in `db.json`).
-- [] Mailcow-Integration Phase 1 (Modus A: eigener API-Key) — siehe tasks/mailcow-konzept.md:
+- [x] Mailcow-Integration Phase 1 (Modus A: eigener API-Key) — Verbindung pro Konto (Host+Key im Keychain, Test); Eigenschaften-Dialog per Rechtsklick aufs Konto mit Tabs Kontingent/Aliase/App-Passwörter/Quarantäne
       Mailcow-Verbindung pro Konto (Host + API-Key + Test, Key via safeStorage);
       App-Passwörter verwalten; Alias-Verwaltung anlegen/Ziel ändern/löschen (Auflisten/Abruf bereits in 0.6.0);
       Wegwerf-/temporäre Aliase; Quarantäne ansehen & verwalten; Postfach-Kontingent (Quota) anzeigen

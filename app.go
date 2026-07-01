@@ -1034,6 +1034,54 @@ func (a *App) MailcowQuota(accountID string) (mailcow.Quota, error) {
 	return c.Quota(email)
 }
 
+func (a *App) MailcowAppPasswords(accountID string) ([]mailcow.AppPassword, error) {
+	c, email, err := a.mailcowClient(accountID)
+	if err != nil {
+		return nil, err
+	}
+	return c.AppPasswords(email)
+}
+
+func (a *App) MailcowAddAppPassword(accountID, name, pass string) error {
+	c, email, err := a.mailcowClient(accountID)
+	if err != nil {
+		return err
+	}
+	return c.AddAppPassword(email, name, pass)
+}
+
+func (a *App) MailcowDeleteAppPassword(accountID, id string) error {
+	c, _, err := a.mailcowClient(accountID)
+	if err != nil {
+		return err
+	}
+	return c.DeleteAppPassword(id)
+}
+
+func (a *App) MailcowQuarantine(accountID string) ([]mailcow.QItem, error) {
+	c, email, err := a.mailcowClient(accountID)
+	if err != nil {
+		return nil, err
+	}
+	return c.Quarantine(email)
+}
+
+func (a *App) MailcowQuarantineDelete(accountID, id string) error {
+	c, _, err := a.mailcowClient(accountID)
+	if err != nil {
+		return err
+	}
+	return c.QuarantineDelete(id)
+}
+
+func (a *App) MailcowQuarantineAction(accountID, id, action string) error {
+	c, _, err := a.mailcowClient(accountID)
+	if err != nil {
+		return err
+	}
+	return c.QuarantineAction(id, action)
+}
+
 // --- Autostart ---------------------------------------------------------------
 
 const autostartKey = `Software\Microsoft\Windows\CurrentVersion\Run`

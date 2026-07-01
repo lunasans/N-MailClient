@@ -395,6 +395,44 @@ export namespace mailcow {
 	        this.active = source["active"];
 	    }
 	}
+	export class AppPassword {
+	    id: any;
+	    name: string;
+	    active: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new AppPassword(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.active = source["active"];
+	    }
+	}
+	export class QItem {
+	    id: any;
+	    subject: string;
+	    sender: string;
+	    rcpt: string;
+	    score: any;
+	    created: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new QItem(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.subject = source["subject"];
+	        this.sender = source["sender"];
+	        this.rcpt = source["rcpt"];
+	        this.score = source["score"];
+	        this.created = source["created"];
+	    }
+	}
 	export class Quota {
 	    bytes: number;
 	    used: number;
