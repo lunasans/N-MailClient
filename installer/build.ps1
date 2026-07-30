@@ -40,10 +40,10 @@ $ErrorActionPreference = "Stop"
 $installer = $PSScriptRoot
 
 $root      = Split-Path $installer -Parent
-$projekt   = Join-Path $root "NMailClient.Poc\NMailClient.Poc.csproj"
+$projekt   = Join-Path $root "NMailClient\NMailClient.csproj"
 $publish   = Join-Path $root "publish"
 $standalone= Join-Path $publish "standalone"
-$appExe    = Join-Path $standalone "NMailClient.Poc.exe"
+$appExe    = Join-Path $standalone "NMailClient.exe"
 $iss       = Join-Path $installer "NMailClient.iss"
 
 function Schritt($text) { Write-Host "`n=== $text" -ForegroundColor Cyan }
@@ -90,7 +90,7 @@ if (-not $SkipSign) {
 
 Schritt "Veroeffentlichen (eigenstaendig, eine Datei)"
 
-Get-Process NMailClient.Poc -ErrorAction SilentlyContinue | Stop-Process -Force
+Get-Process NMailClient -ErrorAction SilentlyContinue | Stop-Process -Force
 Remove-Item $standalone -Recurse -Force -ErrorAction SilentlyContinue
 
 & dotnet publish $projekt -c Release --runtime win-x64 --self-contained true `

@@ -1,4 +1,4 @@
-# N-MailClient — C#-PoC (WPF)
+# N-MailClient (C#/WPF)
 
 > Weiterer Ausbau: [ROADMAP.md](ROADMAP.md)
 
@@ -15,17 +15,17 @@ Nachbarordner `eol-go` (Historie im Git-Verlauf dieses Repos).
 ## Bauen & starten
 
 ```powershell
-dotnet build NMailClient.Poc.slnx
-dotnet run   --project NMailClient.Poc\NMailClient.Poc.csproj
+dotnet build NMailClient.slnx
+dotnet run   --project NMailClient\NMailClient.csproj
 ```
 
 ## Tests
 
 ```powershell
-dotnet test NMailClient.Poc.Tests\NMailClient.Poc.Tests.csproj
+dotnet test NMailClient.Tests\NMailClient.Tests.csproj
 ```
 
-57 Tests. Zwei Gruppen sind per Trait abtrennbar:
+871 Tests. Zwei Gruppen sind per Trait abtrennbar:
 
 | Filter | Wirkung |
 |---|---|
@@ -39,7 +39,10 @@ Beim ersten Start öffnet sich direkt der Konten-Dialog. Serverfelder werden aus
 E-Mail-Adresse vorbelegt (`imap.<domain>` / `smtp.<domain>`), „Verbindung testen" prüft
 den IMAP-Login.
 
-## Was die PoC kann
+## Was die Anwendung kann
+
+Der Mail-Kern im Überblick; den vollständigen Stand samt Kalender, Kontakten,
+PGP, Sieve und mailcow-Anbindung führt die [ROADMAP.md](ROADMAP.md).
 
 | Bereich | Umfang |
 |---|---|
@@ -116,14 +119,17 @@ ausdrücklich als *ungeprüft* gekennzeichnet. Ergebnisse werden pro Domain geca
   eine fail2ban-Sperre. Aufgehoben wird sie durch neue Zugangsdaten.
   Für SMTP fehlt das Gegenstück noch (dort entsteht pro Sendeversuch nur ein Login).
 - **Passwörter** liegen im **Windows-Anmeldeinformationsverwalter**, nicht in `db.json`
-  (Ziel `NMailClient.Poc:mail:<accountId>`). Die frühere DPAPI-Variante wird beim ersten
+  (Ziel `NMailClient:mail:<accountId>`). Die frühere DPAPI-Variante wird beim ersten
   Start automatisch übernommen und aus der Datei entfernt.
-- **`HtmlSanitizer` ist regex-basiert.** Für den Produktiveinsatz gehört hier ein echter
-  Parser hin (AngleSharp); Regex auf HTML ist nur für eine PoC vertretbar.
+- **`HtmlSanitizer` ist regex-basiert.** Hier gehört ein echter Parser hin (AngleSharp):
+  reguläre Ausdrücke passen auf wohlgeformtes Markup, und genau das schreibt ein
+  Angreifer nicht. Bis dahin trägt die zweite Verteidigungslinie — die Anzeige läuft
+  in einer WebView2 ohne Skriptausführung. **Offener Punkt.**
 - **WebView2 braucht die Evergreen-Runtime.** Auf Windows 11 ist sie vorinstalliert; fehlt
   sie, bleibt die Mailanzeige leer und die Statusleiste meldet das — die App läuft weiter.
 - **Dark Mode bei HTML-Mails ist eine Näherung.** Mails bringen eigene harte Farben mit;
   `HtmlSanitizer` neutralisiert Hintergründe und Schwarztöne per CSS, ein perfektes Ergebnis
   ist bei fremdem Markup nicht erreichbar.
-- Kein IMAP IDLE / Push, kein Offline-Cache, keine Kalender/Kontakte, kein PGP,
-  kein Sieve, keine mailcow-API — bewusst außerhalb des PoC-Zuschnitts.
+- **Ein Semaphor je Konto** bedeutet, dass eine laufende Serversuche kurzzeitig auch
+  andere Aktionen desselben Kontos aufhält. IMAP IDLE hat deshalb bereits eine eigene
+  Verbindung; für die übrige Hintergrundlast steht das noch aus.

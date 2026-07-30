@@ -1,0 +1,22 @@
+﻿<Window x:Class="NMailClient.Views.SourceWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:i18n="clr-namespace:NMailClient.Services.I18n"
+        Title="{i18n:T Title.Source}" Icon="pack://application:,,,/NMailClient;component/Assets/appicon.ico" Height="720" Width="980" MinHeight="480" MinWidth="640"
+        WindowStartupLocation="CenterOwner" FontFamily="Segoe UI" FontSize="13"
+        Background="{DynamicResource Bg}">
+
+  <DockPanel Margin="10">
+    <DockPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
+      <Button DockPanel.Dock="Right" Content="{i18n:T Common.Close}" Padding="14,4" IsCancel="True" />
+      <Button DockPanel.Dock="Right" Content="{i18n:T Source.Copy}" Padding="14,4" Margin="0,0,6,0"
+              Click="Copy_Click" />
+      <TextBlock x:Name="LblInfo" VerticalAlignment="Center"
+                 Foreground="{DynamicResource TextMuted}" FontSize="12" />
+    </DockPanel>
+
+    <TextBox x:Name="TxtSource" IsReadOnly="True" AcceptsReturn="True"
+             FontFamily="Consolas" FontSize="12" TextWrapping="NoWrap"
+             VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" />
+  </DockPanel>
+</Window>

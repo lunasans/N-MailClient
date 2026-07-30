@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="NMailClient.Tests/NMailClient.Tests.csproj" />
+  <Project Path="NMailClient/NMailClient.csproj" />
+</Solution>

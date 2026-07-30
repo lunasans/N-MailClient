@@ -21,16 +21,16 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Abhaengigkeiten wiederherstellen
-        run: dotnet restore NMailClient.Poc.slnx
+        run: dotnet restore NMailClient.slnx
 
       - name: Bauen
-        run: dotnet build NMailClient.Poc.slnx --configuration Release --no-restore
+        run: dotnet build NMailClient.slnx --configuration Release --no-restore
 
       # Netzwerktests ausgeschlossen: sie fragen echte Anbieter (Autoconfig, DNS) ab
       # und waeren in CI flatterhaft. Lokal laufen sie mit.
       - name: Testen
         run: >
-          dotnet test NMailClient.Poc.Tests/NMailClient.Poc.Tests.csproj
+          dotnet test NMailClient.Tests/NMailClient.Tests.csproj
           --configuration Release --no-build
           --filter "Category!=Network"
           --logger "trx;LogFileName=test-results.trx"
@@ -40,11 +40,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: test-results
-          path: NMailClient.Poc.Tests/TestResults/*.trx
+          path: NMailClient.Tests/TestResults/*.trx
 
       - name: Veroeffentlichen (einzelne EXE)
         run: >
-          dotnet publish NMailClient.Poc/NMailClient.Poc.csproj
+          dotnet publish NMailClient/NMailClient.csproj
           --configuration Release
           --runtime win-x64 --self-contained false
           -p:PublishSingleFile=true
@@ -53,5 +53,5 @@ jobs:
       - name: EXE als Artefakt ablegen
         uses: actions/upload-artifact@v4
         with:
-          name: NMailClient.Poc
-          path: publish/NMailClient.Poc.exe
+          name: NMailClient
+          path: publish/NMailClient.exe

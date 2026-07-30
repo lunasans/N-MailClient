@@ -36,7 +36,7 @@ jobs:
       - name: Version gegen Tag pruefen
         shell: pwsh
         run: |
-          $projekt = "NMailClient.Poc\NMailClient.Poc.csproj"
+          $projekt = "NMailClient\NMailClient.csproj"
           $version = ([xml](Get-Content $projekt -Raw)).Project.PropertyGroup.Version |
                      Where-Object { $_ } | Select-Object -First 1
           $tag = "${{ github.ref_name }}" -replace '^v', ''
@@ -93,6 +93,6 @@ jobs:
           generate_release_notes: true
           files: |
             publish/NMailClient-*-setup.exe
-            publish/standalone/NMailClient.Poc.exe
+            publish/standalone/NMailClient.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

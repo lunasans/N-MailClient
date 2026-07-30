@@ -19,7 +19,7 @@
 #endif
 
 #define AppUrl "https://github.com/lunasans/N-MailClient"
-#define AppExe "NMailClient.Poc.exe"
+#define AppExe "NMailClient.exe"
 #define SourceDir "..\publish\standalone"
 
 [Setup]
@@ -46,7 +46,7 @@ DisableDirPage=no
 
 OutputDir=..\publish
 OutputBaseFilename=NMailClient-{#AppVersion}-setup
-SetupIconFile=..\NMailClient.Poc\Assets\appicon.ico
+SetupIconFile=..\NMailClient\Assets\appicon.ico
 UninstallDisplayIcon={app}\{#AppExe}
 UninstallDisplayName={#AppName} {#AppVersion}
 
@@ -105,9 +105,29 @@ Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,{#AppName}}"; \
 
 [UninstallDelete]
 ; Der WebView2-Benutzerdatenordner ist reiner Zwischenspeicher.
+Type: filesandordirs; Name: "{localappdata}\NMailClient\WebView2"
+; Aus der Zeit vor der Umbenennung; bei alten Installationen liegt er noch da.
 Type: filesandordirs; Name: "{localappdata}\NMailClient.Poc\WebView2"
 
 [Code]
+
+{ Bis 0.8.4 hiess die Anwendung NMailClient.Poc.exe. Ohne diesen Schritt bliebe
+  sie nach dem Update im Installationsordner liegen: zwei EXEs nebeneinander,
+  und wer die alte startet, sieht eine Fassung, die es nicht mehr gibt.
+
+  Die Benutzerdaten bleiben unangetastet — die holt die Anwendung beim ersten
+  Start selbst ab (LegacyDataMigration). }
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  Alt: string;
+begin
+  if CurStep <> ssPostInstall then
+    Exit;
+
+  Alt := ExpandConstant('{app}\NMailClient.Poc.exe');
+  if FileExists(Alt) then
+    DeleteFile(Alt);
+end;
 
 { Beim Deinstallieren fragen, ob die Benutzerdaten mit sollen. Vorgabe ist
   behalten: wer neu installiert, will seine Konten nicht neu einrichten. }
@@ -116,14 +136,21 @@ var
   Antwort: Integer;
   Appdata: string;
   Localdata: string;
+  AltAppdata: string;
+  AltLocaldata: string;
 begin
   if CurUninstallStep <> usPostUninstall then
     Exit;
 
-  Appdata := ExpandConstant('{userappdata}\NMailClient.Poc');
-  Localdata := ExpandConstant('{localappdata}\NMailClient.Poc');
+  Appdata := ExpandConstant('{userappdata}\NMailClient');
+  Localdata := ExpandConstant('{localappdata}\NMailClient');
 
-  if not (DirExists(Appdata) or DirExists(Localdata)) then
+  { Wer nie gestartet hat, seit umbenannt wurde, hat seine Daten noch drueben. }
+  AltAppdata := ExpandConstant('{userappdata}\NMailClient.Poc');
+  AltLocaldata := ExpandConstant('{localappdata}\NMailClient.Poc');
+
+  if not (DirExists(Appdata) or DirExists(Localdata)
+          or DirExists(AltAppdata) or DirExists(AltLocaldata)) then
     Exit;
 
   Antwort := MsgBox(
@@ -137,5 +164,7 @@ begin
   begin
     DelTree(Appdata, True, True, True);
     DelTree(Localdata, True, True, True);
+    DelTree(AltAppdata, True, True, True);
+    DelTree(AltLocaldata, True, True, True);
   end;
 end;
