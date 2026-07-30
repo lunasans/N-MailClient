@@ -95,7 +95,21 @@ jobs:
             .\installer\build.ps1 -SkipSign
           }
 
+      # Ohne Tag gibt es nichts zu veroeffentlichen: ein Release haengt an einem
+      # Tag, und ein Probelauf per workflow_dispatch soll gerade keinen anlegen.
+      # Die Dateien kommen stattdessen als Artefakt heraus — sonst waere ein
+      # Probelauf zwar gruen, brächte aber nichts zum Nachsehen.
+      - name: Ergebnis als Artefakt ablegen (Laeufe ohne Tag)
+        if: github.ref_type != 'tag'
+        uses: actions/upload-artifact@v4
+        with:
+          name: NMailClient-Probelauf
+          path: |
+            publish/NMailClient-*-setup.exe
+            publish/standalone/NMailClient.exe
+
       - name: Release erstellen und Assets hochladen
+        if: github.ref_type == 'tag'
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
