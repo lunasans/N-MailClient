@@ -1,4 +1,8 @@
-# N-MailClient — Go + Wails
+# N-MailClient — Go + Wails (eingestellt)
+
+> **Diese Fassung wird nicht mehr weiterentwickelt.** Sie liegt hier als
+> Archiv-Branch `go-legacy`. Weiterentwickelt wird die C#/WPF-Fassung auf
+> `main` — sie ist aus einer Portierung dieses Mail-Kerns hervorgegangen.
 
 Datenschutzorientierter Desktop-E-Mail-Client für Windows, gebaut mit **Go + Wails v2**
 und einer schlanken Vanilla-JS-Oberfläche (kein Node-Build nötig). Neufassung der
