@@ -1,14 +1,11 @@
-# Build output / binaries
-/build/bin/
-/build/windows/installer/tmp/
-*.exe
-*.syso
+bin/
+obj/
+publish/
+TestResults/
+*.user
 
-# Go
-/vendor/
-
-# Node (frontend tooling, falls genutzt)
-node_modules/
+# MSBuild legt beim WPF-Bau eine temporaere Projektdatei mit absoluten Pfaden an.
+*_wpftmp.csproj
 
 # OS / Editor
 .DS_Store

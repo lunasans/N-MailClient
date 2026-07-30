@@ -1,0 +1,57 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- Symbol der EXE (Explorer, Taskleiste) – aus der Go-Version übernommen. -->
+    <ApplicationIcon>Assets\appicon.ico</ApplicationIcon>
+    <AssemblyName>NMailClient.Poc</AssemblyName>
+
+    <!-- Die einzige Stelle, an der die Version steht. Die „Über"-Ansicht und
+         die Suche nach Aktualisierungen lesen sie aus dem Assembly, das Setup
+         bekommt sie von build.ps1 übergeben. -->
+    <Version>0.8.4</Version>
+    <Product>N-MailClient (C#-PoC)</Product>
+    <Company>lunasans</Company>
+    <RootNamespace>NMailClient.Poc</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Als Ressource eingebettet, damit die Fenster es ohne Datei daneben laden. -->
+    <Resource Include="Assets\appicon.ico" />
+    <Resource Include="Assets\appicon.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Die Sprachkataloge liegen im Assembly, nicht neben der EXE: eine
+         fehlende Datei würde sonst eine leere Oberfläche erzeugen.
+
+         WithCulture=false ist hier entscheidend: MSBuild deutet den Dateinamen
+         "Strings.de.json" sonst als kulturspezifische Ressource und packt ihn in
+         ein Satelliten-Assembly (de\NMailClient.Poc.resources.dll) statt in die
+         Hauptdatei. LogicalName legt den Namen fest, unter dem geladen wird. -->
+    <EmbeddedResource Include="Resources\Strings.de.json" WithCulture="false"
+                      LogicalName="NMailClient.Poc.Resources.Strings.de.json" />
+    <EmbeddedResource Include="Resources\Strings.en.json" WithCulture="false"
+                      LogicalName="NMailClient.Poc.Resources.Strings.en.json" />
+
+    <PackageReference Include="Dapper" Version="2.1.79" />
+    <PackageReference Include="DnsClient" Version="1.8.0" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.10" />
+
+    <!-- Microsoft.Data.Sqlite zieht SQLitePCLRaw 2.1.11 nach; dessen native
+         Bibliothek hat eine bekannte Lücke (GHSA-2m69-gcr7-jv3q). Hier wird
+         die aktuelle Fassung vorgezogen. -->
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.5" />
+    <PackageReference Include="FolkerKinzel.VCards" Version="8.2.0" />
+    <PackageReference Include="Ical.Net" Version="5.2.3" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.10" />
+    <PackageReference Include="MailKit" Version="4.17.0" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4078.44" />
+  </ItemGroup>
+
+</Project>

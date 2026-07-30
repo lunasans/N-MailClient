@@ -1,0 +1,67 @@
+﻿<Window x:Class="NMailClient.Poc.Views.EventEditWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:i18n="clr-namespace:NMailClient.Poc.Services.I18n"
+        Title="{i18n:T Title.Event}" Icon="pack://application:,,,/NMailClient.Poc;component/Assets/appicon.ico" SizeToContent="Height" Width="460"
+        ResizeMode="NoResize" WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False" FontFamily="Segoe UI" FontSize="13"
+        Background="{DynamicResource Bg}">
+
+  <StackPanel Margin="16">
+
+    <TextBlock Text="{i18n:T Event.Title}" Margin="0,0,0,2" />
+    <TextBox x:Name="TxtSummary" Padding="6,4" Margin="0,0,0,10" />
+
+    <CheckBox x:Name="ChkAllDay" Content="{i18n:T Event.AllDay}" Margin="0,0,0,10"
+              Checked="AllDay_Changed" Unchecked="AllDay_Changed" />
+
+    <Grid Margin="0,0,0,10">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="10" />
+        <ColumnDefinition Width="Auto" />
+      </Grid.ColumnDefinitions>
+      <StackPanel Grid.Column="0">
+        <TextBlock Text="{i18n:T Event.Start}" Margin="0,0,0,2" />
+        <DatePicker x:Name="PickStart" />
+      </StackPanel>
+      <StackPanel Grid.Column="2">
+        <TextBlock Text="{i18n:T Event.Time}" Margin="0,0,0,2" />
+        <TextBox x:Name="TxtStartTime" Width="80" Padding="6,4" />
+      </StackPanel>
+    </Grid>
+
+    <Grid Margin="0,0,0,10">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="10" />
+        <ColumnDefinition Width="Auto" />
+      </Grid.ColumnDefinitions>
+      <StackPanel Grid.Column="0">
+        <TextBlock Text="{i18n:T Event.End}" Margin="0,0,0,2" />
+        <DatePicker x:Name="PickEnd" />
+      </StackPanel>
+      <StackPanel Grid.Column="2">
+        <TextBlock Text="{i18n:T Event.Time}" Margin="0,0,0,2" />
+        <TextBox x:Name="TxtEndTime" Width="80" Padding="6,4" />
+      </StackPanel>
+    </Grid>
+
+    <TextBlock Text="{i18n:T Event.Location}" Margin="0,0,0,2" />
+    <TextBox x:Name="TxtLocation" Padding="6,4" Margin="0,0,0,10" />
+
+    <TextBlock Text="{i18n:T Event.Description}" Margin="0,0,0,2" />
+    <TextBox x:Name="TxtDescription" Padding="6,4" Height="70"
+             AcceptsReturn="True" TextWrapping="Wrap"
+             VerticalScrollBarVisibility="Auto" />
+
+    <TextBlock x:Name="LblError" Foreground="#C04F4F" TextWrapping="Wrap"
+               Margin="0,8,0,0" Visibility="Collapsed" />
+
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
+      <Button Content="{i18n:T Common.Apply}" Width="100" Margin="0,0,6,0" IsDefault="True"
+              Click="Ok_Click" Style="{StaticResource AccentButton}" />
+      <Button Content="{i18n:T Common.Cancel}" Width="100" IsCancel="True" />
+    </StackPanel>
+  </StackPanel>
+</Window>

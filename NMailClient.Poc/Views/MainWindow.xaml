@@ -1,0 +1,831 @@
+﻿<Window x:Class="NMailClient.Poc.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:NMailClient.Poc.ViewModels"
+        xmlns:m="clr-namespace:NMailClient.Poc.Models"
+        xmlns:i18n="clr-namespace:NMailClient.Poc.Services.I18n"
+        xmlns:wv="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+        Title="N-MailClient (C#-PoC)" Icon="pack://application:,,,/NMailClient.Poc;component/Assets/appicon.ico" Height="860" Width="1400" MinHeight="640" MinWidth="980"
+        Background="{DynamicResource Bg}" FontFamily="Segoe UI" FontSize="13"
+        TextOptions.TextFormattingMode="Display">
+
+  <!-- DataContext wird in App.OnStartup gesetzt: das Theme hängt an den
+       Einstellungen des ViewModels und muss vor dem Fenster stehen. -->
+  <!-- Menü des Symbols im Infobereich. Es hängt am Fenster, weil ein
+       Kontextmenü ohne Platzierungsziel nicht aufgeht. -->
+  <Window.Resources>
+    <ContextMenu x:Key="TrayMenuResource" Placement="MousePoint">
+      <MenuItem Header="{i18n:T Main.Tray.Open}" Click="TrayOpen_Click" FontWeight="SemiBold" />
+      <MenuItem Header="{i18n:T Main.Tray.Compose}" Click="TrayCompose_Click" />
+      <Separator />
+      <MenuItem Header="{i18n:T Main.Tray.Exit}" Click="TrayExit_Click" />
+    </ContextMenu>
+  </Window.Resources>
+
+  <Window.InputBindings>
+    <KeyBinding Key="Delete" Command="{Binding DeleteCommand}" />
+    <KeyBinding Key="N" Modifiers="Control" Command="{Binding ComposeCommand}" />
+    <KeyBinding Key="F5" Command="{Binding RefreshCommand}" />
+  </Window.InputBindings>
+
+  <DockPanel>
+
+    <!-- Werkzeugleiste -->
+    <Border DockPanel.Dock="Top" Background="{DynamicResource Panel}"
+            BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1" Padding="8,6">
+      <DockPanel>
+        <Button DockPanel.Dock="Right" x:Name="BtnTheme" Style="{StaticResource Toolbutton}"
+                Content="Dunkel" Click="Theme_Click" ToolTip="{i18n:T Main.Toolbar.ThemeTip}" />
+        <TextBox DockPanel.Dock="Right" Width="240" Margin="0,0,8,0"
+                 VerticalContentAlignment="Center"
+                 Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged, Delay=0}"
+                 ToolTip="{i18n:T Main.Toolbar.SearchTip}" />
+
+        <!-- Sichtbar bleibt, was häufig gebraucht wird; der Rest steht im Menü.
+             Nachrichten-Aktionen gibt es zusätzlich per Kontextmenü und beim
+             Überfahren einer Zeile. -->
+        <StackPanel Orientation="Horizontal">
+          <Button Content="{i18n:T Main.Toolbar.Compose}" Style="{StaticResource AccentButton}" Margin="0,0,8,0"
+                  Command="{Binding ComposeCommand}" />
+          <Button Content="{i18n:T Main.Toolbar.Refresh}" Style="{StaticResource Toolbutton}"
+                  Command="{Binding RefreshCommand}" ToolTip="{i18n:T Main.Toolbar.RefreshTip}" />
+          <Separator Margin="6,4" />
+          <Button Content="{i18n:T Main.Toolbar.Archive}" Style="{StaticResource Toolbutton}"
+                  Command="{Binding ArchiveCommand}" />
+          <Button Content="{i18n:T Main.Toolbar.Delete}" Style="{StaticResource Toolbutton}"
+                  Command="{Binding DeleteCommand}" ToolTip="{i18n:T Main.Toolbar.DeleteTip}" />
+          <Separator Margin="6,4" />
+
+          <Menu Background="Transparent" VerticalAlignment="Center">
+            <MenuItem Header="{i18n:T Main.Toolbar.More}" Padding="10,5">
+
+              <MenuItem Header="{i18n:T Main.Menu.View}">
+                <MenuItem Header="{i18n:T Main.Menu.UnansweredOnly}" IsCheckable="True"
+                          IsChecked="{Binding FilterUnanswered}" />
+                <MenuItem Header="{i18n:T Main.Menu.ThreadView}" IsCheckable="True"
+                          IsChecked="{Binding ThreadView}" />
+              </MenuItem>
+
+              <Separator />
+              <MenuItem Header="{i18n:T Main.Menu.ToggleSeen}" Command="{Binding ToggleSeenCommand}" />
+              <MenuItem Header="{i18n:T Main.Menu.ToggleFlag}" Command="{Binding ToggleFlagCommand}" />
+
+              <Separator />
+              <MenuItem Header="{i18n:T Main.Menu.Contacts}" Click="Contacts_Click" />
+              <MenuItem Header="{i18n:T Main.Menu.Calendar}" Click="Calendar_Click" />
+              <MenuItem Header="{i18n:T Main.Menu.Archive}" Click="Archive_Click" />
+
+              <Separator />
+              <MenuItem Header="{i18n:T Main.Menu.Accounts}" Command="{Binding AccountsCommand}" />
+              <MenuItem Header="{i18n:T Main.Menu.Settings}" Click="Settings_Click" />
+              <Separator />
+              <MenuItem Header="{i18n:T Main.Menu.About}" Click="About_Click" />
+            </MenuItem>
+          </Menu>
+        </StackPanel>
+      </DockPanel>
+    </Border>
+
+    <!-- Ausgang: wartende und geplante Sendungen -->
+    <Border DockPanel.Dock="Bottom" Background="{DynamicResource Selection}" Padding="10,7"
+            BorderBrush="{DynamicResource Accent}" BorderThickness="0,1,0,0"
+            Visibility="{Binding HasOutbox, Converter={StaticResource BoolToVis}}">
+      <DockPanel>
+        <Button DockPanel.Dock="Right" Content="{i18n:T Main.Outbox.Cancel}" Padding="10,3"
+                Command="{Binding CancelSendCommand}" />
+        <TextBlock Text="{Binding OutboxText}" VerticalAlignment="Center"
+                   TextTrimming="CharacterEllipsis" />
+      </DockPanel>
+    </Border>
+
+    <!-- Statusleiste -->
+    <Border DockPanel.Dock="Bottom" Background="{DynamicResource Panel}"
+            BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0" Padding="10,5">
+      <DockPanel>
+        <ProgressBar DockPanel.Dock="Right" Width="120" Height="4" IsIndeterminate="True"
+                     Visibility="{Binding Busy, Converter={StaticResource BoolToVis}}" />
+        <TextBlock DockPanel.Dock="Right" Text="{Binding SelectionInfo}" Margin="12,0"
+                   Foreground="{DynamicResource Accent}" FontWeight="SemiBold"
+                   Visibility="{Binding HasMultiSelection, Converter={StaticResource BoolToVis}}" />
+        <TextBlock Text="{Binding Status}" Foreground="{DynamicResource TextMuted}"
+                   TextTrimming="CharacterEllipsis" />
+      </DockPanel>
+    </Border>
+
+    <Grid>
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="240" MinWidth="160" />
+        <ColumnDefinition Width="1" />
+        <ColumnDefinition Width="360" MinWidth="240" />
+        <ColumnDefinition Width="1" />
+        <ColumnDefinition Width="*" MinWidth="300" />
+      </Grid.ColumnDefinitions>
+
+      <!-- Sidebar: Konten + Ordnerbaum -->
+      <DockPanel Grid.Column="0" Background="{DynamicResource Panel}">
+        <TextBlock DockPanel.Dock="Top" Text="{i18n:T Main.Sidebar.Accounts}" Margin="12,12,12,6"
+                   FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextMuted}" />
+        <ListBox DockPanel.Dock="Top" MaxHeight="120"
+                 ItemsSource="{Binding Accounts}" SelectedItem="{Binding SelectedAccount}"
+                 HorizontalContentAlignment="Stretch">
+          <ListBox.ItemTemplate>
+            <DataTemplate DataType="{x:Type m:Account}">
+              <StackPanel Orientation="Horizontal" Margin="2">
+                <Border Width="8" Height="8" CornerRadius="4" Margin="0,0,8,0"
+                        Background="{Binding Color}" />
+                <TextBlock Text="{Binding Email}" TextTrimming="CharacterEllipsis" />
+              </StackPanel>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+
+        <!-- Gemeinsamer Posteingang: eigener Bereich über den Ordnern, denn er
+             ist keiner. Erscheint nur bei mehr als einem Konto. -->
+        <ListBox x:Name="UnifiedList" DockPanel.Dock="Top"
+                 ItemsSource="{Binding UnifiedInbox}"
+                 SelectionChanged="UnifiedList_SelectionChanged"
+                 BorderThickness="0" Background="Transparent" Margin="0,8,0,0"
+                 Visibility="{Binding HasUnifiedInbox, Converter={StaticResource BoolToVis}}">
+          <ListBox.ItemContainerStyle>
+            <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+              <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            </Style>
+          </ListBox.ItemContainerStyle>
+          <ListBox.ItemTemplate>
+            <DataTemplate DataType="{x:Type m:FolderNode}">
+              <!-- Gleicher Aufbau wie im Ordnerbaum, damit der Zähler in
+                   derselben Spalte steht. -->
+              <Grid HorizontalAlignment="Stretch" Margin="2">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto" />
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0" Text="📥" Margin="0,0,8,0"
+                           VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1" Text="{Binding Name}" FontWeight="SemiBold"
+                           TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="2" Text="{Binding Unread}"
+                           Margin="10,0,2,0" VerticalAlignment="Center"
+                           FontSize="10.5" Foreground="{DynamicResource TextMuted}"
+                           Visibility="{Binding HasUnread, Converter={StaticResource BoolToVis}}" />
+              </Grid>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+
+        <Separator DockPanel.Dock="Top" Margin="12,8,12,0"
+                   Visibility="{Binding HasUnifiedInbox, Converter={StaticResource BoolToVis}}" />
+
+        <TextBlock DockPanel.Dock="Top" Text="{i18n:T Main.Sidebar.Folders}" Margin="12,14,12,6"
+                   FontSize="10.5" FontWeight="SemiBold" Foreground="{DynamicResource TextMuted}" />
+        <TreeView x:Name="FolderTree" ItemsSource="{Binding Folders}"
+                  SelectedItemChanged="FolderTree_SelectedItemChanged">
+          <TreeView.ContextMenu>
+            <ContextMenu>
+              <MenuItem Header="{i18n:T Main.Folder.New}" Command="{Binding CreateFolderCommand}" />
+              <MenuItem Header="{i18n:T Main.Folder.Rename}" Command="{Binding RenameFolderCommand}" />
+              <Separator />
+              <MenuItem Header="{i18n:T Main.Folder.Up}" Command="{Binding MoveFolderUpCommand}" />
+              <MenuItem Header="{i18n:T Main.Folder.Down}" Command="{Binding MoveFolderDownCommand}" />
+              <Separator />
+              <MenuItem Header="{i18n:T Main.Folder.Delete}" Command="{Binding DeleteFolderCommand}" />
+            </ContextMenu>
+          </TreeView.ContextMenu>
+          <TreeView.ItemContainerStyle>
+            <Style TargetType="TreeViewItem" BasedOn="{StaticResource {x:Type TreeViewItem}}">
+              <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+            </Style>
+          </TreeView.ItemContainerStyle>
+          <TreeView.ItemTemplate>
+            <HierarchicalDataTemplate DataType="{x:Type m:FolderNode}" ItemsSource="{Binding Children}">
+              <!-- Der Zähler steht rechts, nicht direkt hinter dem Namen: sonst
+                   sitzt er je nach Namenslänge woanders und die Spalte franst
+                   aus. HorizontalAlignment=Stretch ist dafür nötig, sonst wird
+                   der Zeileninhalt nur so breit wie sein Text. -->
+              <Grid HorizontalAlignment="Stretch">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0" Text="{Binding Name}"
+                           TextTrimming="CharacterEllipsis" VerticalAlignment="Center">
+                  <TextBlock.Style>
+                    <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                      <Style.Triggers>
+                        <DataTrigger Binding="{Binding HasUnread}" Value="True">
+                          <Setter Property="FontWeight" Value="SemiBold" />
+                        </DataTrigger>
+                      </Style.Triggers>
+                    </Style>
+                  </TextBlock.Style>
+                </TextBlock>
+
+                <!-- Nur die Zahl, gedämpft. Der halbfette Ordnername sagt schon,
+                     dass dort etwas liegt; eine gefüllte Akzentfläche zöge den
+                     Blick zusätzlich auf Ordner wie den Papierkorb, wo
+                     Ungelesenes meist bedeutungslos ist. -->
+                <TextBlock Grid.Column="1" Text="{Binding Unread}"
+                           Margin="10,0,2,0" VerticalAlignment="Center"
+                           FontSize="10.5" Foreground="{DynamicResource TextMuted}"
+                           Visibility="{Binding HasUnread, Converter={StaticResource BoolToVis}}" />
+              </Grid>
+            </HierarchicalDataTemplate>
+          </TreeView.ItemTemplate>
+        </TreeView>
+      </DockPanel>
+
+      <GridSplitter Grid.Column="1" Width="1" HorizontalAlignment="Stretch" />
+
+      <!-- Mailliste -->
+      <DockPanel Grid.Column="2" Background="{DynamicResource Bg}">
+        <!-- Nachladen geschieht beim Scrollen. Die Schaltfläche bleibt als
+             Rückfall: mit der Tastatur oder bei sehr kurzen Listen kommt es
+             sonst nie zu einem Bildlauf. -->
+        <Grid DockPanel.Dock="Bottom"
+              Visibility="{Binding CanLoadMore, Converter={StaticResource BoolToVis}}">
+          <Button Content="{i18n:T Main.List.LoadMore}" Margin="10" Padding="0,7"
+                  Command="{Binding LoadMoreCommand}"
+                  Visibility="{Binding ShowLoadMoreButton,
+                                       Converter={StaticResource BoolToVis}}" />
+          <TextBlock Text="{i18n:T Main.List.LoadingMore}" Margin="10,16"
+                     HorizontalAlignment="Center" FontSize="11.5"
+                     Foreground="{DynamicResource TextMuted}"
+                     Visibility="{Binding LoadingMore, Converter={StaticResource BoolToVis}}" />
+        </Grid>
+        <!-- Offline-Hinweis: die Liste stammt aus dem Zwischenspeicher -->
+        <Border DockPanel.Dock="Top" Padding="10,6"
+                Background="{DynamicResource WarnBg}"
+                BorderBrush="{DynamicResource WarnBorder}" BorderThickness="0,0,0,1"
+                Visibility="{Binding IsOffline, Converter={StaticResource BoolToVis}}">
+          <TextBlock Text="{Binding OfflineHint}" TextWrapping="Wrap" FontSize="11.5"
+                     Foreground="{DynamicResource BadText}" />
+        </Border>
+
+        <!-- Rückgängig-Streifen; verschwindet nach 10 s von selbst -->
+        <Border DockPanel.Dock="Bottom" Background="{DynamicResource Selection}" Padding="10,7"
+                BorderBrush="{DynamicResource Accent}" BorderThickness="0,1,0,0"
+                Visibility="{Binding CanUndo, Converter={StaticResource BoolToVis}}">
+          <DockPanel>
+            <Button DockPanel.Dock="Right" Content="{i18n:T Main.Undo.Button}" Padding="10,3"
+                    Command="{Binding UndoCommand}" />
+            <TextBlock Text="{Binding UndoText}" VerticalAlignment="Center"
+                       TextTrimming="CharacterEllipsis" />
+          </DockPanel>
+        </Border>
+
+        <!-- Kategorie-Reiter -->
+        <ItemsControl DockPanel.Dock="Top" ItemsSource="{Binding Categories}"
+                      Margin="6,6,6,0"
+                      Visibility="{Binding ShowCategories, Converter={StaticResource BoolToVis}}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <ToggleButton Style="{StaticResource ToolToggle}" Padding="10,4" Margin="0,0,4,0"
+                            Content="{Binding Converter={StaticResource CategoryName}}"
+                            Command="{Binding DataContext.SelectCategoryCommand,
+                                              RelativeSource={RelativeSource AncestorType=Window}}"
+                            CommandParameter="{Binding}">
+                <ToggleButton.IsChecked>
+                  <MultiBinding Converter="{StaticResource CategoryIsSelected}" Mode="OneWay">
+                    <Binding />
+                    <Binding Path="DataContext.SelectedCategory"
+                             RelativeSource="{RelativeSource AncestorType=Window}" />
+                  </MultiBinding>
+                </ToggleButton.IsChecked>
+              </ToggleButton>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <ListBox x:Name="MessageList"
+                 ItemsSource="{Binding MessagesView}" SelectedItem="{Binding SelectedMessage}"
+                 SelectionMode="Extended" SelectionChanged="MessageList_SelectionChanged"
+                 MouseDoubleClick="MessageList_MouseDoubleClick"
+                 HorizontalContentAlignment="Stretch"
+                 VirtualizingPanel.IsVirtualizing="True"
+                 VirtualizingPanel.VirtualizationMode="Recycling"
+                 VirtualizingPanel.IsVirtualizingWhenGrouping="True"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                 ScrollViewer.ScrollChanged="MessageList_ScrollChanged">
+
+          <!-- Ungelesene Zeilen werden leicht hinterlegt. Auswahl und
+               Überfahren übersteuern das in der Vorlage, sonst verschwände die
+               Auswahl unter der Tönung. -->
+          <ListBox.ItemContainerStyle>
+            <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+              <Style.Triggers>
+                <DataTrigger Binding="{Binding Seen}" Value="False">
+                  <Setter Property="Background" Value="{DynamicResource UnreadRow}" />
+                </DataTrigger>
+              </Style.Triggers>
+            </Style>
+          </ListBox.ItemContainerStyle>
+
+          <!-- Abschnittsüberschriften der Datumsgruppierung -->
+          <ListBox.GroupStyle>
+            <GroupStyle>
+              <GroupStyle.HeaderTemplate>
+                <DataTemplate>
+                  <Border Background="{DynamicResource Panel}" Padding="8,4" Margin="0,4,0,2">
+                    <TextBlock Text="{Binding Name}" FontSize="11" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextMuted}" />
+                  </Border>
+                </DataTemplate>
+              </GroupStyle.HeaderTemplate>
+            </GroupStyle>
+          </ListBox.GroupStyle>
+
+          <ListBox.ItemTemplate>
+            <DataTemplate DataType="{x:Type m:MailSummary}">
+              <Grid Margin="{Binding DataContext.RowSpacing,
+                                     RelativeSource={RelativeSource AncestorType=Window},
+                                     Converter={StaticResource SpacingToMargin}}">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto" />
+                  <ColumnDefinition Width="Auto" />
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Kennfarbe des Kontos. Nur im gemeinsamen Posteingang: in
+                     einem einzelnen Ordner stammt ohnehin alles aus demselben
+                     Postfach, dort wäre der Streifen nur Zierrat. -->
+                <Border Grid.Column="0" Width="3" CornerRadius="2" Margin="0,1,8,1"
+                        Background="{Binding AccountColor}"
+                        ToolTip="{Binding AccountEmail}"
+                        Visibility="{Binding DataContext.IsUnifiedView,
+                                             RelativeSource={RelativeSource AncestorType=Window},
+                                             Converter={StaticResource BoolToVis}}" />
+
+                <!-- Initialen-Avatar; Größe folgt der Listendichte -->
+                <Border Grid.Column="1" CornerRadius="999"
+                        Width="{Binding DataContext.AvatarSize,
+                                        RelativeSource={RelativeSource AncestorType=Window}}"
+                        Height="{Binding DataContext.AvatarSize,
+                                         RelativeSource={RelativeSource AncestorType=Window}}"
+                        Background="{Binding AvatarColor}" Margin="0,0,10,0"
+                        VerticalAlignment="Top">
+                  <TextBlock Text="{Binding Initials}" Foreground="White" FontSize="11.5"
+                             FontWeight="SemiBold"
+                             HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+
+                <StackPanel Grid.Column="2">
+                  <DockPanel>
+                    <!-- Anzahl der Nachrichten im Verlauf -->
+                    <Border DockPanel.Dock="Right" Background="{DynamicResource PanelAlt}"
+                            BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                            CornerRadius="8" Padding="6,0" Margin="6,0,0,0"
+                            Visibility="{Binding IsThread, Converter={StaticResource BoolToVis}}">
+                      <TextBlock Text="{Binding ThreadCount}" FontSize="10"
+                                 Foreground="{DynamicResource TextMuted}" />
+                    </Border>
+                    <!-- Ungelesen: 'Neu' als Kennzeichen. Ein Wort ist auch
+                         dann eindeutig, wenn Farben schlecht zu unterscheiden
+                         sind — anders als ein blosser Punkt. -->
+                    <Border DockPanel.Dock="Left" Background="{DynamicResource Accent}"
+                            CornerRadius="3" Padding="5,0" Margin="0,0,6,0"
+                            VerticalAlignment="Center"
+                            Visibility="{Binding Seen, Converter={StaticResource InverseBoolToVis}}">
+                      <TextBlock Text="{i18n:T Main.List.New}"
+                                 Foreground="{DynamicResource OnAccent}"
+                                 FontSize="9.5" FontWeight="SemiBold" />
+                    </Border>
+
+                    <TextBlock Text="{Binding From}" TextTrimming="CharacterEllipsis"
+                               FontSize="12">
+                      <TextBlock.Style>
+                        <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                          <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
+                          <Style.Triggers>
+                            <!-- Ungelesen bekommt volle Textfarbe und Gewicht;
+                                 Gelesenes tritt zurück. -->
+                            <DataTrigger Binding="{Binding Seen}" Value="False">
+                              <Setter Property="FontWeight" Value="SemiBold" />
+                              <Setter Property="Foreground" Value="{DynamicResource Text}" />
+                            </DataTrigger>
+                          </Style.Triggers>
+                        </Style>
+                      </TextBlock.Style>
+                    </TextBlock>
+                  </DockPanel>
+                  <TextBlock Text="{Binding Subject}" TextTrimming="CharacterEllipsis"
+                             Margin="0,1,0,0">
+                    <TextBlock.Style>
+                      <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding Seen}" Value="False">
+                            <Setter Property="FontWeight" Value="Bold" />
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </TextBlock.Style>
+                  </TextBlock>
+
+                  <!-- Wiedervorlage -->
+                  <Border Background="{DynamicResource WarnBg}" BorderBrush="{DynamicResource WarnBorder}"
+                          BorderThickness="1" CornerRadius="7" Padding="6,1"
+                          HorizontalAlignment="Left" Margin="0,2,0,0"
+                          Visibility="{Binding HasFollowUp, Converter={StaticResource BoolToVis}}">
+                    <TextBlock Text="{Binding FollowUpDisplay}" FontSize="10"
+                               Foreground="{DynamicResource WarnText}" />
+                  </Border>
+
+                  <!-- Etikett-Chips -->
+                  <ItemsControl ItemsSource="{Binding Labels}" Margin="0,2,0,0">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate><WrapPanel Orientation="Horizontal" /></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate DataType="{x:Type m:LabelDef}">
+                        <Border Background="{Binding Color}" CornerRadius="7"
+                                Padding="6,1" Margin="0,0,4,0">
+                          <TextBlock Text="{Binding Display}" FontSize="10"
+                                     Foreground="White" />
+                        </Border>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+
+                <Grid Grid.Column="3" Margin="8,0,0,0">
+
+                  <!-- Normalzustand: Datum + Symbole -->
+                  <StackPanel x:Name="MetaPanel" HorizontalAlignment="Right">
+                    <TextBlock Text="{Binding DateDisplay}" FontSize="11"
+                               Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Right" />
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,2,0,0">
+                      <TextBlock Text="↩" FontSize="12" Margin="0,0,5,0"
+                                 Foreground="{DynamicResource Accent}"
+                                 ToolTip="{i18n:T Main.List.Answered}"
+                                 Visibility="{Binding Answered, Converter={StaticResource BoolToVis}}" />
+                      <TextBlock Text="A" FontSize="9.5" Margin="0,0,5,0"
+                                 Foreground="{DynamicResource TextMuted}"
+                                 ToolTip="{i18n:T Main.List.HasAttachments}"
+                                 Visibility="{Binding HasAttachments, Converter={StaticResource BoolToVis}}" />
+                      <TextBlock Text="*" FontSize="14" Foreground="{DynamicResource Star}"
+                                 Visibility="{Binding Flagged, Converter={StaticResource BoolToVis}}" />
+                    </StackPanel>
+                  </StackPanel>
+
+                  <!-- Hover: Schnellaktionen an derselben Stelle, wirken nur auf diese Zeile -->
+                  <StackPanel x:Name="QuickActions" Orientation="Horizontal"
+                              HorizontalAlignment="Right" VerticalAlignment="Center"
+                              Visibility="Collapsed">
+                    <Button Content="{i18n:T Main.Toolbar.Archive}" Padding="7,2" FontSize="11" Margin="0,0,4,0"
+                            ToolTip="{i18n:T Main.List.ArchiveRow}"
+                            Command="{Binding DataContext.ArchiveCommand,
+                                              RelativeSource={RelativeSource AncestorType=Window}}"
+                            CommandParameter="{Binding}" />
+                    <Button Content="{i18n:T Main.Toolbar.Delete}" Padding="7,2" FontSize="11"
+                            ToolTip="{i18n:T Main.List.DeleteRow}"
+                            Command="{Binding DataContext.DeleteCommand,
+                                              RelativeSource={RelativeSource AncestorType=Window}}"
+                            CommandParameter="{Binding}" />
+                  </StackPanel>
+                </Grid>
+              </Grid>
+
+              <DataTemplate.Triggers>
+                <DataTrigger
+                    Binding="{Binding IsMouseOver,
+                                      RelativeSource={RelativeSource AncestorType=ListBoxItem}}"
+                    Value="True">
+                  <Setter TargetName="MetaPanel" Property="Visibility" Value="Collapsed" />
+                  <Setter TargetName="QuickActions" Property="Visibility" Value="Visible" />
+                </DataTrigger>
+              </DataTemplate.Triggers>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+
+          <ListBox.ContextMenu>
+            <ContextMenu>
+              <MenuItem Header="{i18n:T Main.Context.EditDraft}" Command="{Binding OpenDraftCommand}" />
+              <MenuItem Header="{i18n:T Main.Menu.ToggleSeen}" Command="{Binding ToggleSeenCommand}" />
+              <MenuItem Header="{i18n:T Main.Menu.ToggleFlag}" Command="{Binding ToggleFlagCommand}" />
+              <MenuItem Header="{i18n:T Main.Attachment.SortBySender}"
+                        Visibility="{Binding ShowCategories, Converter={StaticResource BoolToVis}}"
+                        ItemsSource="{Binding Categories}">
+                <MenuItem.ItemContainerStyle>
+                  <Style TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+                    <Setter Property="Header"
+                            Value="{Binding Converter={StaticResource CategoryName}}" />
+                    <Setter Property="Command"
+                            Value="{Binding DataContext.AssignCategoryCommand,
+                                            RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                    <Setter Property="CommandParameter" Value="{Binding}" />
+                  </Style>
+                </MenuItem.ItemContainerStyle>
+              </MenuItem>
+              <MenuItem Header="{i18n:T Main.Context.Label}" ItemsSource="{Binding Labels}">
+                <MenuItem.ItemContainerStyle>
+                  <Style TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+                    <Setter Property="Header" Value="{Binding Display}" />
+                    <Setter Property="Command"
+                            Value="{Binding DataContext.ToggleLabelCommand,
+                                            RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                    <Setter Property="CommandParameter" Value="{Binding}" />
+                    <Setter Property="Icon">
+                      <Setter.Value>
+                        <Border Width="10" Height="10" CornerRadius="5"
+                                Background="{Binding Color}" />
+                      </Setter.Value>
+                    </Setter>
+                  </Style>
+                </MenuItem.ItemContainerStyle>
+              </MenuItem>
+              <Separator />
+              <MenuItem Header="{i18n:T Main.Context.Snooze}">
+                <MenuItem Header="{i18n:T Main.Snooze.OneHour}" Command="{Binding SnoozeCommand}"
+                          CommandParameter="OneHour" />
+                <MenuItem Header="{i18n:T Main.Snooze.Tonight}" Command="{Binding SnoozeCommand}"
+                          CommandParameter="Tonight" />
+                <MenuItem Header="{i18n:T Main.Snooze.Tomorrow}" Command="{Binding SnoozeCommand}"
+                          CommandParameter="Tomorrow" />
+                <MenuItem Header="{i18n:T Main.Snooze.NextWeek}" Command="{Binding SnoozeCommand}"
+                          CommandParameter="NextWeek" />
+              </MenuItem>
+              <MenuItem Header="{i18n:T Main.Context.FollowUp}">
+                <MenuItem Header="{i18n:T Main.Snooze.OneHour}" Command="{Binding FollowUpCommand}"
+                          CommandParameter="OneHour" />
+                <MenuItem Header="{i18n:T Main.Snooze.Tonight}" Command="{Binding FollowUpCommand}"
+                          CommandParameter="Tonight" />
+                <MenuItem Header="{i18n:T Main.Snooze.Tomorrow}" Command="{Binding FollowUpCommand}"
+                          CommandParameter="Tomorrow" />
+                <MenuItem Header="{i18n:T Main.Snooze.NextWeek}" Command="{Binding FollowUpCommand}"
+                          CommandParameter="NextWeek" />
+                <Separator />
+                <MenuItem Header="{i18n:T Main.Context.ClearReminder}" Command="{Binding ClearReminderCommand}" />
+              </MenuItem>
+              <Separator />
+              <MenuItem Header="{i18n:T Main.Toolbar.Archive}" Command="{Binding ArchiveCommand}" />
+              <MenuItem Header="{i18n:T Main.Context.Spam}" Command="{Binding SpamCommand}" />
+              <MenuItem Header="{i18n:T Main.Context.Ham}" Command="{Binding HamCommand}" />
+              <MenuItem Header="{i18n:T Main.Context.MoveTo}" ItemsSource="{Binding FlatFolders}">
+                <MenuItem.ItemContainerStyle>
+                  <Style TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+                    <Setter Property="Header" Value="{Binding IndentedName}" />
+                    <Setter Property="Command"
+                            Value="{Binding DataContext.MoveToCommand,
+                                            RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                    <Setter Property="CommandParameter" Value="{Binding}" />
+                  </Style>
+                </MenuItem.ItemContainerStyle>
+              </MenuItem>
+              <Separator />
+              <MenuItem Header="{i18n:T Main.Toolbar.Delete}" Command="{Binding DeleteCommand}" />
+            </ContextMenu>
+          </ListBox.ContextMenu>
+        </ListBox>
+      </DockPanel>
+
+      <GridSplitter Grid.Column="3" Width="1" HorizontalAlignment="Stretch" />
+
+      <!-- Vorschau -->
+      <DockPanel Grid.Column="4" Background="{DynamicResource Bg}"
+                 Visibility="{Binding HasBody, Converter={StaticResource BoolToVis}}">
+
+        <Border DockPanel.Dock="Top" Padding="16,14" BorderBrush="{DynamicResource Border}"
+                BorderThickness="0,0,0,1">
+          <StackPanel>
+            <TextBlock Text="{Binding Body.Subject}" FontSize="17" FontWeight="SemiBold"
+                       TextWrapping="Wrap" />
+            <TextBlock Margin="0,6,0,0" Foreground="{DynamicResource TextMuted}" FontSize="12"
+                       TextTrimming="CharacterEllipsis"
+                       Text="{Binding Body.From, StringFormat=Von: {0}}" />
+            <TextBlock Foreground="{DynamicResource TextMuted}" FontSize="12"
+                       TextTrimming="CharacterEllipsis"
+                       Text="{Binding Body.To, StringFormat=An: {0}}" />
+            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+              <Button Content="{i18n:T Main.Preview.Reply}" Margin="0,0,6,0" Command="{Binding ReplyCommand}" />
+              <Button Content="{i18n:T Main.Preview.ReplyAll}" Margin="0,0,6,0" Command="{Binding ReplyAllCommand}" />
+              <Button Content="{i18n:T Main.Preview.Forward}" Margin="0,0,6,0" Command="{Binding ForwardCommand}" />
+              <Button Content="{i18n:T Main.Context.Source}" Margin="0,0,6,0" Command="{Binding SourceCommand}" />
+              <Button Content="{i18n:T Main.Preview.Print}" Margin="0,0,6,0" Click="Print_Click" />
+              <Button Content="{i18n:T Main.Preview.Translate}" Command="{Binding TranslateCommand}"
+                      ToolTip="{i18n:T Main.Preview.TranslateTip}" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <!-- OpenPGP: Verschlüsselung und Signatur -->
+        <Border DockPanel.Dock="Top" Padding="12,5" BorderThickness="0,0,0,1"
+                Visibility="{Binding HasPgpInfo, Converter={StaticResource BoolToVis}}">
+          <Border.Style>
+            <Style TargetType="Border">
+              <!-- Grün nur bei geprüftem Ergebnis, rot bei kaputter Signatur. -->
+              <Setter Property="Background" Value="{DynamicResource Panel}" />
+              <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+              <Style.Triggers>
+                <DataTrigger Binding="{Binding PgpIsGood}" Value="True">
+                  <Setter Property="Background" Value="{DynamicResource OkBg}" />
+                  <Setter Property="BorderBrush" Value="{DynamicResource OkBorder}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding PgpIsWarning}" Value="True">
+                  <Setter Property="Background" Value="{DynamicResource WarnBg}" />
+                  <Setter Property="BorderBrush" Value="{DynamicResource WarnBorder}" />
+                </DataTrigger>
+              </Style.Triggers>
+            </Style>
+          </Border.Style>
+
+          <StackPanel Orientation="Horizontal">
+            <Border CornerRadius="9" Padding="8,1" Margin="0,0,8,0" BorderThickness="1"
+                    Background="{DynamicResource PanelAlt}"
+                    BorderBrush="{DynamicResource Border}">
+              <TextBlock Text="{i18n:T Main.Preview.Pgp}" FontSize="10.5" FontWeight="SemiBold"
+                         Foreground="{DynamicResource TextMuted}" />
+            </Border>
+
+            <TextBlock Text="{Binding PgpSummary}" FontSize="11.5" TextWrapping="Wrap"
+                       VerticalAlignment="Center">
+              <TextBlock.Style>
+                <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding PgpIsGood}" Value="True">
+                      <Setter Property="Foreground" Value="{DynamicResource OkText}" />
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding PgpIsWarning}" Value="True">
+                      <Setter Property="Foreground" Value="{DynamicResource BadText}" />
+                      <Setter Property="FontWeight" Value="SemiBold" />
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </TextBlock.Style>
+            </TextBlock>
+          </StackPanel>
+        </Border>
+
+        <!-- SPF/DKIM/DMARC und Spoofing-Warnung -->
+        <Border DockPanel.Dock="Top" Padding="12,5" BorderThickness="0,0,0,1"
+                Visibility="{Binding HasAuthInfo, Converter={StaticResource BoolToVis}}">
+          <Border.Style>
+            <Style TargetType="Border">
+              <!-- Unauffällig, solange alles stimmt; auffällig bei Fehlschlag. -->
+              <Setter Property="Background" Value="{DynamicResource Panel}" />
+              <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+              <Style.Triggers>
+                <DataTrigger Binding="{Binding AuthIsWarning}" Value="True">
+                  <Setter Property="Background" Value="{DynamicResource WarnBg}" />
+                  <Setter Property="BorderBrush" Value="{DynamicResource WarnBorder}" />
+                </DataTrigger>
+              </Style.Triggers>
+            </Style>
+          </Border.Style>
+
+          <StackPanel>
+            <!-- Eine farbige Marke je Prüfverfahren -->
+            <ItemsControl ItemsSource="{Binding AuthBadges}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Border CornerRadius="9" Padding="8,1" Margin="0,0,5,0"
+                          BorderThickness="1" ToolTip="{Binding Tooltip}">
+                    <Border.Style>
+                      <Style TargetType="Border">
+                        <!-- Neutral als Vorgabe; Erfolg und Fehlschlag überschreiben. -->
+                        <Setter Property="Background" Value="{DynamicResource PanelAlt}" />
+                        <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding IsPass}" Value="True">
+                            <Setter Property="Background" Value="{DynamicResource OkBg}" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource OkBorder}" />
+                          </DataTrigger>
+                          <DataTrigger Binding="{Binding IsFail}" Value="True">
+                            <Setter Property="Background" Value="{DynamicResource BadBg}" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource BadBorder}" />
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </Border.Style>
+
+                    <TextBlock Text="{Binding Label}" FontSize="10.5" FontWeight="SemiBold">
+                      <TextBlock.Style>
+                        <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                          <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
+                          <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsPass}" Value="True">
+                              <Setter Property="Foreground" Value="{DynamicResource OkText}" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsFail}" Value="True">
+                              <Setter Property="Foreground" Value="{DynamicResource BadText}" />
+                            </DataTrigger>
+                          </Style.Triggers>
+                        </Style>
+                      </TextBlock.Style>
+                    </TextBlock>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!-- Vorgetäuschter Absender: eigener Hinweis, immer als Warnung -->
+            <TextBlock Text="{Binding SpoofWarning}" FontSize="11" TextWrapping="Wrap"
+                       Margin="0,4,0,0" FontWeight="SemiBold"
+                       Foreground="{DynamicResource BadText}"
+                       Visibility="{Binding HasSpoofWarning, Converter={StaticResource BoolToVis}}" />
+          </StackPanel>
+        </Border>
+
+        <!-- Termin-Einladung in der Mail -->
+        <Border DockPanel.Dock="Top" Background="{DynamicResource WarnBg}" Padding="12,8"
+                BorderBrush="{DynamicResource WarnBorder}" BorderThickness="0,0,0,1"
+                Visibility="{Binding HasInvitation, Converter={StaticResource BoolToVis}}">
+          <DockPanel>
+            <Button DockPanel.Dock="Right" Content="{i18n:T Main.Preview.AddToCalendar}" Padding="10,3"
+                    Click="AcceptInvitation_Click" />
+            <TextBlock Text="{Binding InvitationText}" VerticalAlignment="Center"
+                       Foreground="{DynamicResource WarnText}"
+                       TextTrimming="CharacterEllipsis" />
+          </DockPanel>
+        </Border>
+
+        <!-- Hinweis auf die angezeigte Übersetzung -->
+        <Border DockPanel.Dock="Top" Background="{DynamicResource Selection}" Padding="12,6"
+                BorderBrush="{DynamicResource Accent}" BorderThickness="0,0,0,1"
+                Visibility="{Binding ShowingTranslation, Converter={StaticResource BoolToVis}}">
+          <DockPanel>
+            <Button DockPanel.Dock="Right" Content="{i18n:T Main.Preview.ShowOriginal}" Padding="10,3"
+                    Command="{Binding TranslateCommand}" />
+            <TextBlock Text="{Binding TranslationInfo}" VerticalAlignment="Center" />
+          </DockPanel>
+        </Border>
+
+        <!-- Banner für blockierte externe Bilder -->
+        <Border DockPanel.Dock="Top" Background="{DynamicResource WarnBg}" Padding="12,8"
+                BorderBrush="{DynamicResource WarnBorder}" BorderThickness="0,0,0,1"
+                Visibility="{Binding ImagesBlocked, Converter={StaticResource BoolToVis}}">
+          <DockPanel>
+            <Button DockPanel.Dock="Right" Content="{i18n:T Main.Images.TrustSender}" Padding="10,3"
+                    Margin="6,0,0,0" Command="{Binding TrustSenderCommand}"
+                    ToolTip="{i18n:T Main.Images.TrustSenderTip}" />
+            <Button DockPanel.Dock="Right" Content="{i18n:T Main.Images.Show}" Padding="10,3"
+                    Command="{Binding ShowImagesCommand}" />
+            <TextBlock Text="{i18n:T Main.Images.Blocked}"
+                       Foreground="{DynamicResource WarnText}" VerticalAlignment="Center" />
+          </DockPanel>
+        </Border>
+
+        <!-- Anhänge -->
+        <Border DockPanel.Dock="Bottom" Padding="12,8" Background="{DynamicResource Panel}"
+                BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0"
+                Visibility="{Binding Body.Attachments.Count, Converter={StaticResource CountToVis}}">
+          <DockPanel>
+          <Button DockPanel.Dock="Right" Content="{i18n:T Main.Attachment.AllToArchive}" Padding="10,4"
+                  Margin="6,0,0,0" VerticalAlignment="Top"
+                  Command="{Binding ArchiveAllAttachmentsCommand}"
+                  ToolTip="{i18n:T Main.Attachment.AllToArchiveTip}" />
+          <ItemsControl ItemsSource="{Binding Body.Attachments}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate DataType="{x:Type m:AttachmentInfo}">
+                <!-- Tag trägt das ViewModel; das ContextMenu liegt ausserhalb des
+                     visuellen Baums und kommt nur über PlacementTarget daran. -->
+                <Button Content="{Binding Display}" Margin="0,2,6,2" Padding="10,4"
+                        ToolTip="{i18n:T Main.Attachment.SaveTip}"
+                        Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}"
+                        Command="{Binding DataContext.SaveAttachmentCommand,
+                                          RelativeSource={RelativeSource AncestorType=Window}}"
+                        CommandParameter="{Binding}">
+                  <Button.ContextMenu>
+                    <ContextMenu>
+                      <MenuItem Header="{i18n:T Main.Attachment.SaveAs}"
+                                Command="{Binding PlacementTarget.Tag.SaveAttachmentCommand,
+                                                  RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                CommandParameter="{Binding PlacementTarget.DataContext,
+                                                          RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                      <MenuItem Header="{i18n:T Main.Attachment.ToArchive}"
+                                Command="{Binding PlacementTarget.Tag.ArchiveAttachmentCommand,
+                                                  RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                CommandParameter="{Binding PlacementTarget.DataContext,
+                                                          RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                      <Separator />
+                      <MenuItem Header="{i18n:T Main.Attachment.PdfPreview}"
+                                Command="{Binding PlacementTarget.Tag.PreviewAttachmentCommand,
+                                                  RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                CommandParameter="{Binding PlacementTarget.DataContext,
+                                                          RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                    </ContextMenu>
+                  </Button.ContextMenu>
+                </Button>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          </DockPanel>
+        </Border>
+
+        <wv:WebView2 x:Name="BodyView" DefaultBackgroundColor="Transparent" />
+      </DockPanel>
+
+    </Grid>
+  </DockPanel>
+</Window>

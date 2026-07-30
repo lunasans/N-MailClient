@@ -1,0 +1,550 @@
+﻿<Window x:Class="NMailClient.Poc.Views.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:i18n="clr-namespace:NMailClient.Poc.Services.I18n"
+        Title="{i18n:T Title.Settings}" Icon="pack://application:,,,/NMailClient.Poc;component/Assets/appicon.ico" Height="720" Width="980" MinHeight="560" MinWidth="780"
+        WindowStartupLocation="CenterOwner" FontFamily="Segoe UI" FontSize="13"
+        Background="{DynamicResource Bg}">
+
+  <DockPanel Margin="12">
+
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal"
+                HorizontalAlignment="Right" Margin="0,12,0,0">
+      <Button Content="{i18n:T Common.Close}" Padding="14,4" IsCancel="True" IsDefault="True" />
+    </StackPanel>
+
+    <TabControl x:Name="Tabs" Background="Transparent" BorderBrush="{DynamicResource Border}">
+
+      <TabItem Header="{i18n:T Settings.Tab.General}">
+        <!-- Der Reiter ist länger als jedes vernünftige Fenster; ohne Bildlauf
+             wäre alles unterhalb der Kante unerreichbar. -->
+        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="16">
+
+          <TextBlock Text="{i18n:T Settings.Section.Appearance}" FontSize="10.5" FontWeight="SemiBold"
+                     Foreground="{DynamicResource TextMuted}" Margin="0,0,0,8" />
+
+          <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+            <TextBlock Text="{i18n:T Settings.Theme}" Width="150" VerticalAlignment="Center" />
+            <ComboBox x:Name="CmbTheme" Width="200" SelectionChanged="Theme_Changed">
+              <ComboBoxItem Content="{i18n:T Settings.Theme.System}" Tag="System" />
+              <ComboBoxItem Content="{i18n:T Settings.Theme.Light}" Tag="Light" />
+              <ComboBoxItem Content="{i18n:T Settings.Theme.Dark}" Tag="Dark" />
+            </ComboBox>
+          </StackPanel>
+
+          <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+            <TextBlock Text="{i18n:T Settings.Language}" Width="150" VerticalAlignment="Center" />
+            <ComboBox x:Name="CmbLanguage" Width="200" SelectionChanged="Language_Changed">
+              <ComboBoxItem Content="{i18n:T Settings.Language.System}" Tag="system" />
+              <ComboBoxItem Content="Deutsch" Tag="de" />
+              <ComboBoxItem Content="English" Tag="en" />
+            </ComboBox>
+          </StackPanel>
+
+          <TextBlock TextWrapping="Wrap" FontSize="11" Margin="0,0,0,14"
+                     Foreground="{DynamicResource TextMuted}"
+                     Text="{i18n:T Settings.Language.Note}" />
+
+          <TextBlock Text="{i18n:T Settings.Section.Cache}" FontSize="10.5" FontWeight="SemiBold"
+                     Foreground="{DynamicResource TextMuted}" Margin="0,0,0,8" />
+
+          <TextBlock TextWrapping="Wrap" FontSize="11" Margin="0,0,0,6"
+                     Foreground="{DynamicResource TextMuted}"
+                     Text="{i18n:T Settings.Cache.Explain}" />
+
+          <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+            <TextBlock x:Name="LblCache" VerticalAlignment="Center" FontSize="12"
+                       Margin="0,0,12,0" Foreground="{DynamicResource TextMuted}" />
+            <Button Content="{i18n:T Settings.Cache.Clear}" Padding="14,4" Click="CacheClear_Click"
+                    ToolTip="{i18n:T Settings.Cache.ClearTip}" />
+          </StackPanel>
+
+          <TextBlock Text="{i18n:T Settings.Section.Tray}" FontSize="10.5" FontWeight="SemiBold"
+                     Foreground="{DynamicResource TextMuted}" Margin="0,0,0,8" />
+
+          <CheckBox x:Name="ChkTray" Margin="0,0,0,6" Click="Tray_Changed"
+                    Content="{i18n:T Settings.Tray.Minimize}"
+                    ToolTip="{i18n:T Settings.Tray.MinimizeTip}" />
+
+          <CheckBox x:Name="ChkAutostart" Margin="0,0,0,6" Click="Autostart_Changed"
+                    Content="{i18n:T Settings.Tray.Autostart}" />
+
+          <CheckBox x:Name="ChkNotify" Margin="0,0,0,6" Click="Notify_Changed"
+                    Content="{i18n:T Settings.Tray.Notify}" />
+
+          <StackPanel Orientation="Horizontal" Margin="20,0,0,14">
+            <CheckBox x:Name="ChkQuiet" VerticalAlignment="Center" Margin="0,0,8,0"
+                      Click="Quiet_Changed" Content="{i18n:T Settings.Tray.QuietFrom}" />
+            <TextBox x:Name="TxtQuietFrom" Width="60" Padding="6,4" LostFocus="Quiet_Changed" />
+            <TextBlock Text="{i18n:T Settings.Tray.QuietTo}" VerticalAlignment="Center" Margin="8,0" />
+            <TextBox x:Name="TxtQuietTo" Width="60" Padding="6,4" LostFocus="Quiet_Changed" />
+            <TextBlock x:Name="LblQuiet" VerticalAlignment="Center" Margin="12,0,0,0"
+                       FontSize="12" Foreground="{DynamicResource TextMuted}" />
+          </StackPanel>
+
+          <TextBlock Text="{i18n:T Settings.Section.List}" FontSize="10.5" FontWeight="SemiBold"
+                     Foreground="{DynamicResource TextMuted}" Margin="0,0,0,8" />
+
+          <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+            <TextBlock Text="{i18n:T Settings.List.PageSize}" Width="150" VerticalAlignment="Center" />
+            <TextBox x:Name="TxtPageSize" Width="80" Padding="6,4"
+                     LostFocus="PageSize_LostFocus" />
+            <TextBlock Text="{i18n:T Settings.List.PageSizeRange}" VerticalAlignment="Center" Margin="10,0,0,0"
+                       Foreground="{DynamicResource TextMuted}" FontSize="12" />
+          </StackPanel>
+
+          <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+            <TextBlock Text="{i18n:T Settings.List.Density}" Width="150" VerticalAlignment="Center" />
+            <ComboBox x:Name="CmbDensity" Width="200" SelectionChanged="Density_Changed">
+              <ComboBoxItem Content="{i18n:T Settings.List.Density.Compact}" Tag="Compact" />
+              <ComboBoxItem Content="{i18n:T Settings.List.Density.Normal}" Tag="Normal" />
+              <ComboBoxItem Content="{i18n:T Settings.List.Density.Comfortable}" Tag="Comfortable" />
+            </ComboBox>
+          </StackPanel>
+
+          <CheckBox x:Name="ChkGroupByDate" Content="{i18n:T Settings.List.GroupByDate}"
+                    Checked="GroupByDate_Changed" Unchecked="GroupByDate_Changed"
+                    Margin="0,6,0,0" />
+
+          <CheckBox x:Name="ChkCategories" Content="{i18n:T Settings.List.Categories}"
+                    Checked="Categories_Changed" Unchecked="Categories_Changed"
+                    Margin="0,6,0,0" />
+
+          <TextBlock Text="{i18n:T Settings.Section.Behaviour}" FontSize="10.5" FontWeight="SemiBold"
+                     Foreground="{DynamicResource TextMuted}" Margin="0,14,0,8" />
+
+          <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+            <TextBlock Text="{i18n:T Settings.Behaviour.UndoSend}" Width="150" VerticalAlignment="Center" />
+            <TextBox x:Name="TxtUndoSeconds" Width="80" Padding="6,4"
+                     LostFocus="UndoSeconds_LostFocus" />
+            <TextBlock Text="{i18n:T Settings.Behaviour.UndoSendUnit}" VerticalAlignment="Center"
+                       Margin="10,0,0,0" Foreground="{DynamicResource TextMuted}" FontSize="12" />
+          </StackPanel>
+
+          <CheckBox x:Name="ChkConfirmDelete" Content="{i18n:T Settings.Behaviour.ConfirmDelete}"
+                    Checked="ConfirmDelete_Changed" Unchecked="ConfirmDelete_Changed"
+                    Margin="0,0,0,6" />
+
+          <TextBlock Text="{i18n:T Settings.Section.Archive}" FontSize="10.5" FontWeight="SemiBold"
+                     Foreground="{DynamicResource TextMuted}" Margin="0,16,0,8" />
+
+          <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+            <TextBlock Text="{i18n:T Settings.Archive.Folder}" Width="150" VerticalAlignment="Center" />
+            <TextBox x:Name="TxtArchiveDir" Width="260" Padding="6,4" IsReadOnly="True" />
+            <Button Content="{i18n:T Settings.Archive.Choose}" Padding="10,4" Margin="6,0,0,0" Click="ArchiveDir_Click" />
+            <Button Content="{i18n:T Settings.Archive.Reset}" Padding="10,4" Margin="6,0,0,0"
+                    Click="ArchiveDirReset_Click" />
+          </StackPanel>
+
+          <TextBlock TextWrapping="Wrap" FontSize="11" Margin="0,0,0,4"
+                     Foreground="{DynamicResource TextMuted}"
+                     Text="{i18n:T Settings.Archive.Explain}" />
+
+          <TextBlock Text="{i18n:T Settings.Section.Translate}" FontSize="10.5" FontWeight="SemiBold"
+                     Foreground="{DynamicResource TextMuted}" Margin="0,16,0,8" />
+
+          <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+            <TextBlock Text="{i18n:T Settings.Translate.Url}" Width="150" VerticalAlignment="Center" />
+            <TextBox x:Name="TxtTranslateUrl" Width="260" Padding="6,4"
+                     LostFocus="TranslateUrl_LostFocus"
+                     ToolTip="{i18n:T Settings.Translate.UrlTip}" />
+          </StackPanel>
+
+          <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+            <TextBlock Text="{i18n:T Common.ApiKey}" Width="150" VerticalAlignment="Center" />
+            <PasswordBox x:Name="TxtTranslateKey" Width="260" Padding="6,4"
+                         LostFocus="TranslateKey_LostFocus" />
+          </StackPanel>
+
+          <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+            <TextBlock Text="{i18n:T Settings.Translate.Target}" Width="150" VerticalAlignment="Center" />
+            <TextBox x:Name="TxtTranslateTarget" Width="80" Padding="6,4"
+                     LostFocus="TranslateTarget_LostFocus" ToolTip="{i18n:T Settings.Translate.TargetTip}" />
+          </StackPanel>
+
+          <TextBlock TextWrapping="Wrap" FontSize="11" Margin="0,2,0,0"
+                     Foreground="{DynamicResource TextMuted}"
+                     Text="{i18n:T Settings.Translate.Warning}" />
+
+          <TextBlock Text="{i18n:T Settings.Section.Backup}" FontSize="10.5" FontWeight="SemiBold"
+                     Foreground="{DynamicResource TextMuted}" Margin="0,16,0,8" />
+
+          <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+            <Button Content="{i18n:T Settings.Backup.Export}" Padding="10,4" Margin="0,0,6,0"
+                    Click="BackupExport_Click" />
+            <Button Content="{i18n:T Settings.Backup.Import}" Padding="10,4" Click="BackupImport_Click" />
+          </StackPanel>
+
+          <TextBlock TextWrapping="Wrap" FontSize="11"
+                     Foreground="{DynamicResource TextMuted}"
+                     Text="{i18n:T Settings.Backup.Explain}" />
+
+          <TextBlock Margin="0,20,0,0" TextWrapping="Wrap" FontSize="12"
+                     Foreground="{DynamicResource TextMuted}"
+                     Text="{i18n:T Settings.SavedImmediately}" />
+
+          <TextBlock x:Name="LblPaths" Margin="0,10,0,0" TextWrapping="Wrap" FontSize="11"
+                     Foreground="{DynamicResource TextMuted}" />
+        </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
+      <TabItem Header="{i18n:T Settings.Tab.Accounts}" x:Name="TabAccounts">
+        <Border Margin="16" x:Name="AccountsHost" />
+      </TabItem>
+
+      <TabItem Header="{i18n:T Settings.Tab.Labels}">
+        <Grid Margin="16">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="220" />
+            <ColumnDefinition Width="16" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
+
+          <DockPanel Grid.Column="0">
+            <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,8,0,0">
+              <Button Content="{i18n:T Common.New}" Width="60" Margin="0,0,6,0" Click="LabelNew_Click" />
+              <Button Content="{i18n:T Common.Remove}" Width="90" Click="LabelRemove_Click" />
+            </StackPanel>
+            <ListBox x:Name="LabelList" SelectionChanged="LabelList_SelectionChanged">
+              <ListBox.ItemTemplate>
+                <DataTemplate>
+                  <StackPanel Orientation="Horizontal" Margin="2">
+                    <Border Width="12" Height="12" CornerRadius="6" Margin="0,0,8,0"
+                            Background="{Binding Color}" />
+                    <TextBlock Text="{Binding Display}" />
+                  </StackPanel>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </DockPanel>
+
+          <StackPanel Grid.Column="2" x:Name="LabelEditor" IsEnabled="False">
+            <TextBlock Text="{i18n:T Settings.Labels.Display}" Margin="0,0,0,2" />
+            <TextBox x:Name="TxtLabelName" Padding="6,4" Margin="0,0,0,10" />
+
+            <TextBlock Text="{i18n:T Settings.Labels.Colour}" Margin="0,0,0,2" />
+            <ComboBox x:Name="CmbLabelColor" Width="220" HorizontalAlignment="Left"
+                      Margin="0,0,0,10">
+              <ComboBox.ItemTemplate>
+                <DataTemplate>
+                  <StackPanel Orientation="Horizontal">
+                    <Border Width="14" Height="14" CornerRadius="7" Margin="0,0,8,0"
+                            Background="{Binding}" />
+                    <TextBlock Text="{Binding}" />
+                  </StackPanel>
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+
+            <TextBlock Text="{i18n:T Settings.Labels.Keyword}" Margin="0,0,0,2" />
+            <TextBlock x:Name="LblKeyword" FontFamily="Consolas" Margin="0,0,0,4"
+                       Foreground="{DynamicResource TextMuted}" />
+            <TextBlock TextWrapping="Wrap" FontSize="11" Margin="0,0,0,12"
+                       Foreground="{DynamicResource TextMuted}"
+                       Text="{i18n:T Settings.Labels.KeywordExplain}" />
+
+            <Button Content="{i18n:T Common.Apply}" HorizontalAlignment="Left" Padding="14,4"
+                    Click="LabelApply_Click" Style="{StaticResource AccentButton}" />
+          </StackPanel>
+        </Grid>
+      </TabItem>
+
+      <TabItem Header="{i18n:T Settings.Tab.Mailcow}">
+        <DockPanel Margin="16">
+          <StackPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+              <Button Content="{i18n:T Settings.Mailcow.Connect}" Padding="14,5" Margin="0,0,10,0"
+                      Click="McLoad_Click" />
+              <TextBlock x:Name="LblMcStatus" VerticalAlignment="Center" TextWrapping="Wrap" />
+            </StackPanel>
+
+            <Border Background="{DynamicResource Panel}" BorderBrush="{DynamicResource Border}"
+                    BorderThickness="1" CornerRadius="4" Padding="12,9"
+                    Visibility="Collapsed" x:Name="McQuotaBox">
+              <StackPanel>
+                <TextBlock x:Name="LblMcQuota" FontWeight="SemiBold" />
+                <ProgressBar x:Name="BarMcQuota" Height="8" Margin="0,6,0,0" Maximum="100" />
+              </StackPanel>
+            </Border>
+          </StackPanel>
+
+          <TabControl>
+            <TabItem Header="{i18n:T Settings.Mailcow.Aliases}">
+              <DockPanel Margin="10">
+                <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,8,0,0">
+                  <TextBox x:Name="TxtMcAliasAddress" Width="240" Padding="6,4" Margin="0,0,6,0"
+                           ToolTip="{i18n:T Settings.Mailcow.AliasNew}" />
+                  <Button Content="{i18n:T Common.Add}" Padding="14,4" Margin="0,0,6,0" Click="McAliasAdd_Click" />
+                  <Button Content="{i18n:T Common.Remove}" Padding="14,4" Click="McAliasDelete_Click" />
+                </StackPanel>
+                <ListBox x:Name="McAliasList" DisplayMemberPath="Display" />
+              </DockPanel>
+            </TabItem>
+
+            <TabItem Header="{i18n:T Settings.Mailcow.AppPasswords}">
+              <DockPanel Margin="10">
+                <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,8,0,0">
+                  <TextBox x:Name="TxtMcAppName" Width="200" Padding="6,4" Margin="0,0,6,0"
+                           ToolTip="{i18n:T Settings.Mailcow.AppNameTip}" />
+                  <Button Content="{i18n:T Common.Add}" Padding="14,4" Margin="0,0,6,0" Click="McAppAdd_Click" />
+                  <Button Content="{i18n:T Common.Remove}" Padding="14,4" Click="McAppDelete_Click" />
+                </StackPanel>
+                <ListView x:Name="McAppList" BorderThickness="0">
+                  <ListView.View>
+                    <GridView>
+                      <GridViewColumn Header="{i18n:T Common.Name}" Width="220"
+                                      DisplayMemberBinding="{Binding Display}" />
+                      <GridViewColumn Header="{i18n:T Settings.Mailcow.Access}" Width="220"
+                                      DisplayMemberBinding="{Binding Protocols}" />
+                    </GridView>
+                  </ListView.View>
+                </ListView>
+              </DockPanel>
+            </TabItem>
+
+            <TabItem Header="{i18n:T Settings.Mailcow.Quarantine}">
+              <DockPanel Margin="10">
+                <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,8,0,0">
+                  <Button Content="{i18n:T Settings.Mailcow.Release}" Padding="14,4" Margin="0,0,6,0"
+                          Click="McQuarantineRelease_Click"
+                          ToolTip="{i18n:T Settings.Mailcow.ReleaseTip}" />
+                  <Button Content="{i18n:T Settings.Mailcow.LearnSpam}" Padding="14,4" Margin="0,0,6,0"
+                          Click="McQuarantineSpam_Click" />
+                  <Button Content="{i18n:T Common.Delete}" Padding="14,4" Click="McQuarantineDelete_Click" />
+                </StackPanel>
+                <ListView x:Name="McQuarantineList" BorderThickness="0">
+                  <ListView.View>
+                    <GridView>
+                      <GridViewColumn Header="{i18n:T Settings.Mailcow.Received}" Width="120"
+                                      DisplayMemberBinding="{Binding Received.LocalDateTime, StringFormat='dd.MM. HH:mm'}" />
+                      <GridViewColumn Header="{i18n:T Settings.Mailcow.Sender}" Width="220"
+                                      DisplayMemberBinding="{Binding Sender}" />
+                      <GridViewColumn Header="{i18n:T Common.Subject}" Width="280"
+                                      DisplayMemberBinding="{Binding Subject}" />
+                      <GridViewColumn Header="{i18n:T Settings.Mailcow.Score}" Width="60"
+                                      DisplayMemberBinding="{Binding ScoreDisplay}" />
+                    </GridView>
+                  </ListView.View>
+                </ListView>
+              </DockPanel>
+            </TabItem>
+          </TabControl>
+        </DockPanel>
+      </TabItem>
+
+      <TabItem Header="{i18n:T Settings.Tab.Rules}">
+        <Grid Margin="16">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="220" />
+            <ColumnDefinition Width="16" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
+
+          <DockPanel Grid.Column="0">
+            <StackPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
+              <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                <Button Content="{i18n:T Common.New}" Width="60" Margin="0,0,6,0" Click="RuleNew_Click" />
+                <Button Content="{i18n:T Common.Remove}" Width="90" Click="RuleRemove_Click" />
+              </StackPanel>
+              <Button Content="{i18n:T Settings.Rules.Load}" Padding="0,5" Margin="0,0,0,4"
+                      Click="RulesLoad_Click" />
+              <Button Content="{i18n:T Settings.Rules.Save}" Padding="0,5"
+                      Style="{StaticResource AccentButton}" Click="RulesSave_Click" />
+            </StackPanel>
+
+            <ListBox x:Name="RuleList" DisplayMemberPath="Display"
+                     SelectionChanged="RuleList_SelectionChanged" />
+          </DockPanel>
+
+          <DockPanel Grid.Column="2">
+            <TextBlock DockPanel.Dock="Bottom" x:Name="LblRuleStatus" Margin="0,8,0,0"
+                       TextWrapping="Wrap" FontSize="11.5" />
+
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+              <StackPanel x:Name="RuleEditor" IsEnabled="False">
+
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                  <TextBlock Text="{i18n:T Common.Name}" Width="90" VerticalAlignment="Center" />
+                  <TextBox x:Name="TxtRuleName" Width="260" Padding="6,4"
+                           TextChanged="RuleName_Changed" />
+                  <CheckBox x:Name="ChkRuleEnabled" Content="{i18n:T Common.Active}" Margin="12,0,0,0"
+                            VerticalAlignment="Center" Click="RuleEnabled_Changed" />
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                  <TextBlock Text="{i18n:T Settings.Rules.MatchLabel}" Width="90" VerticalAlignment="Center" />
+                  <ComboBox x:Name="CmbRuleMatch" Width="260"
+                            SelectionChanged="RuleMatch_Changed">
+                    <ComboBoxItem Content="{i18n:T Settings.Rules.MatchAll}" />
+                    <ComboBoxItem Content="{i18n:T Settings.Rules.MatchAny}" />
+                  </ComboBox>
+                </StackPanel>
+
+                <TextBlock Text="{i18n:T Settings.Rules.Conditions}" FontSize="10.5" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextMuted}" Margin="0,8,0,6" />
+
+                <ItemsControl x:Name="ConditionList">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <Border Background="{DynamicResource PanelAlt}" CornerRadius="3"
+                              Padding="8,5" Margin="0,0,0,4">
+                        <DockPanel>
+                          <Button DockPanel.Dock="Right" Content="✕" Width="26" Padding="0"
+                                  Tag="{Binding}" Click="ConditionRemove_Click"
+                                  ToolTip="{i18n:T Settings.Rules.RemoveCondition}" />
+                          <TextBlock Text="{Binding Display}" VerticalAlignment="Center"
+                                     TextWrapping="Wrap" />
+                        </DockPanel>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                  <ComboBox x:Name="CmbCondField" Width="150" Margin="0,0,6,0" />
+                  <ComboBox x:Name="CmbCondTest" Width="130" Margin="0,0,6,0" />
+                  <TextBox x:Name="TxtCondValue" Width="200" Padding="6,4" Margin="0,0,6,0" />
+                  <Button Content="{i18n:T Common.AddItem}" Padding="12,4" Click="ConditionAdd_Click" />
+                </StackPanel>
+
+                <TextBlock x:Name="LblCondHeaderHint" FontSize="11" Margin="0,4,0,0"
+                           Foreground="{DynamicResource TextMuted}"
+                           Text="{i18n:T Settings.Rules.HeaderHint}" />
+
+                <TextBlock Text="{i18n:T Settings.Rules.Actions}" FontSize="10.5" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextMuted}" Margin="0,14,0,6" />
+
+                <ItemsControl x:Name="ActionList">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <Border Background="{DynamicResource PanelAlt}" CornerRadius="3"
+                              Padding="8,5" Margin="0,0,0,4">
+                        <DockPanel>
+                          <Button DockPanel.Dock="Right" Content="✕" Width="26" Padding="0"
+                                  Tag="{Binding}" Click="ActionRemove_Click" />
+                          <TextBlock Text="{Binding Display}" VerticalAlignment="Center"
+                                     TextWrapping="Wrap" />
+                        </DockPanel>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                  <ComboBox x:Name="CmbActionKind" Width="220" Margin="0,0,6,0" />
+                  <TextBox x:Name="TxtActionValue" Width="200" Padding="6,4" Margin="0,0,6,0" />
+                  <Button Content="{i18n:T Common.AddItem}" Padding="12,4" Click="ActionAdd_Click" />
+                </StackPanel>
+
+                <TextBlock Text="{i18n:T Settings.Rules.Vacation}" FontSize="10.5" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextMuted}" Margin="0,18,0,6" />
+
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                  <CheckBox x:Name="ChkVacation" Content="{i18n:T Common.Active}" VerticalAlignment="Center"
+                            Margin="0,0,16,0" />
+                  <TextBlock Text="{i18n:T Settings.Rules.VacationDays}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                  <TextBox x:Name="TxtVacationDays" Width="50" Padding="6,4" Margin="0,0,4,0" />
+                  <TextBlock Text="{i18n:T Settings.Rules.VacationDaysUnit}" VerticalAlignment="Center" Margin="0,0,16,0" />
+                  <TextBlock Text="{i18n:T Settings.Rules.VacationSubject}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                  <TextBox x:Name="TxtVacationSubject" Width="180" Padding="6,4" />
+                </StackPanel>
+
+                <TextBox x:Name="TxtVacationMessage" Height="80" AcceptsReturn="True"
+                         Padding="6" VerticalScrollBarVisibility="Auto"
+                         ToolTip="{i18n:T Settings.Rules.VacationMessageTip}" />
+
+                <TextBlock FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"
+                           Foreground="{DynamicResource TextMuted}"
+                           Text="{i18n:T Settings.Rules.VacationExplain}" />
+              </StackPanel>
+            </ScrollViewer>
+          </DockPanel>
+        </Grid>
+      </TabItem>
+
+      <TabItem Header="{i18n:T Settings.Tab.Sieve}">
+        <Grid Margin="16">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="240" />
+            <ColumnDefinition Width="16" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
+
+          <DockPanel Grid.Column="0">
+            <TextBlock DockPanel.Dock="Top" x:Name="LblSieveServer" FontSize="11"
+                       TextWrapping="Wrap" Margin="0,0,0,6"
+                       Foreground="{DynamicResource TextMuted}" />
+
+            <StackPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
+              <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                <Button Content="{i18n:T Common.New}" Width="60" Margin="0,0,6,0" Click="SieveNew_Click" />
+                <Button Content="{i18n:T Common.Remove}" Width="90" Click="SieveDelete_Click" />
+              </StackPanel>
+              <Button Content="{i18n:T Settings.Mailcow.Connect}" Padding="0,5" Click="SieveLoad_Click" />
+            </StackPanel>
+
+            <ListBox x:Name="SieveList" DisplayMemberPath="Display"
+                     SelectionChanged="SieveList_SelectionChanged" />
+          </DockPanel>
+
+          <DockPanel Grid.Column="2">
+            <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,8,0,0">
+              <Button Content="{i18n:T Settings.Sieve.Check}" Padding="14,4" Margin="0,0,6,0" Click="SieveCheck_Click"
+                      ToolTip="{i18n:T Settings.Sieve.CheckTip}" />
+              <Button Content="{i18n:T Common.Save}" Padding="14,4" Margin="0,0,6,0"
+                      Style="{StaticResource AccentButton}" Click="SieveSave_Click" />
+              <Button Content="{i18n:T Settings.Sieve.Activate}" Padding="14,4" Click="SieveActivate_Click"
+                      ToolTip="{i18n:T Settings.Sieve.ActivateTip}" />
+            </StackPanel>
+
+            <TextBlock DockPanel.Dock="Bottom" x:Name="LblSieveStatus" Margin="0,8,0,0"
+                       TextWrapping="Wrap" FontSize="11.5" />
+
+            <TextBox x:Name="TxtSieveScript" AcceptsReturn="True" AcceptsTab="True"
+                     FontFamily="Consolas" FontSize="12.5" Padding="6"
+                     VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                     SpellCheck.IsEnabled="False" />
+          </DockPanel>
+        </Grid>
+      </TabItem>
+
+      <TabItem Header="{i18n:T Settings.Tab.Encryption}">
+        <DockPanel Margin="16">
+          <TextBlock DockPanel.Dock="Top" TextWrapping="Wrap" FontSize="11"
+                     Margin="0,0,0,10" Foreground="{DynamicResource TextMuted}"
+                     Text="{i18n:T Settings.Pgp.Explain}" />
+
+          <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,10,0,0">
+            <Button Content="{i18n:T Settings.Pgp.Generate}" Width="100" Margin="0,0,6,0" Click="PgpGenerate_Click"
+                    ToolTip="{i18n:T Settings.Pgp.GenerateTip}" />
+            <Button Content="{i18n:T Settings.Pgp.Import}" Width="100" Margin="0,0,6,0" Click="PgpImport_Click"
+                    ToolTip="{i18n:T Settings.Pgp.ImportTip}" />
+            <Button Content="{i18n:T Settings.Pgp.Export}" Width="110" Margin="0,0,6,0" Click="PgpExport_Click"
+                    ToolTip="{i18n:T Settings.Pgp.ExportTip}" />
+            <Button Content="{i18n:T Common.Remove}" Width="100" Click="PgpDelete_Click" />
+          </StackPanel>
+
+          <TextBlock DockPanel.Dock="Bottom" x:Name="LblPgpDir" FontSize="10.5"
+                     Margin="0,10,0,0" Foreground="{DynamicResource TextMuted}" />
+
+          <ListView x:Name="PgpList">
+            <ListView.View>
+              <GridView>
+                <GridViewColumn Header="{i18n:T Settings.Pgp.UserId}" Width="220" DisplayMemberBinding="{Binding UserId}" />
+                <GridViewColumn Header="{i18n:T Settings.Pgp.KeyId}" Width="150"
+                                DisplayMemberBinding="{Binding KeyId}" />
+                <GridViewColumn Header="{i18n:T Settings.Pgp.Kind}" Width="80" DisplayMemberBinding="{Binding Kind}" />
+                <GridViewColumn Header="{i18n:T Settings.Pgp.Validity}" Width="150"
+                                DisplayMemberBinding="{Binding ExpiryDisplay}" />
+              </GridView>
+            </ListView.View>
+          </ListView>
+        </DockPanel>
+      </TabItem>
+
+    </TabControl>
+  </DockPanel>
+</Window>

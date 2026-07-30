@@ -1,0 +1,57 @@
+name: Build & Test
+
+# Baut und testet die C#/WPF-Anwendung im Repo-Wurzelverzeichnis.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-test:
+    name: Build & Test (Windows)
+    # WPF laesst sich nur unter Windows bauen.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: .NET einrichten
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Abhaengigkeiten wiederherstellen
+        run: dotnet restore NMailClient.Poc.slnx
+
+      - name: Bauen
+        run: dotnet build NMailClient.Poc.slnx --configuration Release --no-restore
+
+      # Netzwerktests ausgeschlossen: sie fragen echte Anbieter (Autoconfig, DNS) ab
+      # und waeren in CI flatterhaft. Lokal laufen sie mit.
+      - name: Testen
+        run: >
+          dotnet test NMailClient.Poc.Tests/NMailClient.Poc.Tests.csproj
+          --configuration Release --no-build
+          --filter "Category!=Network"
+          --logger "trx;LogFileName=test-results.trx"
+
+      - name: Testergebnisse sichern
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: NMailClient.Poc.Tests/TestResults/*.trx
+
+      - name: Veroeffentlichen (einzelne EXE)
+        run: >
+          dotnet publish NMailClient.Poc/NMailClient.Poc.csproj
+          --configuration Release
+          --runtime win-x64 --self-contained false
+          -p:PublishSingleFile=true
+          --output publish
+
+      - name: EXE als Artefakt ablegen
+        uses: actions/upload-artifact@v4
+        with:
+          name: NMailClient.Poc
+          path: publish/NMailClient.Poc.exe
