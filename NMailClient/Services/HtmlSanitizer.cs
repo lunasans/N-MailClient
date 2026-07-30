@@ -7,12 +7,19 @@ namespace NMailClient.Services;
 /// Bilder-Blocker der Go-Version.
 ///
 /// <para><b>Offener Punkt:</b> die Erkennung arbeitet mit regulaeren Ausdruecken.
-/// Das war vertretbar, solange dies eine Machbarkeitsstudie war; fuer fremdes
-/// HTML ist es die falsche Werkzeugklasse — Angreifer schreiben nicht das
-/// wohlgeformte Markup, auf das ein Ausdruck passt. Der Ersatz ist ein echter
-/// Parser (AngleSharp), der den Baum aufbaut und beim Serialisieren filtert.
-/// Bis dahin traegt die zweite Verteidigungslinie: die Anzeige laeuft in einer
-/// WebView2 ohne Skriptausfuehrung.</para>
+/// Fuer fremdes HTML ist das die falsche Werkzeugklasse — jedes Muster hier
+/// setzt Markup voraus, das ein Angreifer nicht schreiben muss: <c>OnAttr</c>
+/// verlangt gequotete Attributwerte, <c>ScriptTag</c> ein schliessendes Tag,
+/// <c>RemoteImg</c> ein ausgeschriebenes <c>http(s):</c>. Ungequotet,
+/// unabgeschlossen oder protokollrelativ geht alles davon durch.</para>
+///
+/// <para>Fuer <b>Skript</b> ist das seit 0.9.1 folgenlos: die Mailansicht laeuft
+/// mit <c>IsScriptEnabled = false</c>, siehe <c>MainWindow.SetupWebView</c>.
+/// Was bleibt, ist <b>Nachverfolgung</b> — ein <c>&lt;img src=//zaehler/p.gif&gt;</c>,
+/// ein <c>&lt;link rel=stylesheet&gt;</c> oder ein <c>srcset</c> laedt trotz
+/// blockierter Bilder und verraet dem Absender das Lesen. Das behebt erst ein
+/// echter Parser (AngleSharp) mit Positivliste, flankiert von einer
+/// Content-Security-Policy im <c>Shell</c>-Kopf.</para>
 /// </summary>
 public static class HtmlSanitizer
 {

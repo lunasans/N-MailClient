@@ -121,10 +121,13 @@ ausdrücklich als *ungeprüft* gekennzeichnet. Ergebnisse werden pro Domain geca
 - **Passwörter** liegen im **Windows-Anmeldeinformationsverwalter**, nicht in `db.json`
   (Ziel `NMailClient:mail:<accountId>`). Die frühere DPAPI-Variante wird beim ersten
   Start automatisch übernommen und aus der Datei entfernt.
-- **`HtmlSanitizer` ist regex-basiert.** Hier gehört ein echter Parser hin (AngleSharp):
-  reguläre Ausdrücke passen auf wohlgeformtes Markup, und genau das schreibt ein
-  Angreifer nicht. Bis dahin trägt die zweite Verteidigungslinie — die Anzeige läuft
-  in einer WebView2 ohne Skriptausführung. **Offener Punkt.**
+- **`HtmlSanitizer` ist regex-basiert.** Jedes Muster setzt Markup voraus, das ein
+  Angreifer nicht schreiben muss: gequotete Attributwerte, ein schließendes
+  `</script>`, ein ausgeschriebenes `http(s):`. Für **Skript** ist das folgenlos —
+  die Mailansicht läuft mit `IsScriptEnabled = false`. Für **Nachverfolgung** nicht:
+  `<img src=//zähler/p.gif>`, `<link rel=stylesheet>` oder `srcset` laden trotz
+  blockierter Bilder. **Offener Punkt** — behoben erst durch einen echten Parser
+  (AngleSharp) mit Positivliste plus Content-Security-Policy.
 - **WebView2 braucht die Evergreen-Runtime.** Auf Windows 11 ist sie vorinstalliert; fehlt
   sie, bleibt die Mailanzeige leer und die Statusleiste meldet das — die App läuft weiter.
 - **Dark Mode bei HTML-Mails ist eine Näherung.** Mails bringen eigene harte Farben mit;

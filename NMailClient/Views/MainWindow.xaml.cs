@@ -179,6 +179,17 @@ public partial class MainWindow : Window
             s.IsZoomControlEnabled = true;
             s.AreHostObjectsAllowed = false;
 
+            // Kein Skript aus fremden Mails. Bis hierhin war der regex-basierte
+            // HtmlSanitizer die einzige Instanz, die Skript aufhielt — und er setzt
+            // Markup voraus, das ein Angreifer nicht schreiben muss: ein
+            // ungequotetes onerror= oder ein <script> ohne schliessendes Tag geht
+            // durch jedes seiner Muster hindurch. Das genuegte, um beim blossen
+            // Oeffnen einer Mail deren Inhalt nach draussen zu schicken.
+            //
+            // Die Mailansicht braucht kein Skript: es gibt im ganzen Projekt keinen
+            // ExecuteScriptAsync-Aufruf, und Mails sind Dokumente, keine Anwendungen.
+            s.IsScriptEnabled = false;
+
             // Links aus Mails im Systembrowser öffnen, nicht in der Mailansicht
             // (Feature der Go-Version, dort über Wails BrowserOpenURL).
             core.NavigationStarting += (_, e) =>
