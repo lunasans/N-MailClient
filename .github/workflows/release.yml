@@ -113,6 +113,12 @@ jobs:
       # Uebrig bliebe die blosse Vergleichs-URL. Der Text steht deshalb in der
       # annotierten Tag-Nachricht - dort, wo beim Taggen ohnehin beschrieben
       # wird, was die Version ausmacht.
+      #
+      # ACHTUNG beim Taggen: Git entfernt Zeilen, die mit '#' beginnen, aus
+      # Tag- und Commit-Nachrichten - Markdown-Ueberschriften verschwinden also
+      # spurlos. Entweder `git tag --cleanup=verbatim` verwenden oder auf '#'
+      # verzichten und **Fettschrift** als Gliederung nehmen. In v0.9.2 ist
+      # genau das passiert.
       - name: Release-Text aus der Tag-Nachricht holen
         if: github.ref_type == 'tag'
         shell: bash
@@ -140,24 +146,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Muss angestossen werden statt zu lauschen: der Release oben entsteht mit
-      # GITHUB_TOKEN, und daraus folgende Ereignisse starten keine weiteren
-      # Workflows. Der Anstoss braucht deshalb den PAT, nicht GITHUB_TOKEN —
-      # mit dem waere er derselben Sperre unterworfen.
-      - name: winget-Einreichung anstossen
-        if: github.ref_type == 'tag'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.WINGET_TOKEN }}
-        run: |
-          # Der secrets-Kontext steht in `if:` auf Schritt-Ebene nicht zur
-          # Verfuegung, die Pruefung muss also hierher.
-          if [ -z "$GH_TOKEN" ]; then
-            echo "Kein WINGET_TOKEN hinterlegt - winget-Einreichung uebersprungen."
-            exit 0
-          fi
-
-          gh workflow run winget.yml \
-            --repo "${{ github.repository }}" \
-            --ref main \
-            --field tag="${{ github.ref_name }}"
+      # Die winget-Einreichung wird hier bewusst NICHT angestossen. Der Wechsel
+      # von der Electron- auf die C#-Fassung aendert ProductCode und
+      # Installationsumfang; ob und wie die Bestandsinstallationen abgeloest
+      # werden, ist noch nicht entschieden. Bis dahin waere jede automatische
+      # Einreichung eine Entscheidung, die niemand getroffen hat.
+      #
+      # .github/workflows/winget.yml liegt bereit und nimmt den Tag als Eingabe;
+      # es laesst sich jederzeit von Hand starten. Beachten: der WINGET_TOKEN ist
+      # derzeit ungueltig (HTTP 401), er muss vorher erneuert werden.
