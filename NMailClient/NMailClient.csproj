@@ -14,7 +14,7 @@
     <!-- Die einzige Stelle, an der die Version steht. Die „Über"-Ansicht und
          die Suche nach Aktualisierungen lesen sie aus dem Assembly, das Setup
          bekommt sie von build.ps1 übergeben. -->
-    <Version>0.9.1</Version>
+    <Version>0.9.2</Version>
     <Product>N-MailClient</Product>
     <Company>lunasans</Company>
     <RootNamespace>NMailClient</RootNamespace>

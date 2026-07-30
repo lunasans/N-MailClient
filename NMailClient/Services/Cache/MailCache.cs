@@ -47,27 +47,100 @@ public sealed class MailCache : IDisposable
         var directory = System.IO.Path.GetDirectoryName(Path);
         if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
 
-        _db = new SqliteConnection(new SqliteConnectionStringBuilder
+        try
+        {
+            _db = OpenAndPrepare();
+        }
+        catch (SqliteException ex) when (IsUnusable(ex))
+        {
+            // Der Zwischenspeicher ist jederzeit vom Server wiederherstellbar.
+            // Eine unlesbare Datei ist deshalb kein Grund, die Anwendung
+            // unbrauchbar zu machen — sie wird verworfen und neu angelegt.
+            //
+            // Anlass war 0.9.1: dessen Datenuebernahme kopierte -wal und -shm
+            // der alten Datenbank neben eine andere cache.db. SQLite findet dann
+            // ein Write-Ahead-Log mit fremden Pruefsummen und meldet Fehler 11,
+            // 'database disk image is malformed'. Wer davon getroffen wurde, hat
+            // die Dateien noch liegen; hier werden sie eingesammelt.
+            AppLog.Warn($"Zwischenspeicher unbrauchbar ({ex.SqliteErrorCode}: {ex.Message}) "
+                        + "— wird verworfen und neu aufgebaut.");
+
+            Discard();
+            _db = OpenAndPrepare();
+        }
+    }
+
+    /// <summary>
+    /// Fehler, bei denen ein Neuanfang die richtige Antwort ist: die Datei ist
+    /// beschaedigt oder gar keine Datenbank. Andere Fehler — etwa eine gesperrte
+    /// Datei — duerfen <b>nicht</b> zum Loeschen fuehren; da hilft Warten, nicht
+    /// Wegwerfen.
+    /// </summary>
+    private static bool IsUnusable(SqliteException ex)
+        => ex.SqliteErrorCode is 11 /* SQLITE_CORRUPT */ or 26 /* SQLITE_NOTADB */;
+
+    /// <summary>
+    /// Datenbank samt Begleitdateien entfernen. -wal und -shm gehoeren dazu:
+    /// bleibt eines davon liegen, ist die frisch angelegte Datei sofort wieder
+    /// beschaedigt — genau so ist der Fehler ueberhaupt entstanden.
+    /// </summary>
+    private void Discard()
+    {
+        // Microsoft.Data.Sqlite haelt Verbindungen in einem Pool; ein blosses
+        // Dispose gibt die Datei deshalb nicht frei, und Loeschen schluege fehl.
+        SqliteConnection.ClearAllPools();
+
+        foreach (var suffix in new[] { "", "-wal", "-shm" })
+        {
+            try { File.Delete(Path + suffix); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                AppLog.Warn($"'{System.IO.Path.GetFileName(Path + suffix)}' "
+                            + $"liess sich nicht entfernen: {ex.Message}");
+            }
+        }
+    }
+
+    private SqliteConnection OpenAndPrepare()
+    {
+        var connection = new SqliteConnection(new SqliteConnectionStringBuilder
         {
             DataSource = Path,
             Mode = SqliteOpenMode.ReadWriteCreate,
         }.ToString());
 
-        _db.Open();
+        try
+        {
+            connection.Open();
 
-        // WAL: Lesen blockiert nicht, während im Hintergrund geschrieben wird.
-        Execute("PRAGMA journal_mode = WAL;");
-        Execute("PRAGMA synchronous = NORMAL;");
+            // WAL: Lesen blockiert nicht, während im Hintergrund geschrieben wird.
+            Execute(connection, "PRAGMA journal_mode = WAL;");
+            Execute(connection, "PRAGMA synchronous = NORMAL;");
 
-        CacheSchema.Apply(_db);
+            // Beschaedigung zeigt sich oft erst beim ersten echten Zugriff, nicht
+            // beim Open — deshalb hier und nicht erst beim ersten Abruf.
+            Execute(connection, "PRAGMA quick_check;");
+
+            CacheSchema.Apply(connection);
+            return connection;
+        }
+        catch
+        {
+            // Ohne das bliebe die Datei offen — und genau die soll der Aufrufer
+            // gleich loeschen koennen.
+            connection.Dispose();
+            throw;
+        }
     }
 
-    private void Execute(string sql)
+    private static void Execute(SqliteConnection connection, string sql)
     {
-        using var command = _db.CreateCommand();
+        using var command = connection.CreateCommand();
         command.CommandText = sql;
         command.ExecuteNonQuery();
     }
+
+    private void Execute(string sql) => Execute(_db, sql);
 
     // ---- Ordnerstand -------------------------------------------------------
 
