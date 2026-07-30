@@ -1,0 +1,29 @@
+name: Submit to winget
+
+# Reicht bei jedem veröffentlichten (stabilen) Release automatisch ein aktualisiertes
+# winget-Manifest als Pull Request bei microsoft/winget-pkgs ein.
+#
+# Voraussetzungen (einmalig):
+#  1. Das Paket muss in winget-pkgs schon existieren — die ERSTE Version einmalig
+#     manuell einreichen.
+#  2. Secret WINGET_TOKEN: ein klassischer GitHub-PAT mit Scope "public_repo"
+#     (forkt winget-pkgs und öffnet den PR).
+#  3. Der Release muss das Setup als Asset enthalten (siehe release.yml).
+
+on:
+  release:
+    types: [released]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: winget-Manifest aktualisieren & einreichen
+        uses: vedantmgoyal9/winget-releaser@v2
+        with:
+          identifier: Lunasans.NMailClient
+          # Das Inno-Setup heisst NMailClient-<version>-setup.exe. Die
+          # eigenstaendige EXE haengt zwar auch am Release, ist aber kein
+          # Installer und darf hier nicht mitgefasst werden.
+          installers-regex: '-setup\.exe$'
+          token: ${{ secrets.WINGET_TOKEN }}

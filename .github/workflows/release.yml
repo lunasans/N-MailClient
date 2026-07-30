@@ -1,0 +1,98 @@
+name: Build & Release
+
+# Baut bei jedem Tag v* die eigenstaendige EXE und das Inno-Setup und
+# veroeffentlicht beides als GitHub-Release.
+#
+# Die eigentliche Arbeit macht installer\build.ps1 — dasselbe Skript wie lokal.
+# Doppelte Bauschritte hier waeren sonst die naechste Stelle, die auseinanderlaeuft.
+#
+# Signieren (optional): sind die Secrets CERT_PFX (Base64 einer .pfx) und
+# CERT_PASSWORD gesetzt, wird das Zertifikat in den Speicher des Runners
+# importiert und build.ps1 signiert damit. Fehlen sie, baut der Lauf
+# unsigniert weiter — ein Release ohne Signatur ist besser als keines.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    name: Build & Release (Windows)
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: .NET einrichten
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # Der Tag ist die Ankuendigung nach aussen, die Projektdatei die Quelle
+      # der Version. Laufen sie auseinander, traegt das Setup eine andere Zahl
+      # als das Release — lieber hier abbrechen als es hinterher zu erklaeren.
+      - name: Version gegen Tag pruefen
+        shell: pwsh
+        run: |
+          $projekt = "NMailClient.Poc\NMailClient.Poc.csproj"
+          $version = ([xml](Get-Content $projekt -Raw)).Project.PropertyGroup.Version |
+                     Where-Object { $_ } | Select-Object -First 1
+          $tag = "${{ github.ref_name }}" -replace '^v', ''
+
+          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $version -ne $tag) {
+            throw "Tag v$tag und <Version> $version in $projekt stimmen nicht ueberein."
+          }
+          Write-Host "Version $version"
+          "VERSION=$version" | Out-File $env:GITHUB_ENV -Append
+
+      - name: Inno Setup installieren
+        run: choco install innosetup -y --no-progress
+
+      - name: Zertifikat importieren (falls hinterlegt)
+        id: cert
+        shell: pwsh
+        env:
+          CERT_PFX: ${{ secrets.CERT_PFX }}
+          CERT_PASSWORD: ${{ secrets.CERT_PASSWORD }}
+        run: |
+          if (-not $env:CERT_PFX) {
+            Write-Host "Kein CERT_PFX hinterlegt - es wird unsigniert gebaut."
+            "thumbprint=" | Out-File $env:GITHUB_OUTPUT -Append
+            exit 0
+          }
+
+          $pfad = Join-Path $env:RUNNER_TEMP "signing.pfx"
+          [IO.File]::WriteAllBytes($pfad, [Convert]::FromBase64String($env:CERT_PFX))
+
+          $pass = ConvertTo-SecureString $env:CERT_PASSWORD -AsPlainText -Force
+          $cert = Import-PfxCertificate -FilePath $pfad `
+                    -CertStoreLocation Cert:\CurrentUser\My -Password $pass
+
+          # Die Datei wird nicht mehr gebraucht; der Runner ist zwar fluechtig,
+          # aber ein privater Schluessel muss nicht laenger herumliegen als noetig.
+          Remove-Item $pfad -Force
+
+          Write-Host "Zertifikat importiert: $($cert.Subject)"
+          "thumbprint=$($cert.Thumbprint)" | Out-File $env:GITHUB_OUTPUT -Append
+
+      - name: Bauen, signieren, Setup erzeugen
+        shell: pwsh
+        run: |
+          $tp = "${{ steps.cert.outputs.thumbprint }}"
+          if ($tp) {
+            .\installer\build.ps1 -Thumbprint $tp
+          } else {
+            .\installer\build.ps1 -SkipSign
+          }
+
+      - name: Release erstellen und Assets hochladen
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            publish/NMailClient-*-setup.exe
+            publish/standalone/NMailClient.Poc.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
