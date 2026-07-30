@@ -6,10 +6,18 @@ name: Build & Release
 # Die eigentliche Arbeit macht installer\build.ps1 — dasselbe Skript wie lokal.
 # Doppelte Bauschritte hier waeren sonst die naechste Stelle, die auseinanderlaeuft.
 #
-# Signieren (optional): sind die Secrets CERT_PFX (Base64 einer .pfx) und
-# CERT_PASSWORD gesetzt, wird das Zertifikat in den Speicher des Runners
-# importiert und build.ps1 signiert damit. Fehlen sie, baut der Lauf
-# unsigniert weiter — ein Release ohne Signatur ist besser als keines.
+# Signieren: die Secrets CSC_LINK_BASE64 (Base64 einer .pfx) und
+# CSC_KEY_PASSWORD stammen noch aus der Electron-Zeit — daher die
+# electron-builder-Namen. Sind sie gesetzt, wandert das Zertifikat in den
+# Speicher des Runners und build.ps1 signiert damit; fehlen sie, baut der Lauf
+# unsigniert weiter.
+#
+# Zur Einordnung: das Zertifikat ist selbstsigniert. Die Electron-Fassung hat
+# deshalb bewusst gar nicht signiert (»sammelt keine SmartScreen-Reputation und
+# loest nur zusaetzliche Warnungen aus«). Hier wird signiert, damit CI und
+# lokaler build.ps1 dasselbe Ergebnis liefern. Die SmartScreen-Warnung
+# verschwindet dadurch nicht — dafuer braucht es ein Zertifikat aus einer
+# anerkannten Kette; zu wechseln ist dann nur der Inhalt der Secrets.
 on:
   push:
     tags:
@@ -54,19 +62,19 @@ jobs:
         id: cert
         shell: pwsh
         env:
-          CERT_PFX: ${{ secrets.CERT_PFX }}
-          CERT_PASSWORD: ${{ secrets.CERT_PASSWORD }}
+          CSC_LINK_BASE64: ${{ secrets.CSC_LINK_BASE64 }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
         run: |
-          if (-not $env:CERT_PFX) {
-            Write-Host "Kein CERT_PFX hinterlegt - es wird unsigniert gebaut."
+          if (-not $env:CSC_LINK_BASE64) {
+            Write-Host "Kein CSC_LINK_BASE64 hinterlegt - es wird unsigniert gebaut."
             "thumbprint=" | Out-File $env:GITHUB_OUTPUT -Append
             exit 0
           }
 
           $pfad = Join-Path $env:RUNNER_TEMP "signing.pfx"
-          [IO.File]::WriteAllBytes($pfad, [Convert]::FromBase64String($env:CERT_PFX))
+          [IO.File]::WriteAllBytes($pfad, [Convert]::FromBase64String($env:CSC_LINK_BASE64))
 
-          $pass = ConvertTo-SecureString $env:CERT_PASSWORD -AsPlainText -Force
+          $pass = ConvertTo-SecureString $env:CSC_KEY_PASSWORD -AsPlainText -Force
           $cert = Import-PfxCertificate -FilePath $pfad `
                     -CertStoreLocation Cert:\CurrentUser\My -Password $pass
 
