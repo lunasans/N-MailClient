@@ -118,8 +118,8 @@ export function MailcowAddAlias(arg1, arg2) {
   return window['go']['main']['App']['MailcowAddAlias'](arg1, arg2);
 }
 
-export function MailcowAddAppPassword(arg1, arg2, arg3) {
-  return window['go']['main']['App']['MailcowAddAppPassword'](arg1, arg2, arg3);
+export function MailcowAddAppPassword(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['MailcowAddAppPassword'](arg1, arg2, arg3, arg4);
 }
 
 export function MailcowAliases(arg1) {
@@ -304,4 +304,8 @@ export function UnifiedInbox() {
 
 export function UpdateAccount(arg1) {
   return window['go']['main']['App']['UpdateAccount'](arg1);
+}
+
+export function WatchFolder(arg1, arg2) {
+  return window['go']['main']['App']['WatchFolder'](arg1, arg2);
 }

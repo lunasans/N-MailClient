@@ -112,17 +112,9 @@ func (a *App) startup(ctx context.Context) {
 	go a.scheduleLoop()
 }
 
-func (a *App) domReady(_ context.Context) {
-	go fixDWMCaption()
-}
-
-// SetNotifPrefs is called by the frontend when notification settings change.
-func (a *App) SetNotifPrefs(inboxOnly bool, quietStart, quietEnd string) {
-	a.notifInboxOnly = inboxOnly
-	a.notifQuietStart = quietStart
-	a.notifQuietEnd = quietEnd
-}
-
+// pollNewMail checks each account's INBOX every 60s and emits "new-mail" when the
+// newest UID advances. (A previous IMAP IDLE approach held persistent connections
+// that clashed with the server's connection limits, so we poll instead.)
 func (a *App) pollNewMail() {
 	ticker := time.NewTicker(60 * time.Second)
 	defer ticker.Stop()
@@ -146,7 +138,7 @@ func (a *App) pollNewMail() {
 				}
 				if newest > knownUID[acc.ID] {
 					knownUID[acc.ID] = newest
-					wruntime.EventsEmit(a.ctx, "new-mail", map[string]interface{}{
+					wruntime.EventsEmit(a.ctx, "new-mail", map[string]any{
 						"subject":   msgs[0].Subject,
 						"from":      msgs[0].From,
 						"accountId": acc.ID,
@@ -158,6 +150,20 @@ func (a *App) pollNewMail() {
 			}
 		}
 	}
+}
+
+// WatchFolder is a no-op kept for the frontend binding (IMAP IDLE reverted).
+func (a *App) WatchFolder(accountID, folder string) {}
+
+func (a *App) domReady(_ context.Context) {
+	go fixDWMCaption()
+}
+
+// SetNotifPrefs is called by the frontend when notification settings change.
+func (a *App) SetNotifPrefs(inboxOnly bool, quietStart, quietEnd string) {
+	a.notifInboxOnly = inboxOnly
+	a.notifQuietStart = quietStart
+	a.notifQuietEnd = quietEnd
 }
 
 func (a *App) inQuietHours() bool {
@@ -1042,12 +1048,12 @@ func (a *App) MailcowAppPasswords(accountID string) ([]mailcow.AppPassword, erro
 	return c.AppPasswords(email)
 }
 
-func (a *App) MailcowAddAppPassword(accountID, name, pass string) error {
+func (a *App) MailcowAddAppPassword(accountID, name, pass string, protocols []string) error {
 	c, email, err := a.mailcowClient(accountID)
 	if err != nil {
 		return err
 	}
-	return c.AddAppPassword(email, name, pass)
+	return c.AddAppPassword(email, name, pass, protocols)
 }
 
 func (a *App) MailcowDeleteAppPassword(accountID, id string) error {

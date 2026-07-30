@@ -66,7 +66,7 @@ export function ListScheduled():Promise<Array<main.ScheduledView>>;
 
 export function MailcowAddAlias(arg1:string,arg2:string):Promise<void>;
 
-export function MailcowAddAppPassword(arg1:string,arg2:string,arg3:string):Promise<void>;
+export function MailcowAddAppPassword(arg1:string,arg2:string,arg3:string,arg4:Array<string>):Promise<void>;
 
 export function MailcowAliases(arg1:string):Promise<Array<mailcow.Alias>>;
 
@@ -159,3 +159,5 @@ export function Translate(arg1:string,arg2:string,arg3:string,arg4:string):Promi
 export function UnifiedInbox():Promise<Array<mail.UnifiedSummary>>;
 
 export function UpdateAccount(arg1:store.Account):Promise<store.Account>;
+
+export function WatchFolder(arg1:string,arg2:string):Promise<void>;

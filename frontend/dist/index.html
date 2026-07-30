@@ -506,10 +506,18 @@ textarea.sc{flex:1;resize:none;border-radius:0;border:none;padding:.45rem;font-f
       <div id="mcAliasList"></div>
     </div>
     <div class="mc-sec" data-s="app" style="display:none">
-      <div style="display:flex;gap:.4rem;margin-bottom:.5rem;flex-wrap:wrap">
+      <div style="display:flex;gap:.4rem;margin-bottom:.35rem;flex-wrap:wrap">
         <input id="mcApName" placeholder="Name (z. B. Thunderbird)" style="flex:1;min-width:120px;font-size:12px">
         <input id="mcApPass" placeholder="Passwort (leer = generieren)" style="flex:1;min-width:120px;font-size:12px">
-        <button class="gho" onclick="mcAddApp()" style="font-size:12px">+ Anlegen</button>
+      </div>
+      <div style="display:flex;gap:.7rem;flex-wrap:wrap;font-size:11px;align-items:center;margin-bottom:.55rem">
+        <label style="display:flex;gap:.25rem;align-items:center"><input type="checkbox" id="mcP_imap" checked> IMAP</label>
+        <label style="display:flex;gap:.25rem;align-items:center"><input type="checkbox" id="mcP_smtp" checked> SMTP</label>
+        <label style="display:flex;gap:.25rem;align-items:center"><input type="checkbox" id="mcP_pop3"> POP3</label>
+        <label style="display:flex;gap:.25rem;align-items:center"><input type="checkbox" id="mcP_sieve"> Sieve</label>
+        <label style="display:flex;gap:.25rem;align-items:center"><input type="checkbox" id="mcP_dav" checked> CardDAV/CalDAV</label>
+        <label style="display:flex;gap:.25rem;align-items:center"><input type="checkbox" id="mcP_eas"> EAS/ActiveSync</label>
+        <button class="gho" onclick="mcAddApp()" style="font-size:12px;margin-left:auto">+ Anlegen</button>
       </div>
       <div id="mcAppList"></div>
     </div>
@@ -1198,6 +1206,20 @@ async function init(){
       $('nmb').style.display='block'
       setTimeout(()=>$('nmb').style.display='none',8000)
       if(localStorage.getItem('notifBell')==='1')playNotifBeep()
+      // Offene Liste aktualisieren, wenn der passende Posteingang gerade sichtbar ist.
+      const inbox=(curFld||'').toUpperCase()==='INBOX'
+      const noSearch=!($('searchInp').value||'').trim()
+      if(noSearch&&!smartActive&&(curAcc===null||(curAcc===d.accountId&&inbox))){
+        refreshMsgs()
+        // Ungelesen-Badges der Ordner aktualisieren
+        reloadFlds(d.accountId).then(()=>renderSb()).catch(()=>{})
+      }
+    })
+    window.runtime.EventsOn('folder-update',d=>{
+      const noSearch=!($('searchInp').value||'').trim()
+      if(noSearch&&!smartActive&&curAcc===d.accountId&&curFld===d.folder){
+        refreshMsgs();reloadFlds(d.accountId).then(()=>renderSb()).catch(()=>{})
+      }
     })
     window.runtime.EventsOn('scheduled-sent',d=>{showUndo('Geplante Mail gesendet: '+(d.subject||''),()=>{})})
   }
@@ -1390,6 +1412,7 @@ async function loadMsgs(){
 }
 
 async function loadUnified(){
+  api().WatchFolder('','').catch(()=>{}) // Ordner-Watcher stoppen (Übersicht)
   renderSb()
   try{msgs=await api().UnifiedInbox();hasMore=false;$('loadMoreBar').style.display='none';renderMsgList(msgs)}catch(e){console.error(e);$('msgList').innerHTML='<div style="padding:1rem;color:var(--danger);font-size:12px;white-space:pre-wrap">Fehler beim Laden:\n'+esc(''+e)+'</div>'}
 }
@@ -1401,6 +1424,7 @@ async function loadSmartCounts(accId){
   try{smartCounts[accId]=await api().SmartCounts(accId);renderSb()}catch(e){}
 }
 async function runSmart(accId,kind){
+  api().WatchFolder('','').catch(()=>{}) // Ordner-Watcher stoppen (Smart-Ordner)
   smartActive=accId+':'+kind
   curAcc=accId;curFld=null;msgOff=0;selectedUIDs.clear();updateBatchBar()
   setCat('alle');renderSb()
@@ -1615,12 +1639,23 @@ async function renderMcApp(accId){
       </div>`).join(''):'<div style="color:var(--subtle);font-size:12px;padding:.3rem">Keine App-Passwörter.</div>'
   }catch(e){$('mcAppList').innerHTML='<div style="color:var(--danger);font-size:12px">Fehler: '+esc(''+e)+'</div>'}
 }
-function mcGenPass(){const c='abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';let s='';for(let i=0;i<16;i++)s+=c[Math.floor(Math.random()*c.length)];return s}
+function mcGenPass(){
+  const L='abcdefghijkmnpqrstuvwxyz',U='ABCDEFGHJKLMNPQRSTUVWXYZ',D='23456789',S='!@#$%*-_+=?'
+  const pick=s=>s[Math.floor(Math.random()*s.length)]
+  const all=L+U+D+S
+  // Mindestens je ein Zeichen aus jeder Klasse (Passwort-Komplexität), Rest zufällig.
+  const arr=[pick(L),pick(U),pick(D),pick(S)]
+  for(let i=0;i<12;i++)arr.push(pick(all))
+  for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]]}
+  return arr.join('')
+}
 async function mcAddApp(){
   const accId=mcAcc;if(!accId)return
   const name=$('mcApName').value.trim()||'App';let pass=$('mcApPass').value.trim()
+  const protos=['imap','smtp','pop3','sieve','dav','eas'].filter(p=>$('mcP_'+p).checked)
+  if(!protos.length){alert('Bitte mindestens ein Protokoll wählen.');return}
   if(!pass){pass=mcGenPass();$('mcApPass').value=pass}
-  try{await api().MailcowAddAppPassword(accId,name,pass);await uiAlert('App-Passwort angelegt:\n\nName: '+name+'\nPasswort: '+pass+'\n\nBitte jetzt notieren.');$('mcApName').value='';$('mcApPass').value='';renderMcApp(accId)}catch(e){alert('Anlegen fehlgeschlagen: '+e)}
+  try{await api().MailcowAddAppPassword(accId,name,pass,protos);await uiAlert('App-Passwort angelegt:\n\nName: '+name+'\nPasswort: '+pass+'\nProtokolle: '+protos.join(', ')+'\n\nBitte jetzt notieren.');$('mcApName').value='';$('mcApPass').value='';renderMcApp(accId)}catch(e){alert('Anlegen fehlgeschlagen: '+e)}
 }
 async function mcDelApp(id){
   const accId=mcAcc;if(!accId)return

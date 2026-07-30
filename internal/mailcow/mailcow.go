@@ -56,8 +56,13 @@ func (c *Client) do(method, path string, body interface{}) ([]byte, error) {
 	if resp.StatusCode >= 400 {
 		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(b)))
 	}
-	// mailcow meldet Fehler teils als 200 mit {"type":"error",...}
-	if bytes.Contains(b, []byte(`"type":"error"`)) || bytes.Contains(b, []byte(`authentication failed`)) {
+	// mailcow meldet Fehler teils als HTTP 200 mit {"type":"danger|error|warning",...}
+	for _, t := range []string{`"type":"danger"`, `"type":"error"`, `"type":"warning"`} {
+		if bytes.Contains(b, []byte(t)) {
+			return nil, fmt.Errorf("%s", strings.TrimSpace(string(b)))
+		}
+	}
+	if bytes.Contains(b, []byte("authentication failed")) {
 		return nil, fmt.Errorf("%s", strings.TrimSpace(string(b)))
 	}
 	return b, nil
@@ -164,14 +169,22 @@ func (c *Client) AppPasswords(mailbox string) ([]AppPassword, error) {
 	return out, nil
 }
 
-func (c *Client) AddAppPassword(mailbox, name, pass string) error {
+func (c *Client) AddAppPassword(mailbox, name, pass string, protocols []string) error {
+	if len(protocols) == 0 {
+		protocols = []string{"imap", "smtp", "pop3", "sieve", "dav"}
+	}
+	// mailcow erwartet die ACL-Namen mit "_access"-Suffix im protocols-Array.
+	acl := []string{}
+	for _, p := range protocols {
+		acl = append(acl, p+"_access")
+	}
 	_, err := c.do("POST", "/add/app-passwd", map[string]interface{}{
 		"username":    mailbox,
 		"app_name":    name,
 		"app_passwd":  pass,
 		"app_passwd2": pass,
 		"active":      "1",
-		"protocols":   []string{"imap", "smtp", "pop3", "sieve", "dav"},
+		"protocols":   acl,
 	})
 	return err
 }
