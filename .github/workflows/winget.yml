@@ -1,18 +1,28 @@
 name: Submit to winget
 
-# Reicht bei jedem veröffentlichten (stabilen) Release automatisch ein aktualisiertes
-# winget-Manifest als Pull Request bei microsoft/winget-pkgs ein.
+# Reicht ein aktualisiertes winget-Manifest als Pull Request bei
+# microsoft/winget-pkgs ein.
 #
-# Voraussetzungen (einmalig):
-#  1. Das Paket muss in winget-pkgs schon existieren — die ERSTE Version einmalig
-#     manuell einreichen.
+# Ausgeloest wird das aus release.yml, nicht mehr ueber `on: release`. Grund:
+# den Release legt dort der Workflow selbst mit GITHUB_TOKEN an, und GitHub
+# laesst Ereignisse aus GITHUB_TOKEN-Aktionen bewusst keine weiteren Workflows
+# starten (sonst waeren Endlosschleifen leicht gebaut). Der `release`-Auslöser
+# feuerte deshalb nur, solange Releases von Hand in der Oberflaeche entstanden.
+#
+# Voraussetzungen:
+#  1. Das Paket muss in winget-pkgs schon existieren — die ERSTE Version
+#     einmalig manuell einreichen. (Lunasans.NMailClient ist vorhanden.)
 #  2. Secret WINGET_TOKEN: ein klassischer GitHub-PAT mit Scope "public_repo"
 #     (forkt winget-pkgs und öffnet den PR).
-#  3. Der Release muss das Setup als Asset enthalten (siehe release.yml).
+#  3. Der Release zum Tag muss das Setup als Asset enthalten.
 
 on:
-  release:
-    types: [released]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release-Tag, z. B. v0.9.1'
+        required: true
+        type: string
 
 jobs:
   publish:
@@ -22,6 +32,7 @@ jobs:
         uses: vedantmgoyal9/winget-releaser@v2
         with:
           identifier: Lunasans.NMailClient
+          release-tag: ${{ inputs.tag }}
           # Das Inno-Setup heisst NMailClient-<version>-setup.exe. Die
           # eigenstaendige EXE haengt zwar auch am Release, ist aber kein
           # Installer und darf hier nicht mitgefasst werden.

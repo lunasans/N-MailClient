@@ -108,13 +108,56 @@ jobs:
             publish/NMailClient-*-setup.exe
             publish/standalone/NMailClient.exe
 
+      # generate_release_notes allein liefert hier nichts: es zaehlt gemergte
+      # Pull Requests auf, und in diesem Repo wird direkt auf main committet.
+      # Uebrig bliebe die blosse Vergleichs-URL. Der Text steht deshalb in der
+      # annotierten Tag-Nachricht - dort, wo beim Taggen ohnehin beschrieben
+      # wird, was die Version ausmacht.
+      - name: Release-Text aus der Tag-Nachricht holen
+        if: github.ref_type == 'tag'
+        shell: bash
+        run: |
+          git fetch --force origin "refs/tags/${{ github.ref_name }}:refs/tags/${{ github.ref_name }}"
+
+          # %(contents) ist der Teil nach der Betreffzeile; die Signatur eines
+          # signierten Tags gehoerte nicht in den Text.
+          {
+            echo 'NOTES<<TAGTEXT_EOF'
+            git tag -l --format='%(contents:subject)%0a%0a%(contents:body)' "${{ github.ref_name }}"
+            echo 'TAGTEXT_EOF'
+          } >> "$GITHUB_ENV"
+
       - name: Release erstellen und Assets hochladen
         if: github.ref_type == 'tag'
         uses: softprops/action-gh-release@v2
         with:
+          body: ${{ env.NOTES }}
+          # Haengt die Vergleichs-URL unter den Text aus der Tag-Nachricht.
           generate_release_notes: true
           files: |
             publish/NMailClient-*-setup.exe
             publish/standalone/NMailClient.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Muss angestossen werden statt zu lauschen: der Release oben entsteht mit
+      # GITHUB_TOKEN, und daraus folgende Ereignisse starten keine weiteren
+      # Workflows. Der Anstoss braucht deshalb den PAT, nicht GITHUB_TOKEN —
+      # mit dem waere er derselben Sperre unterworfen.
+      - name: winget-Einreichung anstossen
+        if: github.ref_type == 'tag'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.WINGET_TOKEN }}
+        run: |
+          # Der secrets-Kontext steht in `if:` auf Schritt-Ebene nicht zur
+          # Verfuegung, die Pruefung muss also hierher.
+          if [ -z "$GH_TOKEN" ]; then
+            echo "Kein WINGET_TOKEN hinterlegt - winget-Einreichung uebersprungen."
+            exit 0
+          fi
+
+          gh workflow run winget.yml \
+            --repo "${{ github.repository }}" \
+            --ref main \
+            --field tag="${{ github.ref_name }}"
